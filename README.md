@@ -1,7 +1,8 @@
-# shtuff
-Shell Stuff - I guess it's a framework?
+<p align="center">
+  <img alt="Shtuff logo" src="assets/logo.png" height=300 />
+</p>
 
-A collection of scripts for everyday use while making bash scripts.
+Shell stuff - A collection of scripts for everyday use while making shell scripts.
 
 # How to source these scripts
 

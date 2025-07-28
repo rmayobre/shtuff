@@ -2,8 +2,7 @@
 
 # Globals
 declare -r DEFAULT_MESSAGE="Loading"
-declare -r DEFAULT_LOADING_COLOR="\033[36m"  # Cyan
-declare -r RESET_COLOR="\033[0m"
+declare -r DEFAULT_LOADING_COLOR="$CYAN"  # Cyan
 # Indicator Characters
 declare -r SPINNER_FRAMES=("⠋" "⠙" "⠹" "⠸" "⠼" "⠴" "⠦" "⠧" "⠇" "⠏")
 declare -r DOT_FRAMES=("." ".." "..." "....")
@@ -33,7 +32,7 @@ function draw_loading_indicator {
     # Loop while PID is still running.
     local i=0
     while kill -0 "$pid" 2>/dev/null; do
-        printf "\r${color}${frames[$i]} ${message}${RESET_COLOR}"
+        printf "\r${color}${frames[$i]} ${message}${NO_COLOR}"
         i=$(( (i + 1) % ${#frames[@]} ))
         sleep 0.1
     done

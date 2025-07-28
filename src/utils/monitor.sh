@@ -111,9 +111,9 @@ function monitor {
 
     # Show completion message
     if [[ $exit_code -eq 0 && -n "$success_msg" ]]; then
-        echo -e "\033[32m✓ $success_msg${RESET_COLOR}"
+        echo -e "\033[32m✓ $success_msg${NO_COLOR}"
     elif [[ $exit_code -ne 0 && -n "$error_msg" ]]; then
-        echo -e "\033[31m✗ $error_msg${RESET_COLOR}"
+        echo -e "\033[31m✗ $error_msg${NO_COLOR}"
     fi
 
     return $exit_code

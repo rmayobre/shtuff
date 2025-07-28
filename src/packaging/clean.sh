@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Function: clean
 # Description: Detects the system's package manager and performs a cleanup
@@ -66,7 +66,7 @@ clean_pacman() {
     echo "--- Running Pacman cleanup (orphan removal and cache cleaning) ---"
     if pacman -Qtdq &> /dev/null; then
         echo "Removing orphaned packages with Pacman..."
-        sudo pacman -Rns --noconfirm $(pacman -Qtdq)
+        sudo pacman -Rns --noconfirm "$(pacman -Qtdq)"
     else
         echo "No orphaned packages found or nothing to remove."
     fi

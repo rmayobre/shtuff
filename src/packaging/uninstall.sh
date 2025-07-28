@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Function: uninstall
 # Usage: uninstall <package1> [package2...]

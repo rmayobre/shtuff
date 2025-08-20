@@ -6,6 +6,7 @@ BASE_URL="https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/"
 source <(curl -sL "${BASE_URL}/src/packaging/clean.sh")
 source <(curl -sL "${BASE_URL}/src/packaging/install.sh")
 source <(curl -sL "${BASE_URL}/src/packaging/uninstall.sh")
+source <(curl -sL "${BASE_URL}/src/packaging/update.sh")
 
 # Graphical helpers
 source <(curl -sL "${BASE_URL}/src/graphics/draw_loading_indicator.sh")

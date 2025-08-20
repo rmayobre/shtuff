@@ -6,6 +6,7 @@ SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SHTUFF_DIR}/src/packaging/clean.sh"
 source "${SHTUFF_DIR}/src/packaging/install.sh"
 source "${SHTUFF_DIR}/src/packaging/uninstall.sh"
+source "${SHTUFF_DIR}/src/packaging/update.sh"
 
 # Graphical helpers
 source "${SHTUFF_DIR}/src/graphics/draw_loading_indicator.sh"

@@ -14,26 +14,30 @@
 #   LOG_FILE      - Enable file logging by setting file path
 #   LOG_TIMESTAMP - Set to "false" to disable timestamps
 
+declare -r ERROR_LEVEL="error"
+declare -r WARN_LEVEL="warn"
+declare -r INFO_LEVEL="info"
+declare -r DEBUG_LEVEL="debug"
+
 # Logging configuration
-LOG_LEVEL=${LOG_LEVEL:-"INFO"}  # Default log level
+LOG_LEVEL=${LOG_LEVEL:-"$INFO_LEVEL"}  # Default log level
 LOG_FILE=${LOG_FILE:-""}        # Optional log file path
 LOG_TIMESTAMP=${LOG_TIMESTAMP:-true}  # Include timestamps
 
 # Log level hierarchy (lower number = higher priority)
 declare -A LOG_LEVELS=(
-    ["ERROR"]=1
-    ["WARN"]=2
-    ["INFO"]=3
-    ["DEBUG"]=4
+    ["$ERROR_LEVEL"]=1
+    ["$WARN_LEVEL"]=2
+    ["$INFO_LEVEL"]=3
+    ["$DEBUG_LEVEL"]=4
 )
 
 # Color codes for console output
 declare -A LOG_COLORS=(
-    ["ERROR"]="$RED"
-    ["WARN"]="$YELLOW"
-    ["INFO"]="$GREEN"
-    ["DEBUG"]="$CYAN"
-    ["RESET"]="$RESET"
+    ["$ERROR_LEVEL"]="$RED"
+    ["$WARN_LEVEL"]="$YELLOW"
+    ["$INFO_LEVEL"]="$GREEN"
+    ["$DEBUG_LEVEL"]="$CYAN"
 )
 
 # Main logging function
@@ -76,7 +80,6 @@ log() {
 
     local level="$1"
     local num_level=${LOG_LEVELS[$level]}
-    local color_level=${LOG_COLORS[$level]}
     local global_level=${LOG_LEVELS[$LOG_LEVEL]}
 
     # Shift to the next parameter position to collect all arguments into a
@@ -110,7 +113,7 @@ log() {
 
     # Output to console with colors (only if outputting to terminal)
     if [[ -t 1 ]]; then
-        echo -e "${LOG_COLORS[$level]}${formatted_message}${LOG_COLORS[RESET]}"
+        echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET"
     else
         echo "$formatted_message"
     fi
@@ -148,7 +151,7 @@ log() {
 # Example:
 #   error "Database connection failed"
 error() {
-    log "ERROR" "$@"
+    log $ERROR_LEVEL "$@"
 }
 
 #
@@ -174,7 +177,7 @@ error() {
 # Example:
 #   warn "Configuration file not found, using defaults"
 warn() {
-    log "WARN" "$@"
+    log $WARN_LEVEL "$@"
 }
 
 #
@@ -200,7 +203,7 @@ warn() {
 # Example:
 #   info "Application started successfully"
 info() {
-    log "INFO" "$@"
+    log $INFO_LEVEL "$@"
 }
 
 #
@@ -227,5 +230,5 @@ info() {
 # Example:
 #   debug "Processing user ID: 12345"
 debug() {
-    log "DEBUG" "$@"
+    log $DEBUG_LEVEL "$@"
 }

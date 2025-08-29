@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 
+declare -r SPINNER_LOADING_STYLE="spinner"
+declare -r DOTS_LOADING_STYLE="dots"
+declare -r BARS_LOADING_STYLE="bars"
+declare -r ARROWS_LOADING_STYLE="arrows"
+declare -r CLOCK_LOADING_STYLE="clock"
+
+# The default loading style picked if not defined in the "monitor functionn.
+DEFAULT_LOADING_STYLE=$SPINNER_LOADING_STYLE
+
 # Function: monitor_process
 # Description: Monitors a running process by PID and displays loading indicator
 # Parameters:
 #   $1 - pid (integer, required): Process ID to monitor
 #   $2 - style (string, optional): Loading indicator style
-#        Valid: spinner, dots, bars, arrows, clock, progress, pulse
+#        Valid: spinner, dots, bars, arrows, clock
 #        Default: "spinner"
 #   $3 - message (string, optional): Message to display during monitoring
 #        Default: "Processing"
@@ -62,31 +71,31 @@ function monitor {
 
     # Dislay loading indicator
     case "$style" in
-        "spinner")
+        "$SPINNER_LOADING_STYLE")
             # Hide cursor
             tput civis
 
             draw_loading_spinner "$pid" "$message"
             ;;
-        "dots")
+        "$DOTS_LOADING_STYLE")
             # Hide cursor
             tput civis
 
             draw_loading_dots "$pid" "$message"
             ;;
-        "bars")
+        "$BARS_LOADING_STYLE")
             # Hide cursor
             tput civis
 
             draw_loading_bars "$pid" "$message"
             ;;
-        "arrows")
+        "$ARROWS_LOADING_STYLE")
             # Hide cursor
             tput civis
 
             draw_loading_arrows "$pid" "$message"
             ;;
-        "clock")
+        "$CLOCK_LOADING_STYLE")
             # Hide cursor
             tput civis
 

@@ -18,6 +18,9 @@ source "${SHTUFF_DIR}/src/packaging/install.sh"
 source "${SHTUFF_DIR}/src/packaging/uninstall.sh"
 source "${SHTUFF_DIR}/src/packaging/update.sh"
 
+# Systemd
+source "${SHTUFF_DIR}/src/systemd/service.sh"
+
 # Utilities
 source "${SHTUFF_DIR}/src/utils/monitor.sh"
 source "${SHTUFF_DIR}/src/utils/stop.sh"

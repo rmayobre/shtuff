@@ -59,7 +59,7 @@ The available tools to build with.
 # Package Management
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)\
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
 
 install htop curl nano   # Install package(s)
 update                   # Update packages and cache
@@ -72,7 +72,7 @@ clean                    # Cleanup unused packages and cache
 Monitor the progress of a background task.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)\
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
 
 DEFAULT_LOADING_STYLE=$SPINNER_LOADING_STYLE
 
@@ -87,8 +87,10 @@ monitor $background_pid \
 
 ## Logging
 
+Logging progress into the terminal and/or file with levels and timestamps.
+
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)\
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
 
 LOG_LEVEL=$DEBUG_LEVEL        # Log everything (default: INFO_LEVEL)
 LOG_FILE="/tmp/logs/test.log" # Log into this file (default: does not log to files)
@@ -98,4 +100,27 @@ error "This is an error level message."
 warn "This is an warning level message."
 info "This is an info level message."
 debug "This is an debug level message."
+```
+
+## Systemd
+
+Create a `.service` file for systemd to manage.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)\
+
+# Create a simple python app
+service \
+    --name "myapp" \
+    --description "My Sample Application" \
+    --exec-start "/usr/bin/python3 /opt/myapp/main.py" \
+    --user "myuser" \
+    --working-directory "/opt/myapp" \
+    --environment "PORT=8080 DEBUG=false" \
+    --restart "always"
+
+# Start service
+systemctl daemon-reload
+systemctl enable myapp.service
+systemctl start myapp.service
 ```

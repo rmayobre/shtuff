@@ -18,6 +18,9 @@ source <(curl -sL "${BASE_URL}/src/packaging/install.sh")
 source <(curl -sL "${BASE_URL}/src/packaging/uninstall.sh")
 source <(curl -sL "${BASE_URL}/src/packaging/update.sh")
 
+# Systemd
+source <(curl -sL "${BASE_URL}/src/systemd/service.sh")
+
 # Utilities
 source <(curl -sL "${BASE_URL}/src/utils/monitor.sh")
 source <(curl -sL "${BASE_URL}/src/utils/stop.sh")

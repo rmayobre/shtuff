@@ -4,11 +4,9 @@
 
 Shell stuff - A collection of scripts for everyday use while making shell scripts.
 
-# How to source these scripts
+# Sourcing Code
 
-These scripts can be accessed via three methods: locally sourced, remote sourced, and forking.
-
-## Local Source
+## Source locally
 
 Use `git` to clone this repo's main branch and source the `shtuff.sh` file to your script.
 
@@ -23,7 +21,7 @@ Source the scripts locally in your script:
 
 source ./shtuff/shtuff.sh # or where ever you cloned the project.
 
-# Now you have access to all my shtuff
+# Now you can build some cool shtuff
 
 install htop curl nano   # Install package(s)
 update                   # Update packages and cache
@@ -33,14 +31,18 @@ clean                    # Cleanup unused packages and cache
 
 Custom shell scripts can reference this repo on it's main branch by sourcing the raw `shtuff-remote.sh` shell file.
 
-## Remote Source
+## Source Remotely
+
+### Source Latest
+
+This will result in always sourcing the latest release. Latest can carry breaking changes. Use with caution.
 
 ```bash
 #!/bin/bash
 
 source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
 
-# Now you have access to all my shtuff
+# Now you can build some cool shtuff
 
 install htop curl nano   # Install package(s)
 update                   # Update packages and cache
@@ -48,13 +50,46 @@ uninstall htop curl nano # Remove package(s)
 clean                    # Cleanup unused packages and cache
 ```
 
-## Forking
+### Source by Release
+
+```bash
+source <(curl -sL https://github.com/rmayobre/shtuff/releases/shtuff.sh.gz | gunzip)
+
+# Now you can build some cool shtuff
+
+install htop curl nano   # Install package(s)
+update                   # Update packages and cache
+uninstall htop curl nano # Remove package(s)
+clean                    # Cleanup unused packages and cache
+```
+
+### Caching Remote Source - Optional
+
+Optionally, you can cache a release of shtuff by extracting the release into a specific directory. "tmp" is a good location as your 
+system will delete these files after reboots. Choose a different location if you want to keep the files longer.
+
+```bash
+# 1. Download and decompress only if the file doesn't exist
+[[ ! -f "/tmp/shtuff/shtuff.sh" ]] && curl -sL "https://github.com/rmayobre/shtuff/releases/shtuff.sh.gz" | gunzip > "/tmp/shtuff/"
+
+# 2. Source the file from the local tmp directory
+source "/tmp/shtuff/shtuff.sh"
+
+# Now you can build some cool shtuff
+
+install htop curl nano   # Install package(s)
+update                   # Update packages and cache
+uninstall htop curl nano # Remove package(s)
+clean                    # Cleanup unused packages and cache
+```
+
+## Source Forks
 
 Just fork the project and write your scripts in the same repository. NOTE: update the base URL defined in the `shtuff-remote.sh` file.
 
-# Tools
+# Functions
 
-The available tools to build with.
+The available functions to build with.
 
 # Package Management
 

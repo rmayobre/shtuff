@@ -14,10 +14,10 @@
 #   LOG_FILE      - Enable file logging by setting file path
 #   LOG_TIMESTAMP - Set to "false" to disable timestamps
 
-declare -r ERROR_LEVEL="error"
-declare -r WARN_LEVEL="warn"
-declare -r INFO_LEVEL="info"
-declare -r DEBUG_LEVEL="debug"
+readonly ERROR_LEVEL="error"
+readonly WARN_LEVEL="warn"
+readonly INFO_LEVEL="info"
+readonly DEBUG_LEVEL="debug"
 
 # Logging configuration
 LOG_LEVEL=${LOG_LEVEL:-"$INFO_LEVEL"}  # Default log level

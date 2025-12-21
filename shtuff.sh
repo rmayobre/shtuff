@@ -20,7 +20,10 @@ source "${SHTUFF_DIR}/src/packaging/update.sh"
 
 # Systemd
 source "${SHTUFF_DIR}/src/systemd/service.sh"
+source "${SHTUFF_DIR}/src/systemd/timer.sh"
 
 # Utilities
 source "${SHTUFF_DIR}/src/utils/monitor.sh"
 source "${SHTUFF_DIR}/src/utils/stop.sh"
+
+timer -h

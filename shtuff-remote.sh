@@ -20,6 +20,7 @@ source <(curl -sL "${BASE_URL}/src/packaging/update.sh")
 
 # Systemd
 source <(curl -sL "${BASE_URL}/src/systemd/service.sh")
+source <(curl -sL "${BASE_URL}/src/systemd/timer.sh")
 
 # Utilities
 source <(curl -sL "${BASE_URL}/src/utils/monitor.sh")

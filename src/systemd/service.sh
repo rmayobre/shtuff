@@ -107,7 +107,7 @@ service() {
                 shift 2
                 ;;
             *)
-                echo "Unknown option: $1" >&2
+                error "Unknown option: $1" >&2
                 return 1
                 ;;
         esac
@@ -115,17 +115,17 @@ service() {
 
     # Validate required parameters
     if [[ -z "$service_name" ]]; then
-        echo "Error: Service name is required (use -n or --name)" >&2
+        error "Error: Service name is required (use -n or --name)" >&2
         return 1
     fi
 
     if [[ -z "$description" ]]; then
-        echo "Error: Service description is required (use -d or --description)" >&2
+        error "Error: Service description is required (use -d or --description)" >&2
         return 1
     fi
 
     if [[ -z "$exec_start" ]]; then
-        echo "Error: ExecStart command is required (use -e or --exec-start)" >&2
+        error "Error: ExecStart command is required (use -e or --exec-start)" >&2
         return 1
     fi
 
@@ -136,7 +136,7 @@ service() {
 
     local service_file="${output_dir}/${service_name}"
 
-    echo "Creating service file: $service_file"
+    info "Creating service file: $service_file"
 
     # Create the service file content
     cat > "$service_file" << EOF

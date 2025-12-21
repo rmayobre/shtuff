@@ -25,7 +25,7 @@ LOG_FILE=${LOG_FILE:-""}        # Optional log file path
 LOG_TIMESTAMP=${LOG_TIMESTAMP:-true}  # Include timestamps
 
 # Log level hierarchy (lower number = higher priority)
-declare -A LOG_LEVELS=(
+readonly -A LOG_LEVELS=(
     ["$ERROR_LEVEL"]=1
     ["$WARN_LEVEL"]=2
     ["$INFO_LEVEL"]=3
@@ -33,7 +33,7 @@ declare -A LOG_LEVELS=(
 )
 
 # Color codes for console output
-declare -A LOG_COLORS=(
+readonly -A LOG_COLORS=(
     ["$ERROR_LEVEL"]="$RED"
     ["$WARN_LEVEL"]="$YELLOW"
     ["$INFO_LEVEL"]="$GREEN"

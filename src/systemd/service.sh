@@ -186,15 +186,5 @@ EOF
 [Install]
 WantedBy=$wanted_by
 EOF
-
-    echo "Service file created successfully!"
-    echo "To enable and start the service, run:"
-    echo "  sudo systemctl daemon-reload"
-    echo "  sudo systemctl enable $service_name"
-    echo "  sudo systemctl start $service_name"
-    echo ""
-    echo "To check service status:"
-    echo "  sudo systemctl status $service_name"
-
     return 0
 }

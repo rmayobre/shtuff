@@ -2,8 +2,8 @@
 
 # BentoPDF Native Update Script (No Docker)
 #
-# Downloads the latest BentoPDF release from GitHub and replaces the
-# existing site files, then reloads nginx.
+# Downloads the latest BentoPDF release from GitHub, replaces the
+# existing site files, and restarts the bentopdf systemd service.
 #
 # Usage:
 #   sudo ./update-bentodpf-native.sh [OPTIONS]
@@ -23,6 +23,7 @@ source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/m
 
 # --- Configuration ---
 readonly BENTODPF_REPO="alam00000/bentopdf"
+readonly BENTODPF_SERVICE="bentopdf"
 BENTODPF_DIR="${BENTODPF_DIR:-/var/www/bentopdf}"
 
 # --- Parse Arguments ---
@@ -99,32 +100,28 @@ monitor $! \
     --success_msg "Files extracted" \
     --error_msg "Failed to extract BentoPDF files" || exit 1
 
-# Locate the directory that contains index.html (handles any zip nesting)
-CONTENT_DIR=$(dirname "$(find /tmp/bentodpf_extract -name "index.html" -maxdepth 4 | head -1)")
-if [[ -z "$CONTENT_DIR" || "$CONTENT_DIR" == "." ]]; then
-    error "Could not locate index.html inside the downloaded archive."
+# Locate the dist/ directory (handles any zip nesting)
+DIST_DIR=$(find /tmp/bentodpf_extract -type d -name "dist" -maxdepth 4 | head -1)
+if [[ -z "$DIST_DIR" ]]; then
+    error "Could not locate dist/ directory inside the downloaded archive."
     exit 1
 fi
+CONTENT_DIR=$(dirname "${DIST_DIR}")
 
 info "Replacing BentoPDF files in ${BENTODPF_DIR}..."
 rm -rf "${BENTODPF_DIR:?}"/*
 cp -r "${CONTENT_DIR}/." "${BENTODPF_DIR}/"
 rm -rf /tmp/bentodpf_extract /tmp/bentodpf.zip
 
-# Restore ownership so nginx can read the updated files
-chown -R www-data:www-data "${BENTODPF_DIR}" 2>/dev/null \
-    || chown -R nginx:nginx "${BENTODPF_DIR}" 2>/dev/null \
-    || warn "Could not set ownership on ${BENTODPF_DIR}; nginx may lack read access."
-
-# --- Step 4: Reload Nginx ---
-info "Reloading nginx..."
-systemctl reload nginx &
+# --- Step 4: Restart Service ---
+info "Restarting BentoPDF service..."
+systemctl restart "${BENTODPF_SERVICE}" &
 monitor $! \
     --style "$SPINNER_LOADING_STYLE" \
-    --message "Reloading nginx" \
-    --success_msg "nginx reloaded successfully!" \
-    --error_msg "Failed to reload nginx" || {
-    error "nginx failed to reload. Check logs with: journalctl -u nginx -n 50"
+    --message "Restarting BentoPDF" \
+    --success_msg "BentoPDF restarted successfully!" \
+    --error_msg "Failed to restart BentoPDF service" || {
+    error "BentoPDF failed to restart. Check logs with: journalctl -u ${BENTODPF_SERVICE} -n 50"
     exit 1
 }
 

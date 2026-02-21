@@ -3,7 +3,7 @@
 # BentoPDF Native Install Script (No Docker)
 #
 # Downloads the latest BentoPDF pre-built release from GitHub and serves it
-# as a static site via nginx using shtuff utilities.
+# via Node.js (npx serve) as a systemd service using shtuff utilities.
 #
 # Usage:
 #   sudo ./install-bentodpf-native.sh [OPTIONS]
@@ -23,8 +23,7 @@ source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/m
 
 # --- Configuration ---
 readonly BENTODPF_REPO="alam00000/bentopdf"
-readonly BENTODPF_NGINX_CONF="/etc/nginx/sites-available/bentopdf"
-readonly BENTODPF_NGINX_ENABLED="/etc/nginx/sites-enabled/bentopdf"
+readonly BENTODPF_SERVICE="bentopdf"
 BENTODPF_PORT="${BENTODPF_PORT:-3000}"
 BENTODPF_DIR="${BENTODPF_DIR:-/var/www/bentopdf}"
 
@@ -78,11 +77,11 @@ monitor $! \
     --error_msg "Failed to update system packages" || exit 1
 
 # --- Step 2: Install Dependencies ---
-info "Installing required packages (nginx, curl, unzip)..."
-install nginx curl unzip &
+info "Installing required packages (nodejs, npm, curl, unzip)..."
+install nodejs npm curl unzip &
 monitor $! \
     --style "$SPINNER_LOADING_STYLE" \
-    --message "Installing nginx, curl, unzip" \
+    --message "Installing nodejs, npm, curl, unzip" \
     --success_msg "Dependencies installed" \
     --error_msg "Failed to install dependencies" || exit 1
 
@@ -120,76 +119,51 @@ monitor $! \
     --success_msg "Files extracted" \
     --error_msg "Failed to extract BentoPDF files" || exit 1
 
-# Locate the directory that contains index.html (handles any zip nesting)
-CONTENT_DIR=$(dirname "$(find /tmp/bentodpf_extract -name "index.html" -maxdepth 4 | head -1)")
-if [[ -z "$CONTENT_DIR" || "$CONTENT_DIR" == "." ]]; then
-    error "Could not locate index.html inside the downloaded archive."
+# Locate the dist/ directory (handles any zip nesting)
+DIST_DIR=$(find /tmp/bentodpf_extract -type d -name "dist" -maxdepth 4 | head -1)
+if [[ -z "$DIST_DIR" ]]; then
+    error "Could not locate dist/ directory inside the downloaded archive."
     exit 1
 fi
+CONTENT_DIR=$(dirname "${DIST_DIR}")
 
 info "Installing BentoPDF files to ${BENTODPF_DIR}..."
 mkdir -p "${BENTODPF_DIR}"
 cp -r "${CONTENT_DIR}/." "${BENTODPF_DIR}/"
 rm -rf /tmp/bentodpf_extract /tmp/bentodpf.zip
 
-# Set ownership so nginx can read the files
-chown -R www-data:www-data "${BENTODPF_DIR}" 2>/dev/null \
-    || chown -R nginx:nginx "${BENTODPF_DIR}" 2>/dev/null \
-    || warn "Could not set ownership on ${BENTODPF_DIR}; nginx may lack read access."
-
-# --- Step 6: Configure Nginx ---
-info "Writing nginx site configuration..."
-cat > "${BENTODPF_NGINX_CONF}" << EOF
-server {
-    listen ${BENTODPF_PORT};
-    server_name _;
-
-    root ${BENTODPF_DIR};
-    index index.html;
-
-    # Route all requests through index.html for client-side navigation
-    location / {
-        try_files \$uri \$uri/ /index.html;
-    }
-
-    # Long-term cache for hashed static assets
-    location ~* \.(js|css|woff2?|ttf|eot|svg|ico|png|jpg|jpeg|gif|webp)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
-EOF
-
-# Enable the site
-ln -sf "${BENTODPF_NGINX_CONF}" "${BENTODPF_NGINX_ENABLED}"
-
-# Remove the default nginx site if it conflicts on port 80
-if [[ "${BENTODPF_PORT}" -eq 80 ]] && [[ -L /etc/nginx/sites-enabled/default ]]; then
-    warn "Removing default nginx site to avoid port 80 conflict."
-    rm -f /etc/nginx/sites-enabled/default
-fi
-
-# Validate nginx configuration
-if ! nginx -t &>/dev/null; then
-    error "nginx configuration test failed. Review ${BENTODPF_NGINX_CONF}."
-    nginx -t
+# --- Step 6: Locate npx ---
+NPX_BIN=$(command -v npx)
+if [[ -z "${NPX_BIN}" ]]; then
+    error "npx not found after installing Node.js. Check your Node.js installation."
     exit 1
 fi
 
-# --- Step 7: Enable and Start Nginx ---
-info "Enabling and starting nginx..."
-systemctl enable nginx
-systemctl restart nginx &
+# --- Step 7: Create Systemd Service ---
+info "Creating BentoPDF systemd service..."
+service \
+    --name "${BENTODPF_SERVICE}" \
+    --description "BentoPDF - Privacy-First PDF Toolkit" \
+    --working-directory "${BENTODPF_DIR}" \
+    --exec-start "${NPX_BIN} serve dist -p ${BENTODPF_PORT}" \
+    --restart "always" \
+    --restart-sec "10" || exit 1
+
+# --- Step 8: Enable and Start BentoPDF ---
+info "Enabling and starting BentoPDF service..."
+systemctl daemon-reload
+systemctl enable "${BENTODPF_SERVICE}"
+systemctl start "${BENTODPF_SERVICE}" &
 monitor $! \
     --style "$SPINNER_LOADING_STYLE" \
-    --message "Starting nginx" \
-    --success_msg "nginx is running!" \
-    --error_msg "Failed to start nginx" || {
-    error "nginx failed to start. Check logs with: journalctl -u nginx -n 50"
+    --message "Starting BentoPDF" \
+    --success_msg "BentoPDF is running!" \
+    --error_msg "Failed to start BentoPDF service" || {
+    error "BentoPDF failed to start. Check logs with: journalctl -u ${BENTODPF_SERVICE} -n 50"
     exit 1
 }
 
 info "BentoPDF installed and running successfully!"
 info "Access BentoPDF at: http://localhost:${BENTODPF_PORT}"
-info "Manage the service with: systemctl {start|stop|restart|status} nginx"
+info "Manage the service with: systemctl {start|stop|restart|status} ${BENTODPF_SERVICE}"
 info "Site files are located at: ${BENTODPF_DIR}"

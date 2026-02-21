@@ -24,6 +24,7 @@ source <(curl -sL "${BASE_URL}/src/systemd/timer.sh")
 
 # Utilities
 source <(curl -sL "${BASE_URL}/src/utils/monitor.sh")
+source <(curl -sL "${BASE_URL}/src/utils/progress.sh")
 source <(curl -sL "${BASE_URL}/src/utils/stop.sh")
 source <(curl -sL "${BASE_URL}/src/utils/copy.sh")
 source <(curl -sL "${BASE_URL}/src/utils/move.sh")

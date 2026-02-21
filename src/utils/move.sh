@@ -3,7 +3,8 @@
 # Function: move
 # Description: Moves one or more source files or directories to a destination,
 #              displaying a progress bar that advances once per source item.
-#              Each item is moved with the standard mv command.
+#              Detects cross-filesystem moves and uses rsync (or cp) plus delete;
+#              same-filesystem moves use mv directly.
 #
 # Visual Output:
 #   Moving five items, after the second completes:
@@ -28,7 +29,7 @@
 #
 # Returns:
 #   0 - All items moved successfully.
-#   1 - Missing required argument, no sources provided, or mv failed for any item.
+#   1 - Missing required argument, no sources provided, or move/copy/remove failed for any item.
 #
 # Examples:
 #   # Move three log files into an archive directory
@@ -81,13 +82,54 @@ function move {
     fi
 
     local total=${#sources[@]}
+    local use_rsync=false
+    command -v rsync &>/dev/null && use_rsync=true
 
     for (( i = 0; i < total; i++ )); do
         local src="${sources[$i]}"
-        if ! mv "$src" "$dest"; then
-            error "move: failed to move '$src' to '$dest'"
-            return 1
+
+        # Detect cross-filesystem move by comparing device IDs
+        local src_dev dest_dev dest_ref
+        src_dev=$(stat --format '%d' "$src" 2>/dev/null)
+        dest_ref="$dest"
+        [[ ! -e "$dest" ]] && dest_ref="$(dirname "$dest")"
+        dest_dev=$(stat --format '%d' "$dest_ref" 2>/dev/null)
+
+        if [[ -n "$src_dev" && -n "$dest_dev" && "$src_dev" != "$dest_dev" ]]; then
+            # Cross-filesystem: copy then delete
+            debug "move: cross-filesystem move detected for '$src'; using copy-then-delete"
+            if [[ "$use_rsync" == true ]]; then
+                debug "move: using rsync for cross-filesystem copy"
+                if ! rsync -a "$src" "$dest" >/dev/null 2>&1; then
+                    error "move: rsync failed copying '$src' to '$dest'"
+                    return 1
+                fi
+            elif [[ -d "$src" ]]; then
+                debug "move: rsync not found, using cp -r"
+                if ! cp -r "$src" "$dest"; then
+                    error "move: failed to copy '$src' to '$dest'"
+                    return 1
+                fi
+            else
+                debug "move: rsync not found, using cp"
+                if ! cp "$src" "$dest"; then
+                    error "move: failed to copy '$src' to '$dest'"
+                    return 1
+                fi
+            fi
+            if ! rm -rf "$src"; then
+                error "move: failed to remove source '$src' after cross-filesystem copy"
+                return 1
+            fi
+        else
+            # Same filesystem: atomic mv
+            debug "move: same-filesystem move, using mv for '$src'"
+            if ! mv "$src" "$dest"; then
+                error "move: failed to move '$src' to '$dest'"
+                return 1
+            fi
         fi
+
         progress --current $(( i + 1 )) --total "$total" --message "$message"
     done
 }

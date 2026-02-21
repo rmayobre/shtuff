@@ -3,8 +3,8 @@
 # Function: copy
 # Description: Copies one or more source files or directories to a destination,
 #              displaying a progress bar that advances once per source item.
-#              Each item is copied with the standard cp command; pass --recursive
-#              to handle directories (maps to cp -r).
+#              Uses rsync when available for reliable transfers; falls back to cp.
+#              Pass --recursive to handle directories when rsync is not present (maps to cp -r).
 #
 # Visual Output:
 #   Copying three files, after the second completes:
@@ -16,8 +16,9 @@
 #     Copying [████████████████████████████████████████] 100% (3/3)
 #
 # Arguments:
-#   --dest DEST   (string, required): Destination path passed directly to cp.
-#   --recursive   (flag, optional): Copy directories recursively (cp -r).
+#   --dest DEST   (string, required): Destination path passed directly to cp or rsync.
+#   --recursive   (flag, optional): Copy directories recursively (cp -r fallback only;
+#                 rsync handles directories automatically).
 #   --message MSG (string, optional, default: "Copying"): Label shown on the progress bar.
 #   --            (separator, optional): Treat all subsequent arguments as source paths,
 #                 even if they begin with a hyphen.
@@ -30,7 +31,7 @@
 #
 # Returns:
 #   0 - All items copied successfully.
-#   1 - Missing required argument, no sources provided, or cp failed for any item.
+#   1 - Missing required argument, no sources provided, or copy failed for any item.
 #
 # Examples:
 #   # Copy three config files into /etc/myapp/
@@ -88,14 +89,29 @@ function copy {
     fi
 
     local total=${#sources[@]}
-    local cp_flags=()
-    [[ "$recursive" == true ]] && cp_flags+=("-r")
+    local use_rsync=false
+    command -v rsync &>/dev/null && use_rsync=true
 
     for (( i = 0; i < total; i++ )); do
         local src="${sources[$i]}"
-        if ! cp "${cp_flags[@]}" "$src" "$dest"; then
-            error "copy: failed to copy '$src' to '$dest'"
-            return 1
+        if [[ "$use_rsync" == true ]]; then
+            debug "copy: using rsync for '$src'"
+            if ! rsync -a "$src" "$dest" >/dev/null 2>&1; then
+                error "copy: rsync failed copying '$src' to '$dest'"
+                return 1
+            fi
+        elif [[ "$recursive" == true || -d "$src" ]]; then
+            debug "copy: rsync not found, using cp -r for '$src'"
+            if ! cp -r "$src" "$dest"; then
+                error "copy: failed to copy '$src' to '$dest'"
+                return 1
+            fi
+        else
+            debug "copy: rsync not found, using cp for '$src'"
+            if ! cp "$src" "$dest"; then
+                error "copy: failed to copy '$src' to '$dest'"
+                return 1
+            fi
         fi
         progress --current $(( i + 1 )) --total "$total" --message "$message"
     done

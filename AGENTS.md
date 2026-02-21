@@ -278,6 +278,22 @@ monitor $! \
 | Use `${VAR:?}` in destructive `rm -rf` | Prevents catastrophic empty-variable expansion |
 | Scripts require root | Check `$EUID -ne 0` at the top |
 | Prefer `curl -sL` for downloads | Silent + follow redirects |
+| **Never call `_`-prefixed functions** | Functions starting with `_` are private internal helpers used by shtuff. They are not part of the public API and may change without notice. |
+
+### Public API
+
+Only call these documented public functions. Everything else is private:
+
+| Module      | Public functions |
+|-------------|-----------------|
+| Logging     | `info`, `warn`, `error`, `debug` |
+| Packaging   | `install`, `update`, `uninstall`, `clean` |
+| Utils       | `monitor`, `stop` |
+| Systemd     | `service`, `timer` |
+
+Any function whose name begins with `_` (e.g. `_log_write`, `_detect_pm`) is an
+internal implementation detail. Do not call it, reference it, or rely on its
+existence in scripts you write.
 
 ---
 

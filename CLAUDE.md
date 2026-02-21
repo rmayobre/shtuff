@@ -163,6 +163,11 @@ rm -rf "${INSTALL_DIR:?}"/*   # :? prevents rm -rf /* if var is empty
 - Use `command -v <bin>` to verify a binary exists after installation
 - Full binary paths in `--exec-start` (use `$(command -v npx)`, not just `npx`)
 - Never hard-code package manager commands — always use `install`/`update`
+- **Never call functions prefixed with `_`** — they are private internal helpers
+  used by shtuff itself and are not part of the public API. Their signatures and
+  behavior may change without notice. Only call the documented public functions
+  (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`,
+  `monitor`, `stop`, `service`, `timer`).
 
 ---
 

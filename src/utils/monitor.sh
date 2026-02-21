@@ -9,21 +9,39 @@ declare -r CLOCK_LOADING_STYLE="clock"
 # The default loading style picked if not defined in the "monitor functionn.
 DEFAULT_LOADING_STYLE=$SPINNER_LOADING_STYLE
 
-# Function: monitor_process
-# Description: Monitors a running process by PID and displays loading indicator
-# Parameters:
-#   $1 - pid (integer, required): Process ID to monitor
-#   $2 - style (string, optional): Loading indicator style
-#        Valid: spinner, dots, bars, arrows, clock
-#        Default: "spinner"
-#   $3 - message (string, optional): Message to display during monitoring
-#        Default: "Processing"
-#   $4 - success_msg (string, optional): Success message to display
-#        Default: "Process completed"
-#   $5 - error_msg (string, optional): Error message to display
-#        Default: "Process failed"
-# Returns: Exit code of the monitored process
-# Note: Process must exist and be accessible to current user
+# Function: monitor
+# Description: Monitors a background process by PID, displaying a loading indicator until it exits,
+#              then prints a success or error message based on its exit code.
+#
+# Arguments:
+#   $1 - pid (integer, required): Process ID of the background process to monitor.
+#   --message MSG (string, optional, default: "Processing"): Message shown alongside the loading indicator.
+#   --style STYLE (string, optional, default: "spinner"): Loading indicator style.
+#       Valid values: spinner, dots, bars, arrows, clock.
+#   --success_msg MSG (string, optional, default: "Process completed"): Message printed on success.
+#   --error_msg MSG (string, optional, default: "Process failed"): Message printed on failure.
+#
+# Globals:
+#   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
+#   SPINNER_LOADING_STYLE (read): Constant identifying the spinner style.
+#   DOTS_LOADING_STYLE (read): Constant identifying the dots style.
+#   BARS_LOADING_STYLE (read): Constant identifying the bars style.
+#   ARROWS_LOADING_STYLE (read): Constant identifying the arrows style.
+#   CLOCK_LOADING_STYLE (read): Constant identifying the clock style.
+#   RESET_COLOR (read): ANSI reset sequence used to restore terminal color after the completion message.
+#
+# Returns:
+#   0 - The monitored process exited successfully.
+#   1 - No PID provided, PID does not exist, or unknown loading style specified.
+#   N - Exit code of the monitored process when it exits with a non-zero status.
+#
+# Examples:
+#   some_long_command &
+#   monitor $! --message "Building project" --style spinner \
+#       --success_msg "Build complete!" --error_msg "Build failed!" || exit 1
+#
+#   download_file &
+#   monitor $! --style dots --message "Downloading"
 function monitor {
     local pid=$1
 

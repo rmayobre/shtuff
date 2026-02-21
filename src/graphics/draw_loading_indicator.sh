@@ -12,15 +12,24 @@ declare -r ARROW_FRAMES=("←" "↖" "↑" "↗" "→" "↘" "↓" "↙")
 declare -r CLOCK_FRAMES=("🕐" "🕑" "🕒" "🕓" "🕔" "🕕" "🕖" "🕗" "🕘" "🕙" "🕚" "🕛")
 
 # Function: draw_loading_indicator
-# Description: Displays a continuous loading indicator with specified style and message
-# Parameters:
-#   $1 - message (string, required): Message to display with indicator
-#        Default: $LOADING_MESSAGE
-#   $2 - color (string, required): ANSI color code or color name
-#        Default: $LOADING_COLOR
-#   $3 - frames (array, required): An array of characters used as frames for the loading indicator.
-# Returns: None
-# Note: This function runs in a loop until pid is done.
+# Description: Displays a continuous loading indicator with a custom frame set until the given process exits.
+#
+# Arguments:
+#   $1 - pid (integer, required): Process ID to monitor; the indicator stops when this process exits.
+#   $2 - message (string, required): Message to display alongside the indicator.
+#   $3 - color (string, required): ANSI escape code used to color the indicator and message.
+#   $@ - frames (string, required): One or more frame characters that make up the animation
+#        (all arguments after the first three are treated as the frame array).
+#
+# Globals:
+#   RESET_COLOR (read): ANSI reset sequence applied after each frame to restore default color.
+#
+# Returns:
+#   0 - The monitored process exited (indicator loop completed).
+#
+# Examples:
+#   draw_loading_indicator "$pid" "Building" "\033[36m" "⠋" "⠙" "⠹" "⠸"
+#   draw_loading_indicator "$pid" "Loading" "\033[33m" "|" "/" "-" "\\"
 function draw_loading_indicator {
     local pid="$1"
     local message="$2"
@@ -40,15 +49,24 @@ function draw_loading_indicator {
 }
 
 # Function: draw_loading_spinner
-# Description: Displays a spinner style loading indicator and message
-# Parameters:
-#   $1 - pid (integer, required): Process ID to monitor when to stop the loading indicator.
-#   $2 - message (string, optional): Message to display with indicator
-#        Default: $LOADING_MESSAGE
-#   $3 - color (string, optional): ANSI color code or color name
-#        Default: $LOADING_COLOR
-# Returns: None (infinite loop until killed)
-# Note: This function runs in an infinite loop until killed
+# Description: Displays a braille-spinner loading indicator alongside a message until the given process exits.
+#
+# Arguments:
+#   $1 - pid (integer, required): Process ID to monitor; the indicator stops when this process exits.
+#   $2 - message (string, optional, default: "Loading"): Message to display alongside the spinner.
+#   $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+#
+# Globals:
+#   DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+#   DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+#   SPINNER_FRAMES (read): Array of braille characters that form the spinner animation.
+#
+# Returns:
+#   0 - The monitored process exited (indicator loop completed).
+#
+# Examples:
+#   draw_loading_spinner "$pid"
+#   draw_loading_spinner "$pid" "Compiling" "\033[33m"
 function draw_loading_spinner {
     draw_loading_indicator "$1" \
         "${2:-$DEFAULT_MESSAGE}" \
@@ -57,15 +75,24 @@ function draw_loading_spinner {
 }
 
 # Function: draw_loading_dots
-# Description: Displays a loading indicator as a series of dots with a message
-# Parameters:
-#   $1 - pid (integer, required): Process ID to monitor when to stop the loading indicator.
-#   $2 - message (string, optional): Message to display with indicator
-#        Default: $LOADING_MESSAGE
-#   $3 - color (string, optional): ANSI color code or color name
-#        Default: $LOADING_COLOR
-# Returns: None (infinite loop until killed)
-# Note: This function runs in an infinite loop until killed
+# Description: Displays a dots-style loading indicator alongside a message until the given process exits.
+#
+# Arguments:
+#   $1 - pid (integer, required): Process ID to monitor; the indicator stops when this process exits.
+#   $2 - message (string, optional, default: "Loading"): Message to display alongside the dots.
+#   $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+#
+# Globals:
+#   DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+#   DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+#   DOT_FRAMES (read): Array of dot characters that form the animation.
+#
+# Returns:
+#   0 - The monitored process exited (indicator loop completed).
+#
+# Examples:
+#   draw_loading_dots "$pid"
+#   draw_loading_dots "$pid" "Waiting" "\033[35m"
 function draw_loading_dots {
     draw_loading_indicator "$1" \
         "${2:-$DEFAULT_MESSAGE}" \
@@ -74,15 +101,24 @@ function draw_loading_dots {
 }
 
 # Function: draw_loading_bars
-# Description: Displays a loading indicator as a series of bars with a message
-# Parameters:
-#   $1 - pid (integer, required): Process ID to monitor when to stop the loading indicator.
-#   $2 - message (string, optional): Message to display with indicator
-#        Default: $LOADING_MESSAGE
-#   $3 - color (string, optional): ANSI color code or color name
-#        Default: $LOADING_COLOR
-# Returns: None (infinite loop until killed)
-# Note: This function runs in an infinite loop until killed
+# Description: Displays a bar-fill loading indicator alongside a message until the given process exits.
+#
+# Arguments:
+#   $1 - pid (integer, required): Process ID to monitor; the indicator stops when this process exits.
+#   $2 - message (string, optional, default: "Loading"): Message to display alongside the bars.
+#   $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+#
+# Globals:
+#   DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+#   DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+#   BAR_FRAMES (read): Array of block characters that form the animation.
+#
+# Returns:
+#   0 - The monitored process exited (indicator loop completed).
+#
+# Examples:
+#   draw_loading_bars "$pid"
+#   draw_loading_bars "$pid" "Installing" "\033[32m"
 function draw_loading_bars {
     draw_loading_indicator "$1" \
         "${2:-$DEFAULT_MESSAGE}" \
@@ -91,15 +127,24 @@ function draw_loading_bars {
 }
 
 # Function: draw_loading_arrows
-# Description: Displays a loading indicator styled as spinning arrows with a message
-# Parameters:
-#   $1 - pid (integer, required): Process ID to monitor when to stop the loading indicator.
-#   $2 - message (string, optional): Message to display with indicator
-#        Default: $LOADING_MESSAGE
-#   $3 - color (string, optional): ANSI color code or color name
-#        Default: $LOADING_COLOR
-# Returns: None (infinite loop until killed)
-# Note: This function runs in an infinite loop until killed
+# Description: Displays a rotating-arrow loading indicator alongside a message until the given process exits.
+#
+# Arguments:
+#   $1 - pid (integer, required): Process ID to monitor; the indicator stops when this process exits.
+#   $2 - message (string, optional, default: "Loading"): Message to display alongside the arrows.
+#   $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+#
+# Globals:
+#   DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+#   DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+#   ARROW_FRAMES (read): Array of arrow characters that form the animation.
+#
+# Returns:
+#   0 - The monitored process exited (indicator loop completed).
+#
+# Examples:
+#   draw_loading_arrows "$pid"
+#   draw_loading_arrows "$pid" "Syncing" "\033[34m"
 function draw_loading_arrows {
     draw_loading_indicator "$1" \
         "${2:-$DEFAULT_MESSAGE}" \
@@ -108,15 +153,24 @@ function draw_loading_arrows {
 }
 
 # Function: draw_loading_clock
-# Description: Displays a loading indicator styled as running clock with a message
-# Parameters:
-#   $1 - pid (integer, required): Process ID to monitor when to stop the loading indicator.
-#   $2 - message (string, optional): Message to display with indicator
-#        Default: $LOADING_MESSAGE
-#   $3 - color (string, optional): ANSI color code or color name
-#        Default: $LOADING_COLOR
-# Returns: None (infinite loop until killed)
-# Note: This function runs in an infinite loop until killed
+# Description: Displays a clock-emoji loading indicator alongside a message until the given process exits.
+#
+# Arguments:
+#   $1 - pid (integer, required): Process ID to monitor; the indicator stops when this process exits.
+#   $2 - message (string, optional, default: "Loading"): Message to display alongside the clock.
+#   $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+#
+# Globals:
+#   DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+#   DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+#   CLOCK_FRAMES (read): Array of clock emoji characters that form the animation.
+#
+# Returns:
+#   0 - The monitored process exited (indicator loop completed).
+#
+# Examples:
+#   draw_loading_clock "$pid"
+#   draw_loading_clock "$pid" "Scheduling" "\033[36m"
 function draw_loading_clock {
     draw_loading_indicator "$1" \
         "${2:-$DEFAULT_MESSAGE}" \

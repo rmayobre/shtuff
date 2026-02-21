@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
 
 # Function: clean
-# Description: Detects the system's package manager and performs a cleanup
-#              operation to remove unused dependencies and clear caches.
-# Globals: None
-# Arguments: None
-# Outputs: Status messages to stdout, errors to stderr.
-# Returns: 0 on successful cleanup, 1 if package manager unknown or cleanup fails.
+# Description: Detects the system's package manager and removes unused dependencies and package caches.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Cleanup completed successfully.
+#   1 - No supported package manager found.
+#
+# Examples:
+#   clean
 clean() {
     if command -v apt &> /dev/null; then
         clean_apt
@@ -27,21 +35,63 @@ clean() {
     fi
 }
 
-# Function to clean packages using APT
+# Function: clean_apt
+# Description: Removes unused APT dependencies and cleans the package cache.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Cleanup completed successfully.
+#   1 - apt autoremove or autoclean failed.
+#
+# Examples:
+#   clean_apt
 clean_apt() {
     echo "--- Running APT cleanup (autoremove and autoclean) ---"
     sudo apt autoremove -y
     sudo apt autoclean -y
 }
 
-# Function to clean packages using DNF
+# Function: clean_dnf
+# Description: Removes unused DNF dependencies and cleans all DNF caches.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Cleanup completed successfully.
+#   1 - dnf autoremove or dnf clean failed.
+#
+# Examples:
+#   clean_dnf
 clean_dnf() {
     echo "--- Running DNF cleanup (autoremove and clean all) ---"
     sudo dnf autoremove -y
     sudo dnf clean all
 }
 
-# Function to clean packages using YUM
+# Function: clean_yum
+# Description: Cleans all YUM caches and optionally removes orphaned packages via package-cleanup.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Cleanup completed successfully.
+#   1 - yum clean failed.
+#
+# Examples:
+#   clean_yum
 clean_yum() {
     echo "--- Running YUM cleanup (clean all) ---"
     sudo yum clean all
@@ -53,7 +103,21 @@ clean_yum() {
     fi
 }
 
-# Function to clean packages using Zypper
+# Function: clean_zypper
+# Description: Cleans all Zypper package caches; orphaned dependencies are handled automatically by Zypper.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Cleanup completed successfully.
+#   1 - zypper clean failed.
+#
+# Examples:
+#   clean_zypper
 clean_zypper() {
     echo "--- Running Zypper cleanup (autoremove and clean) ---"
     echo "zypper automically removes unused dependencies."
@@ -61,7 +125,21 @@ clean_zypper() {
     sudo zypper clean --all
 }
 
-# Function to clean packages using Pacman
+# Function: clean_pacman
+# Description: Removes orphaned Pacman packages and cleans the package cache.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Cleanup completed successfully.
+#   1 - pacman orphan removal or cache clean failed.
+#
+# Examples:
+#   clean_pacman
 clean_pacman() {
     echo "--- Running Pacman cleanup (orphan removal and cache cleaning) ---"
     if pacman -Qtdq &> /dev/null; then
@@ -74,7 +152,21 @@ clean_pacman() {
     sudo pacman -Sc --noconfirm
 }
 
-# Function to clean packages using APK
+# Function: clean_apk
+# Description: Cleans the APK package cache.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Cleanup completed successfully.
+#   1 - apk cache clean failed.
+#
+# Examples:
+#   clean_apk
 clean_apk() {
     echo "--- Running APK cleanup (cache clean) ---"
     sudo apk cache clean

@@ -1,41 +1,53 @@
 #!/usr/bin/env bash
 
-# Usage: service [OPTIONS]
+# Function: service
+# Description: Generates a systemd service unit file with the specified configuration.
 #
-# Create a systemd service file with the specified configuration.
+# Arguments:
+#   --name NAME (string, required): Service name; .service extension is appended automatically if omitted.
+#   --description DESC (string, required): Human-readable description written to the [Unit] section.
+#   --exec-start COMMAND (string, required): Full command used to start the service.
+#   --working-directory DIR (string, optional): Working directory set for the service process.
+#   --user USER (string, optional): System user the service process runs as.
+#   --group GROUP (string, optional): System group the service process runs as.
+#   --restart POLICY (string, optional, default: on-failure): Systemd restart policy.
+#   --restart-sec SECONDS (integer, optional, default: 5): Seconds to wait before restarting.
+#   --wanted-by TARGET (string, optional, default: multi-user.target): Systemd install target.
+#   --environment ENV (string, optional): Space-separated VAR=value pairs added as Environment= directives.
+#   --exec-start-pre COMMAND (string, optional): Command to run before ExecStart.
+#   --exec-stop COMMAND (string, optional): Command to run when stopping the service.
+#   --output-dir DIR (string, optional, default: /etc/systemd/system): Directory to write the unit file into.
+#   -n NAME (string, required): Short form of --name.
+#   -d DESC (string, required): Short form of --description.
+#   -e COMMAND (string, required): Short form of --exec-start.
+#   -w DIR (string, optional): Short form of --working-directory.
+#   -u USER (string, optional): Short form of --user.
+#   -g GROUP (string, optional): Short form of --group.
+#   -r POLICY (string, optional): Short form of --restart.
+#   -o DIR (string, optional): Short form of --output-dir.
 #
-# OPTIONS:
-#     -n, --name NAME                 Service name (required)
-#     -d, --description DESC          Service description (required)
-#     -e, --exec-start COMMAND        Command to start the service (required)
-#     -w, --working-directory DIR     Working directory for the service
-#     -u, --user USER                 User to run the service as
-#     -g, --group GROUP               Group to run the service as
-#     -r, --restart POLICY            Restart policy (default: on-failure)
-#     --restart-sec SECONDS           Restart delay in seconds (default: 5)
-#     --wanted-by TARGET              Target for WantedBy (default: multi-user.target)
-#     --environment ENV               Environment variables (format: "VAR1=value1 VAR2=value2")
-#     --exec-start-pre COMMAND        Command to run before starting the service
-#     --exec-stop COMMAND             Command to run when stopping the service
-#     -o, --output-dir DIR            Output directory (default: /etc/systemd/system)
+# Globals:
+#   None
 #
-# EXAMPLES:
+# Returns:
+#   0 - Service unit file created successfully.
+#   1 - Required argument missing or unknown option provided.
 #
-#     service \
-#         --name "myapp" \
-#         --description "My Web Application" \
-#         --exec-start "/usr/bin/node /opt/myapp/server.js" \
-#         --user "www-data" \
-#         --working-directory "/opt/myapp"
+# Examples:
+#   service \
+#       --name "myapp" \
+#       --description "My Web Application" \
+#       --exec-start "/usr/bin/node /opt/myapp/server.js" \
+#       --user "www-data" \
+#       --working-directory "/opt/myapp"
 #
-#     service \
-#         --name "api-server" \
-#         --description "API Server" \
-#         --exec-start "/usr/local/bin/api-server" \
-#         --user "apiuser" \
-#         --environment "PORT=8080 NODE_ENV=production" \
-#         --restart "always"
-#
+#   service \
+#       --name "api-server" \
+#       --description "API Server" \
+#       --exec-start "/usr/local/bin/api-server" \
+#       --user "apiuser" \
+#       --environment "PORT=8080 NODE_ENV=production" \
+#       --restart "always"
 service() {
     local service_name=""
     local description=""

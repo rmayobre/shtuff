@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 
 # Function: install
-# Usage: install <package1> [package2...]
-# Description: Detects the system's package manager and installs desired
-#              packages to the host system.
-# Globals: None
-# Arguments: Array of package names to be installed - separated by space.
-# Outputs: Status messages to stdout, errors to stderr.
-# Returns: 0 on successful cleanup, 1 if package manager unknown or cleanup fails.
+# Description: Detects the system's package manager and installs one or more packages.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to install, separated by spaces.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages installed successfully.
+#   1 - No packages specified, or no supported package manager found.
+#
+# Examples:
+#   install curl
+#   install nodejs npm unzip
 install() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: install <package1> [package2...]"
@@ -35,7 +43,21 @@ install() {
     fi
 }
 
-# Function to install packages using APT
+# Function: install_apt
+# Description: Installs one or more packages using APT after refreshing the package lists.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to install.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages installed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   install_apt curl git
 install_apt() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: install_apt <package1> [package2...]"
@@ -46,7 +68,21 @@ install_apt() {
     sudo apt install -y "$@"
 }
 
-# Function to install packages using DNF
+# Function: install_dnf
+# Description: Installs one or more packages using DNF.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to install.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages installed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   install_dnf curl git
 install_dnf() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: install_dnf <package1> [package2...]"
@@ -56,7 +92,21 @@ install_dnf() {
     sudo dnf install -y "$@"
 }
 
-# Function to install packages using YUM
+# Function: install_yum
+# Description: Installs one or more packages using YUM.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to install.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages installed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   install_yum curl git
 install_yum() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: install_yum <package1> [package2...]"
@@ -66,7 +116,21 @@ install_yum() {
     sudo yum install -y "$@"
 }
 
-# Function to install packages using Zypper
+# Function: install_zypper
+# Description: Installs one or more packages using Zypper in non-interactive mode.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to install.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages installed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   install_zypper curl git
 install_zypper() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: install_zypper <package1> [package2...]"
@@ -76,7 +140,21 @@ install_zypper() {
     sudo zypper --non-interactive install "$@"
 }
 
-# Function to install packages using Pacman
+# Function: install_pacman
+# Description: Installs one or more packages using Pacman, syncing the database first.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to install.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages installed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   install_pacman curl git
 install_pacman() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: install_pacman <package1> [package2...]"
@@ -86,7 +164,21 @@ install_pacman() {
     sudo pacman -Sy --noconfirm "$@"
 }
 
-# Function to install packages using APK
+# Function: install_apk
+# Description: Installs one or more packages using APK.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to install.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages installed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   install_apk curl git
 install_apk() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: install_apk <package1> [package2...]"

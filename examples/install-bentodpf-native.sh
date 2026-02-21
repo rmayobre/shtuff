@@ -129,8 +129,10 @@ CONTENT_DIR=$(dirname "${DIST_DIR}")
 
 info "Installing BentoPDF files to ${BENTODPF_DIR}..."
 mkdir -p "${BENTODPF_DIR}"
-cp -r "${CONTENT_DIR}/." "${BENTODPF_DIR}/"
-rm -rf /tmp/bentodpf_extract /tmp/bentodpf.zip
+copy "${CONTENT_DIR}/." "${BENTODPF_DIR}/" \
+    --message "Installing BentoPDF files" || exit 1
+delete /tmp/bentodpf_extract --message "Removing temporary files" || exit 1
+delete /tmp/bentodpf.zip || exit 1
 
 # --- Step 6: Locate npx ---
 NPX_BIN=$(command -v npx)

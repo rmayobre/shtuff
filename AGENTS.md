@@ -12,6 +12,7 @@ creating or modifying installer or update scripts.
 - Cross-platform package management (`install`, `update`, `uninstall`, `clean`)
 - Structured logging (`info`, `warn`, `error`, `debug`)
 - Visual progress indicators for background processes (`monitor`)
+- File operations with progress indicators (`copy`, `move`, `delete`)
 - Systemd service and timer generation (`service`, `timer`)
 
 All utilities live in `src/`. The remote entry point `shtuff-remote.sh` fetches
@@ -69,6 +70,29 @@ Available `--style` values:
 - `$CLOCK_LOADING_STYLE` — clock emoji
 
 Always append `|| exit 1` — `monitor` returns the background process exit code.
+
+### File Operations
+
+Each function runs the operation as a background process and monitors it with a
+loading indicator. All accept `--style STYLE` and `--message MSG` options (same
+values as `monitor`). Always append `|| exit 1` to propagate failures.
+
+```bash
+copy /source/path /destination/path                 # Copy file or directory
+copy /source/path /dest --style bars                # Custom progress style
+move /source/path /destination/path                 # Move file or directory
+delete /path/to/remove                              # Delete file or directory
+delete /path/to/dir --message "Cleaning up"         # Custom message
+```
+
+`copy` prefers `rsync` when available, falls back to `cp`.
+`move` detects cross-filesystem moves automatically and uses a copy-then-delete
+strategy (with a warning) instead of `mv` when the source and destination are on
+different devices.
+
+**Important:** `delete` removes the target path itself. To clear a directory's
+*contents* in-place (e.g. before replacing files), use the `rm -rf "${DIR:?}"/*`
+safety pattern — not `delete`.
 
 ### Systemd Service Generator
 
@@ -187,8 +211,9 @@ DIST_DIR=$(find /tmp/myapp_extract -type d -name "dist" -maxdepth 4 | head -1)
 
 CONTENT_DIR=$(dirname "${DIST_DIR}")
 mkdir -p "${INSTALL_DIR}"
-cp -r "${CONTENT_DIR}/." "${INSTALL_DIR}/"
-rm -rf /tmp/myapp_extract /tmp/myapp.zip
+copy "${CONTENT_DIR}/." "${INSTALL_DIR}/" --message "Installing files" || exit 1
+delete /tmp/myapp_extract --message "Removing temporary files" || exit 1
+delete /tmp/myapp.zip || exit 1
 ```
 
 ### npx serve Service Pattern
@@ -246,8 +271,13 @@ Every `update-*.sh` script must follow this structure:
 
 ```bash
 rm -rf "${INSTALL_DIR:?}"/*      # :? guard prevents rm -rf /* on empty var
-cp -r "${CONTENT_DIR}/." "${INSTALL_DIR}/"
+copy "${CONTENT_DIR}/." "${INSTALL_DIR}/" --message "Replacing files" || exit 1
+delete /tmp/myapp_extract --message "Removing temporary files" || exit 1
+delete /tmp/myapp.zip || exit 1
 ```
+
+Use `rm -rf "${DIR:?}"/*` (not `delete`) to clear a directory's contents in-place.
+Use `delete` for removing temp files and directories after the replacement is done.
 
 ### Service Restart Pattern
 
@@ -288,7 +318,7 @@ Only call these documented public functions. Everything else is private:
 |-------------|-----------------|
 | Logging     | `info`, `warn`, `error`, `debug` |
 | Packaging   | `install`, `update`, `uninstall`, `clean` |
-| Utils       | `monitor`, `stop` |
+| Utils       | `monitor`, `stop`, `copy`, `move`, `delete` |
 | Systemd     | `service`, `timer` |
 
 Any function whose name begins with `_` (e.g. `_log_write`, `_detect_pm`) is an

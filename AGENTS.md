@@ -70,6 +70,27 @@ Available `--style` values:
 
 Always append `|| exit 1` — `monitor` returns the background process exit code.
 
+### Stop a Background Process
+
+Use `stop` to send a termination signal to a background process and wait for it to exit:
+
+```bash
+some_long_command &
+bg_pid=$!
+# ... do other work while it runs ...
+stop "$bg_pid"
+```
+
+`stop` accepts a single positional argument — the PID of the process to terminate — and waits
+for the process to finish before returning. It is intended for processes you started with `&`,
+not for systemd-managed services (use `systemctl stop` for those).
+
+| Argument | Type | Required | Description |
+|----------|------|----------|-------------|
+| `$1` - pid | integer | yes | PID of the background process to stop |
+
+Returns `0` on success, `1` if no PID is provided, or the exit code of `kill`/`wait` on failure.
+
 ### Systemd Service Generator
 
 ```bash
@@ -101,9 +122,53 @@ systemctl start myapp
 timer \
     --name "myapp-task" \
     --description "Periodic task" \
-    --on-calendar "daily" \      # or --on-boot-sec "5min", --on-unit-active-sec "1h"
-    --persistent \               # remember missed runs across reboots
+    --on-calendar "daily" \
+    --persistent \
     --unit "myapp-task.service"
+```
+
+Full flag reference:
+
+| Flag | Short | Required | Default | Description |
+|------|-------|----------|---------|-------------|
+| `--name` | `-n` | **yes** | — | Timer name without `.timer` extension; letters, numbers, `_`, `-` only |
+| `--description` | `-d` | no | `"Timer for <name>"` | Human-readable description for the `[Unit]` section |
+| `--on-calendar` | `-c` | no† | — | Calendar expression (e.g. `"daily"`, `"*-*-* 02:00:00"`) |
+| `--on-boot-sec` | `-b` | no† | — | Delay after system boot before first run (e.g. `"5min"`, `"1h"`) |
+| `--on-unit-active-sec` | `-a` | no† | — | Interval since the unit was last activated (e.g. `"1h"`) |
+| `--on-unit-inactive-sec` | `-i` | no† | — | Interval since the unit was last deactivated (e.g. `"30min"`) |
+| `--randomized-delay` | `-r` | no | — | Random jitter added to the scheduled time (e.g. `"10min"`) |
+| `--persistent` | `-p` | no | — | Catch up missed events after reboot (`Persistent=true`) |
+| `--unit` | `-u` | no | `"<name>.service"` | Service unit to activate |
+| `--wanted-by` | `-w` | no | `"timers.target"` | Systemd install target |
+| `--output-dir` | `-o` | no | `"/etc/systemd/system"` | Directory to write the `.timer` file into |
+| `--force` | `-f` | no | — | Overwrite an existing timer file at the output path |
+| `--help` | `-h` | no | — | Print usage information and return without creating a file |
+
+† At least one scheduling flag (`--on-calendar`, `--on-boot-sec`, `--on-unit-active-sec`,
+or `--on-unit-inactive-sec`) is required for the timer to be meaningful.
+
+After calling `timer`, reload and enable:
+```bash
+systemctl daemon-reload
+systemctl enable myapp-task.timer
+systemctl start myapp-task.timer
+```
+
+Common scheduling patterns:
+
+```bash
+# Run daily at 2 AM, catching up if the machine was off
+timer --name backup --on-calendar "*-*-* 02:00:00" --persistent
+
+# Run 5 minutes after boot, then every hour
+timer --name cleanup --on-boot-sec 5min --on-unit-active-sec 1h
+
+# Weekly on Sunday at 3 AM with random 30-minute jitter
+timer --name maintenance \
+    --on-calendar "Sun *-*-* 03:00:00" \
+    --randomized-delay 30min \
+    --persistent
 ```
 
 ---

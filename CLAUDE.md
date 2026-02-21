@@ -60,6 +60,16 @@ monitor $! \
 Available styles: `$SPINNER_LOADING_STYLE`, `$DOTS_LOADING_STYLE`,
 `$BARS_LOADING_STYLE`, `$ARROWS_LOADING_STYLE`, `$CLOCK_LOADING_STYLE`
 
+### Stop a Background Process
+Use `stop` to send a termination signal to a background process and wait for it to exit:
+```bash
+some_long_command &
+bg_pid=$!
+# ... do other work ...
+stop "$bg_pid"
+```
+`stop` takes a single positional argument: the PID of the process to terminate.
+
 ### Systemd Service Creation
 ```bash
 service \
@@ -86,6 +96,30 @@ timer \
     --description "Daily backup" \
     --on-calendar "daily" \
     --persistent
+```
+Full flag reference:
+
+| Flag | Short | Type | Default | Description |
+|------|-------|------|---------|-------------|
+| `--name` | `-n` | string, **required** | — | Timer name (no `.timer` extension) |
+| `--description` | `-d` | string, optional | `"Timer for <name>"` | Human-readable description |
+| `--on-calendar` | `-c` | string, optional | — | Calendar expression (e.g. `"daily"`, `"*-*-* 02:00:00"`) |
+| `--on-boot-sec` | `-b` | string, optional | — | Delay after system boot (e.g. `"5min"`) |
+| `--on-unit-active-sec` | `-a` | string, optional | — | Interval since last activation (e.g. `"1h"`) |
+| `--on-unit-inactive-sec` | `-i` | string, optional | — | Interval since last deactivation (e.g. `"30min"`) |
+| `--randomized-delay` | `-r` | string, optional | — | Random jitter added to scheduled time (e.g. `"10min"`) |
+| `--persistent` | `-p` | flag, optional | — | Catch up on missed runs after reboot |
+| `--unit` | `-u` | string, optional | `"<name>.service"` | Service unit to activate |
+| `--wanted-by` | `-w` | string, optional | `"timers.target"` | Systemd install target |
+| `--output-dir` | `-o` | string, optional | `"/etc/systemd/system"` | Directory to write the `.timer` file |
+| `--force` | `-f` | flag, optional | — | Overwrite an existing timer file |
+| `--help` | `-h` | flag, optional | — | Print usage and return without creating a file |
+
+After calling `timer`, always reload and enable:
+```bash
+systemctl daemon-reload
+systemctl enable myapp-backup.timer
+systemctl start myapp-backup.timer
 ```
 
 ---

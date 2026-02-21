@@ -1,132 +1,93 @@
 #!/usr/bin/env bash
 
 # Function: move
-# Description: Moves a file or directory from source to destination with a progress indicator.
-#              Detects cross-filesystem moves and uses a copy-then-delete strategy via rsync
-#              or cp when needed. Same-filesystem moves use mv directly.
+# Description: Moves one or more source files or directories to a destination,
+#              displaying a progress bar that advances once per source item.
+#              Each item is moved with the standard mv command.
+#
+# Visual Output:
+#   Moving five items, after the second completes:
+#
+#     Moving [████████████████░░░░░░░░░░░░░░░░░░░░░░░░]  40% (2/5)
+#
+#   All five items moved:
+#
+#     Moving [████████████████████████████████████████] 100% (5/5)
 #
 # Arguments:
-#   $1 - source (string, required): Path to the file or directory to move.
-#   $2 - destination (string, required): Destination path.
-#   --style STYLE (string, optional, default: spinner): Loading indicator style.
-#       Valid values: spinner, dots, bars, arrows, clock.
-#   --message MSG (string, optional, default: "Moving..."): Message shown during progress.
+#   --dest DEST   (string, required): Destination path passed directly to mv.
+#   --message MSG (string, optional, default: "Moving"): Label shown on the progress bar.
+#   --            (separator, optional): Treat all subsequent arguments as source paths,
+#                 even if they begin with a hyphen.
+#   SOURCE...     (string, required): One or more source paths to move.
+#                 May be listed before or after named flags.
 #
 # Globals:
-#   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#   GREEN       (read): ANSI color applied to the filled portion of the progress bar.
+#   RESET_COLOR (read): ANSI reset sequence used to restore terminal color.
 #
 # Returns:
-#   0 - Move completed successfully.
-#   1 - Invalid or missing arguments.
-#   2 - Source path does not exist.
-#   3 - Transfer operation failed.
-#   4 - Source removal failed after cross-filesystem copy.
+#   0 - All items moved successfully.
+#   1 - Missing required argument, no sources provided, or mv failed for any item.
 #
 # Examples:
-#   move /tmp/release.tar.gz /opt/myapp/release.tar.gz
-#   move /var/data/exports /backup/exports --style bars --message "Moving exports"
+#   # Move three log files into an archive directory
+#   move --dest /var/log/archive app.log error.log debug.log
+#
+#   # Move build artifacts to a publish directory
+#   move --dest /srv/releases/v2.0 dist/ README.md LICENSE
+#
+#   # Custom progress label
+#   move --message "Archiving backups" --dest /mnt/backup monday.tar tuesday.tar
 function move {
-    local source_path=""
-    local dest_path=""
-    local style="${SPINNER_LOADING_STYLE}"
-    local message="Moving..."
+    local dest=""
+    local message="Moving"
+    local -a sources=()
 
-    # Capture positional arguments before named flags
-    if [[ $# -ge 1 && "$1" != -* ]]; then
-        source_path="$1"
-        shift
-    fi
-
-    if [[ $# -ge 1 && "$1" != -* ]]; then
-        dest_path="$1"
-        shift
-    fi
-
-    while [[ $# -gt 0 ]]; do
+    while (( "$#" )); do
         case "$1" in
-            -s|--style)
-                style="$2"
+            -D|--dest)
+                dest="$2"
                 shift 2
                 ;;
             -m|--message)
                 message="$2"
                 shift 2
                 ;;
-            *)
+            --)
+                shift
+                sources+=("$@")
+                break
+                ;;
+            -*)
                 error "move: unknown option: $1"
                 return 1
+                ;;
+            *)
+                sources+=("$1")
+                shift
                 ;;
         esac
     done
 
-    if [[ -z "$source_path" ]]; then
-        error "move: source path is required"
+    if [[ -z "$dest" ]]; then
+        error "move: --dest is required"
         return 1
     fi
 
-    if [[ -z "$dest_path" ]]; then
-        error "move: destination path is required"
+    if (( ${#sources[@]} == 0 )); then
+        error "move: at least one source path is required"
         return 1
     fi
 
-    if [[ ! -e "$source_path" ]]; then
-        error "move: source not found: $source_path"
-        return 2
-    fi
+    local total=${#sources[@]}
 
-    debug "move: source='$source_path' destination='$dest_path' style='$style'"
-    info "Moving '$source_path' to '$dest_path'"
-
-    # Detect cross-filesystem moves by comparing device IDs
-    local src_dev dest_dev dest_ref
-    src_dev=$(stat --format '%d' "$source_path" 2>/dev/null)
-    dest_ref="$dest_path"
-    if [[ ! -e "$dest_path" ]]; then
-        dest_ref="$(dirname "$dest_path")"
-    fi
-    dest_dev=$(stat --format '%d' "$dest_ref" 2>/dev/null)
-
-    if [[ -n "$src_dev" && -n "$dest_dev" && "$src_dev" != "$dest_dev" ]]; then
-        # Cross-filesystem: copy first, then remove source
-        warn "move: cross-filesystem move detected; using copy-then-delete strategy"
-
-        if command -v rsync &>/dev/null; then
-            debug "move: using rsync for cross-filesystem copy"
-            rsync -a "$source_path" "$dest_path" >/dev/null 2>&1 &
-        elif [[ -d "$source_path" ]]; then
-            debug "move: rsync not found, using cp -r"
-            cp -r "$source_path" "$dest_path" >/dev/null 2>&1 &
-        else
-            debug "move: rsync not found, using cp"
-            cp "$source_path" "$dest_path" >/dev/null 2>&1 &
+    for (( i = 0; i < total; i++ )); do
+        local src="${sources[$i]}"
+        if ! mv "$src" "$dest"; then
+            error "move: failed to move '$src' to '$dest'"
+            return 1
         fi
-
-        monitor $! \
-            --style "$style" \
-            --message "$message" \
-            --success_msg "Transfer complete. Removing source..." \
-            --error_msg "Transfer failed." || return 3
-
-        debug "move: removing source '$source_path'"
-        rm -rf "$source_path" >/dev/null 2>&1 &
-
-        monitor $! \
-            --style "$style" \
-            --message "Removing source..." \
-            --success_msg "Move complete." \
-            --error_msg "Failed to remove source after copy." || return 4
-    else
-        # Same filesystem: atomic mv
-        debug "move: same-filesystem move, using mv"
-        mv "$source_path" "$dest_path" >/dev/null 2>&1 &
-
-        monitor $! \
-            --style "$style" \
-            --message "$message" \
-            --success_msg "Move complete." \
-            --error_msg "Move failed." || return 3
-    fi
-
-    debug "move: completed successfully"
-    return 0
+        progress --current $(( i + 1 )) --total "$total" --message "$message"
+    done
 }

@@ -110,8 +110,10 @@ CONTENT_DIR=$(dirname "${DIST_DIR}")
 
 info "Replacing BentoPDF files in ${BENTODPF_DIR}..."
 rm -rf "${BENTODPF_DIR:?}"/*
-cp -r "${CONTENT_DIR}/." "${BENTODPF_DIR}/"
-rm -rf /tmp/bentodpf_extract /tmp/bentodpf.zip
+copy "${CONTENT_DIR}/." "${BENTODPF_DIR}/" \
+    --message "Replacing BentoPDF files" || exit 1
+delete /tmp/bentodpf_extract --message "Removing temporary files" || exit 1
+delete /tmp/bentodpf.zip || exit 1
 
 # --- Step 4: Restart Service ---
 info "Restarting BentoPDF service..."

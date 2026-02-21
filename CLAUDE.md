@@ -4,7 +4,8 @@
 
 **shtuff** (Shell Stuff) is a Bash utility library providing reusable functions for
 cross-platform package management, structured logging, background process monitoring,
-and systemd service/timer creation. Scripts source it locally or via `curl`.
+file operations (copy, move, delete), and systemd service/timer creation. Scripts
+source it locally or via `curl`.
 
 The `examples/` directory contains install and update scripts for [BentoPDF](https://github.com/alam00000/bentopdf)
 that serve as reference implementations.
@@ -59,6 +60,19 @@ monitor $! \
 ```
 Available styles: `$SPINNER_LOADING_STYLE`, `$DOTS_LOADING_STYLE`,
 `$BARS_LOADING_STYLE`, `$ARROWS_LOADING_STYLE`, `$CLOCK_LOADING_STYLE`
+
+### File Operations
+```bash
+copy /source/path /destination/path                 # Copy file or directory
+move /source/path /destination/path                 # Move file or directory
+delete /path/to/remove                              # Delete file or directory
+```
+All three accept `--style STYLE` and `--message MSG` (same values as `monitor`).
+Always append `|| exit 1` to propagate failures.
+
+**Note:** To clear only the *contents* of a directory without removing the directory
+itself, use the `rm -rf "${DIR:?}"/*` safety pattern directly — `delete` removes the
+path itself, not its contents.
 
 ### Systemd Service Creation
 ```bash
@@ -129,8 +143,9 @@ monitor $! ... || exit 1
 DIST_DIR=$(find /tmp/myapp_extract -type d -name "dist" -maxdepth 4 | head -1)
 CONTENT_DIR=$(dirname "${DIST_DIR}")
 mkdir -p "${INSTALL_DIR}"
-cp -r "${CONTENT_DIR}/." "${INSTALL_DIR}/"
-rm -rf /tmp/myapp_extract /tmp/myapp.zip
+copy "${CONTENT_DIR}/." "${INSTALL_DIR}/" --message "Installing files" || exit 1
+delete /tmp/myapp_extract --message "Removing temporary files" || exit 1
+delete /tmp/myapp.zip || exit 1
 ```
 
 ---
@@ -144,13 +159,16 @@ Follow `examples/update-bentodpf-native.sh` and `examples/update-bentodpf-docker
 3. Root check
 4. **Verify install directory exists** — fail early with a helpful message
 5. Resolve latest release URL from GitHub API
-6. Download → extract → replace files (`rm -rf "${DIR:?}"/*` then `cp -r`)
+6. Download → extract → replace files (`rm -rf "${DIR:?}"/*` then `copy`)
 7. Restart the service with `systemctl restart`
 
-Key safety guard when clearing install directory:
+Key safety guard when clearing install directory contents:
 ```bash
 rm -rf "${INSTALL_DIR:?}"/*   # :? prevents rm -rf /* if var is empty
+copy "${CONTENT_DIR}/." "${INSTALL_DIR}/" --message "Replacing files" || exit 1
 ```
+Use `rm -rf "${DIR:?}"/*` (not `delete`) when clearing a directory's contents in-place,
+as `delete` removes the path itself. Use `delete` for temp files and directories.
 
 ---
 
@@ -167,7 +185,7 @@ rm -rf "${INSTALL_DIR:?}"/*   # :? prevents rm -rf /* if var is empty
   used by shtuff itself and are not part of the public API. Their signatures and
   behavior may change without notice. Only call the documented public functions
   (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`,
-  `monitor`, `stop`, `service`, `timer`).
+  `monitor`, `stop`, `copy`, `move`, `delete`, `service`, `timer`).
 
 ---
 
@@ -255,7 +273,7 @@ shtuff/
 │   ├── logging/           # log(), info(), warn(), error(), debug()
 │   ├── packaging/         # install(), update(), uninstall(), clean()
 │   ├── systemd/           # service(), timer()
-│   └── utils/             # monitor(), stop()
+│   └── utils/             # monitor(), stop(), copy(), move(), delete()
 └── examples/
     ├── install-bentodpf-docker.sh
     ├── install-bentodpf-native.sh

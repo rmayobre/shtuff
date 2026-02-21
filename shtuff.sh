@@ -25,5 +25,8 @@ source "${SHTUFF_DIR}/src/systemd/timer.sh"
 # Utilities
 source "${SHTUFF_DIR}/src/utils/monitor.sh"
 source "${SHTUFF_DIR}/src/utils/stop.sh"
+source "${SHTUFF_DIR}/src/utils/copy.sh"
+source "${SHTUFF_DIR}/src/utils/move.sh"
+source "${SHTUFF_DIR}/src/utils/delete.sh"
 
 timer -h

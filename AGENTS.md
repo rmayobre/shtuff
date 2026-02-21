@@ -297,6 +297,97 @@ existence in scripts you write.
 
 ---
 
+## Contributing to `src/`
+
+### Function Documentation Template
+
+Every function added or modified in `src/` must include a header comment block
+in this exact format:
+
+```bash
+# Function: function_name
+# Description: One-line description of what the function does.
+#
+# Arguments:
+#   --flag-name NAME (string, required): Description.
+#   --other-flag VALUE (integer, optional, default: 5): Description.
+#   $1 - name (string, required): Use positional $N form ONLY when the
+#        argument is explicitly positional, not a named flag.
+#
+# Globals:
+#   VAR_NAME (read): Global variable this function reads.
+#   OTHER_VAR (write): Global variable this function writes.
+#
+# Returns:
+#   0 - Success
+#   1 - Invalid arguments or validation failure
+#   2 - File or directory error
+#   3 - Permission denied
+#
+# Examples:
+#   function_name --flag-name "value" --other-flag 10
+#   function_name --flag-name "other"
+```
+
+#### Arguments
+
+- Document every argument by its **flag name** (`--flag VALUE`), not by
+  position, unless the argument is explicitly positional.
+- Positional arguments use the `$N - name (type, required/optional)` form.
+- Mark each argument as `required` or `optional`. For optional arguments,
+  include the default value: `optional, default: "on-failure"`.
+- Accepted types: `string`, `integer`, `boolean` (flag-only, no value).
+
+#### Globals
+
+- List every global or environment variable the function reads **or** writes.
+- Annotate each with `(read)` or `(write)`.
+- Omit the `Globals:` section only if the function truly touches no globals.
+
+#### Returns
+
+- List **every** numeric exit code the function can return.
+- Provide a plain-English label for each code.
+- Standard codes used across `src/`:
+
+  | Code | Meaning |
+  |------|---------|
+  | `0`  | Success |
+  | `1`  | Invalid arguments or validation failure |
+  | `2`  | File or directory error |
+  | `3`  | Permission denied |
+
+#### Examples
+
+- Provide at least one realistic, copy-pasteable usage example.
+- Show multiple examples when the function has meaningfully different usage
+  paths (e.g. required-only vs. with optional flags).
+
+---
+
+### Logging in `src/` Functions
+
+All user-facing output must go through the shtuff logging functions. Never use
+bare `echo` or `printf` for messages inside `src/`.
+
+| Function | When to use |
+|----------|-------------|
+| `info`   | Progress updates and success confirmations |
+| `warn`   | Non-fatal issues; execution continues |
+| `error`  | Failures; always call immediately before a non-zero `return` |
+| `debug`  | Internal state useful only when diagnosing problems |
+
+Pattern — always pair `error` with the failing `return`:
+
+```bash
+if [[ -z "$required_arg" ]]; then
+    error "function_name: --required-flag is required"
+    return 1
+fi
+```
+
+---
+
 ## File Naming
 
 | Script type         | Naming convention             |

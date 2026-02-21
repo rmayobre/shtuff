@@ -171,6 +171,64 @@ rm -rf "${INSTALL_DIR:?}"/*   # :? prevents rm -rf /* if var is empty
 
 ---
 
+## Contributing to `src/`
+
+### Function Documentation
+
+Every function in `src/` must have a header comment block using this format:
+
+```bash
+# Function: function_name
+# Description: One-line description of what the function does.
+#
+# Arguments:
+#   --flag-name NAME (string, required): Description of the argument.
+#   --other-flag VALUE (integer, optional, default: 5): Description.
+#   $1 - name (string, required): Use positional form only when the argument
+#        is explicitly positional (not a named flag).
+#
+# Globals:
+#   VAR_NAME (read): Description of global variable this function reads.
+#   OTHER_VAR (write): Description of global variable this function writes.
+#
+# Returns:
+#   0 - Success
+#   1 - Invalid arguments or validation failure
+#   2 - File or directory error
+#   3 - Permission denied
+#
+# Examples:
+#   function_name --flag-name "value" --other-flag 10
+#   function_name --flag-name "other"
+```
+
+Rules:
+- **Arguments** must be documented by name (e.g. `--flag VALUE`) unless the
+  argument is explicitly positional, in which case use `$N - name` form.
+- **Globals** must list every global variable the function reads or writes.
+  Omit the section entirely only if the function touches no globals.
+- **Returns** must list every numeric exit code the function can return with
+  a plain-English description for each.
+- **Examples** must include at least one realistic usage example.
+
+### Logging
+
+All user-facing output inside `src/` functions must go through the logging
+functions — never bare `echo` or `printf` for messages:
+
+```bash
+info  "Step completed"            # progress / success
+warn  "Falling back to default"   # non-fatal issues
+error "Required argument missing" # failures before return 1
+debug "Resolved path: $path"      # verbose detail
+```
+
+Use `error` immediately before any `return 1` (or non-zero return) so the
+caller always sees a reason for failure. Use `debug` for internal state that
+is only useful when diagnosing problems.
+
+---
+
 ## Testing Scripts
 
 Validate Bash syntax without executing:

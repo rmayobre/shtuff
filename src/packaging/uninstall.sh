@@ -1,13 +1,21 @@
 #!/usr/bin/env bash
 
 # Function: uninstall
-# Usage: uninstall <package1> [package2...]
-# Description: Detects the system's package manager and removes the desired
-#              packages from the host system..
-# Globals: None
-# Arguments: Array of package names to be removed - separated by space.
-# Outputs: Status messages to stdout, errors to stderr.
-# Returns: 0 on successful cleanup, 1 if package manager unknown or cleanup fails.
+# Description: Detects the system's package manager and removes one or more installed packages.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to remove, separated by spaces.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages removed successfully.
+#   1 - No packages specified, or no supported package manager found.
+#
+# Examples:
+#   uninstall nginx
+#   uninstall nodejs npm
 uninstall() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: uninstall <package1> [package2...]"
@@ -35,7 +43,21 @@ uninstall() {
     fi
 }
 
-# Function to uninstall packages using APT
+# Function: uninstall_apt
+# Description: Removes one or more packages using APT.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to remove.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages removed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   uninstall_apt nginx
 uninstall_apt() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: uninstall_apt <package1> [package2...]"
@@ -46,7 +68,21 @@ uninstall_apt() {
     # Consider `sudo apt autoremove -y` after removal for orphaned dependencies
 }
 
-# Function to uninstall packages using DNF
+# Function: uninstall_dnf
+# Description: Removes one or more packages using DNF.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to remove.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages removed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   uninstall_dnf nginx
 uninstall_dnf() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: uninstall_dnf <package1> [package2...]"
@@ -57,7 +93,21 @@ uninstall_dnf() {
     # Consider `sudo dnf autoremove -y` after removal for orphaned dependencies
 }
 
-# Function to uninstall packages using YUM
+# Function: uninstall_yum
+# Description: Removes one or more packages using YUM.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to remove.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages removed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   uninstall_yum nginx
 uninstall_yum() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: uninstall_yum <package1> [package2...]"
@@ -69,7 +119,21 @@ uninstall_yum() {
     # but `package-cleanup --orphans` can help with cleanup.
 }
 
-# Function to uninstall packages using Zypper
+# Function: uninstall_zypper
+# Description: Removes one or more packages using Zypper in non-interactive mode.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to remove.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages removed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   uninstall_zypper nginx
 uninstall_zypper() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: uninstall_zypper <package1> [package2...]"
@@ -80,7 +144,21 @@ uninstall_zypper() {
     # Note: Zypper automatically handles orphaned dependencies on remove.
 }
 
-# Function to uninstall packages using Pacman
+# Function: uninstall_pacman
+# Description: Removes one or more packages and their unique dependencies using Pacman.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to remove.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages removed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   uninstall_pacman nginx
 uninstall_pacman() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: uninstall_pacman <package1> [package2...]"
@@ -91,7 +169,21 @@ uninstall_pacman() {
     sudo pacman -Rs --noconfirm "$@"
 }
 
-# Function to uninstall packages using APK
+# Function: uninstall_apk
+# Description: Removes one or more packages using APK.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more package names to remove.
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - All packages removed successfully.
+#   1 - No packages specified.
+#
+# Examples:
+#   uninstall_apk nginx
 uninstall_apk() {
     if [ "$#" -eq 0 ]; then
         echo "Usage: uninstall_apk <package1> [package2...]"

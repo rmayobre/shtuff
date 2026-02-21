@@ -1,12 +1,20 @@
 #!/usr/bin/env bash
 
 # Function: update
-# Description: Detects the system's package manager and updates all packages
-#              and package lists/repositories to their latest versions.
-# Globals: None
-# Arguments: None
-# Outputs: Status messages to stdout, errors to stderr.
-# Returns: 0 on successful update, 1 if package manager unknown or update fails.
+# Description: Detects the system's package manager and upgrades all installed packages to their latest versions.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - System update completed successfully.
+#   1 - No supported package manager found.
+#
+# Examples:
+#   update
 update() {
     if command -v apt &> /dev/null; then
         update_apt
@@ -27,7 +35,21 @@ update() {
     fi
 }
 
-# Function to update packages using APT
+# Function: update_apt
+# Description: Refreshes APT package lists and upgrades all installed packages.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Update completed successfully.
+#   1 - apt update or apt upgrade failed.
+#
+# Examples:
+#   update_apt
 update_apt() {
     echo "--- Running APT update (update package lists and upgrade packages) ---"
     sudo apt update
@@ -35,21 +57,63 @@ update_apt() {
     echo "APT update completed successfully."
 }
 
-# Function to update packages using DNF
+# Function: update_dnf
+# Description: Upgrades all installed packages using DNF.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Update completed successfully.
+#   1 - dnf upgrade failed.
+#
+# Examples:
+#   update_dnf
 update_dnf() {
     echo "--- Running DNF update (upgrade all packages) ---"
     sudo dnf upgrade -y
     echo "DNF update completed successfully."
 }
 
-# Function to update packages using YUM
+# Function: update_yum
+# Description: Updates all installed packages using YUM.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Update completed successfully.
+#   1 - yum update failed.
+#
+# Examples:
+#   update_yum
 update_yum() {
     echo "--- Running YUM update (update all packages) ---"
     sudo yum update -y
     echo "YUM update completed successfully."
 }
 
-# Function to update packages using Zypper
+# Function: update_zypper
+# Description: Refreshes Zypper repositories and upgrades all installed packages.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Update completed successfully.
+#   1 - zypper refresh or zypper update failed.
+#
+# Examples:
+#   update_zypper
 update_zypper() {
     echo "--- Running Zypper update (refresh repositories and update packages) ---"
     sudo zypper refresh
@@ -57,14 +121,42 @@ update_zypper() {
     echo "Zypper update completed successfully."
 }
 
-# Function to update packages using Pacman
+# Function: update_pacman
+# Description: Synchronizes Pacman databases and upgrades all installed packages.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Update completed successfully.
+#   1 - pacman -Syu failed.
+#
+# Examples:
+#   update_pacman
 update_pacman() {
     echo "--- Running Pacman update (sync databases and upgrade packages) ---"
     sudo pacman -Syu --noconfirm
     echo "Pacman update completed successfully."
 }
 
-# Function to update packages using APK
+# Function: update_apk
+# Description: Updates the APK package index and upgrades all installed packages.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   None
+#
+# Returns:
+#   0 - Update completed successfully.
+#   1 - apk update or apk upgrade failed.
+#
+# Examples:
+#   update_apk
 update_apk() {
     echo "--- Running APK update (update package index and upgrade packages) ---"
     sudo apk update

@@ -40,31 +40,29 @@ readonly -A LOG_COLORS=(
     ["$DEBUG_LEVEL"]="$CYAN"
 )
 
-# Main logging function
-#
-# Logs a message if the provided level is within the allowed ranged set by the
-# LOG_LEVEL environemnt variable.
-#
-# Log Format: "<TIMESTAMP>[<LOG_LEVEL>] <MESSAGE>
+# Function: log
+# Description: Logs a message at the given level if it falls within the current threshold.
 #
 # Arguments:
-#   $1 - Log level (ERROR, WARN, INFO, DEBUG)
-#   $@ - Message to log (all remaining arguments joined with spaces)
+#   $1 - level (string, required): Log level for this message (error, warn, info, debug).
+#   $@ - message (string, required): Message to log; all remaining arguments are joined with spaces.
 #
-# Environment Variables:
-#   LOG_LEVEL - Current log level threshold (default: INFO)
-#   LOG_FILE - Optional file path for logging output
-#   LOG_TIMESTAMP - Whether to include timestamps (default: true)
+# Globals:
+#   LOG_LEVELS (read): Associative array mapping level names to numeric priorities.
+#   LOG_LEVEL (read): Current logging threshold; messages above this priority are suppressed.
+#   LOG_COLORS (read): Associative array mapping level names to ANSI color codes.
+#   LOG_FILE (read): Optional file path; when set, messages are also appended to this file.
+#   LOG_TIMESTAMP (read): When "true", a timestamp prefix is prepended to each message.
+#   RESET (read): ANSI reset sequence applied after the colored message on TTY output.
 #
 # Returns:
-#   0 - Success or message filtered out
-#   1 - Invalid log level provided
+#   0 - Message logged successfully, or suppressed by the current log level threshold.
+#   1 - Invalid or missing log level, or empty message provided.
 #
-# Example:
-#   log "INFO" "Application started successfully"
-#   log "INFO" "Application" "started" "successfully"
-#   log "ERROR" "Failed to connect to database"
-#
+# Examples:
+#   log "info" "Application started successfully"
+#   log "error" "Failed to connect to database"
+#   log "debug" "Resolved path:" "$resolved"
 log() {
     # Check if minimum arguments provided
     if [[ $# -lt 2 ]]; then
@@ -129,106 +127,82 @@ log() {
     fi
 }
 
-#
-# Error level logging function
-#
-# Logs an error level message - this message is never filtered.
-#
-# Log Format: "<TIMESTAMP>[<LOG_LEVEL>] <MESSAGE>"
+# Function: error
+# Description: Logs a message at error level; always emitted regardless of LOG_LEVEL threshold.
 #
 # Arguments:
-#   $@ - Message to log (all remaining arguments joined with spaces)
+#   $@ - message (string, required): Message to log; all arguments are joined with spaces.
 #
-# Environment Variables:
-#   LOG_LEVEL - Current log level threshold (default: INFO)
-#   LOG_FILE - Optional file path for logging output
-#   LOG_TIMESTAMP - Whether to include timestamps (default: true)
+# Globals:
+#   ERROR_LEVEL (read): Constant string identifying the error log level.
 #
 # Returns:
-#   0 - Success or message filtered out
-#   1 - Invalid log level provided
+#   0 - Message logged successfully.
+#   1 - Empty message provided.
 #
-# Example:
+# Examples:
 #   error "Database connection failed"
+#   error "Required file not found:" "$path"
 error() {
     log $ERROR_LEVEL "$@"
 }
 
-#
-# Warning level logging function
-#
-# Logs an warning level message, if the LOG_LEVEL environment variable isn't
-# set to filter out the message.
-#
-# Log Format: "<TIMESTAMP>[<LOG_LEVEL>] <MESSAGE>"
+# Function: warn
+# Description: Logs a message at warn level; suppressed when LOG_LEVEL is set to error.
 #
 # Arguments:
-#   $@ - Message to log (all remaining arguments joined with spaces)
+#   $@ - message (string, required): Message to log; all arguments are joined with spaces.
 #
-# Environment Variables:
-#   LOG_LEVEL - Current log level threshold (default: INFO)
-#   LOG_FILE - Optional file path for logging output
-#   LOG_TIMESTAMP - Whether to include timestamps (default: true)
+# Globals:
+#   WARN_LEVEL (read): Constant string identifying the warn log level.
 #
 # Returns:
-#   0 - Success or message filtered out
-#   1 - Invalid log level provided
+#   0 - Message logged successfully, or suppressed by log level threshold.
+#   1 - Empty message provided.
 #
-# Example:
+# Examples:
 #   warn "Configuration file not found, using defaults"
+#   warn "Deprecated flag used:" "$flag"
 warn() {
     log $WARN_LEVEL "$@"
 }
 
-#
-# Information level logging function
-#
-# Logs an information level message, if the LOG_LEVEL environment variable isn't
-# set to filter out the message.
-#
-# Log Format: "<TIMESTAMP>[<LOG_LEVEL>] <MESSAGE>"
+# Function: info
+# Description: Logs a message at info level; suppressed when LOG_LEVEL is set to error or warn.
 #
 # Arguments:
-#   $@ - Message to log (all remaining arguments joined with spaces)
+#   $@ - message (string, required): Message to log; all arguments are joined with spaces.
 #
-# Environment Variables:
-#   LOG_LEVEL - Current log level threshold (default: INFO)
-#   LOG_FILE - Optional file path for logging output
-#   LOG_TIMESTAMP - Whether to include timestamps (default: true)
+# Globals:
+#   INFO_LEVEL (read): Constant string identifying the info log level.
 #
 # Returns:
-#   0 - Success or message filtered out
-#   1 - Invalid log level provided
+#   0 - Message logged successfully, or suppressed by log level threshold.
+#   1 - Empty message provided.
 #
-# Example:
+# Examples:
 #   info "Application started successfully"
+#   info "Listening on port" "$port"
 info() {
     log $INFO_LEVEL "$@"
 }
 
-#
-# Debug level logging function
-#
-# Logs an debug level message, if the LOG_LEVEL environment variable isn't
-# set to filter out the message.
-#
-# Log Format: "<TIMESTAMP>[<LOG_LEVEL>] <MESSAGE>"
+# Function: debug
+# Description: Logs a message at debug level; only emitted when LOG_LEVEL=debug.
 #
 # Arguments:
-#   $1 - Log level (ERROR, WARN, INFO, DEBUG)
-#   $@ - Message to log (all remaining arguments joined with spaces)
+#   $@ - message (string, required): Message to log; all arguments are joined with spaces.
 #
-# Environment Variables:
-#   LOG_LEVEL - Current log level threshold (default: INFO)
-#   LOG_FILE - Optional file path for logging output
-#   LOG_TIMESTAMP - Whether to include timestamps (default: true)
+# Globals:
+#   DEBUG_LEVEL (read): Constant string identifying the debug log level.
 #
 # Returns:
-#   0 - Success or message filtered out
-#   1 - Invalid log level provided
+#   0 - Message logged successfully, or suppressed by log level threshold.
+#   1 - Empty message provided.
 #
-# Example:
+# Examples:
 #   debug "Processing user ID: 12345"
+#   debug "Resolved path:" "$path"
 debug() {
     log $DEBUG_LEVEL "$@"
 }

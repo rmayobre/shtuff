@@ -3,33 +3,59 @@
 readonly _TIMER_DEFAULT_OUTPUT_DIR="/etc/systemd/system"
 readonly _TIMER_DEFAULT_WANTED_BY="timers.target"
 
-# Creates a timer file for a systemd service.
+# Function: timer
+# Description: Generates a systemd timer unit file with configurable scheduling options.
 #
-# ARGUMENTS:
-#     -n, --name NAME                     Timer name (required)
-#     -d, --description DESC              Timer description (optional)
-#     -c, --on-calendar SPEC              Calendar expression (optional)
-#     -b, --on-boot-sec TIME              Boot-relative time (optional)
-#     -a, --on-unit-active-sec TIME       Unit-active-relative time (optional)
-#     -i, --on-unit-inactive-sec TIME     Unit-inactive-relative time (optional)
-#     -r, --randomized-delay TIME         Randomized delay (optional)
-#     -p, --persistent                    Persistent flag (optional)
-#     -u, --unit NAME                     Target unit (optional)
-#     -w, --wanted-by TARGET              Install target (optional)
+# Arguments:
+#   --name NAME (string, required): Timer name without the .timer extension.
+#       Must contain only letters, numbers, underscores, and hyphens.
+#   --description DESC (string, optional): Human-readable description for the [Unit] section.
+#       Defaults to "Timer for <name>" when omitted.
+#   --on-calendar SPEC (string, optional): Calendar expression for scheduled activation
+#       (e.g., "daily", "*-*-* 02:00:00").
+#   --on-boot-sec TIME (string, optional): Elapsed time after system boot before first activation
+#       (e.g., "5min", "1h").
+#   --on-unit-active-sec TIME (string, optional): Elapsed time after the unit was last activated
+#       before re-activation (e.g., "1h").
+#   --on-unit-inactive-sec TIME (string, optional): Elapsed time after the unit was last deactivated
+#       before re-activation (e.g., "30min").
+#   --randomized-delay TIME (string, optional): Random delay added to the scheduled time
+#       (e.g., "30min").
+#   --persistent (flag, optional): When set, missed timer events are caught up on next boot.
+#   --unit NAME (string, optional): Name of the service unit to activate.
+#       Defaults to <name>.service when omitted.
+#   --wanted-by TARGET (string, optional, default: timers.target): Systemd install target.
+#   --output-dir DIR (string, optional, default: /etc/systemd/system): Directory to write the unit file into.
+#   --force (flag, optional): Overwrite an existing timer file at the output path.
+#   --help (flag, optional): Print usage information and return without creating a file.
+#   -n NAME (string, required): Short form of --name.
+#   -d DESC (string, optional): Short form of --description.
+#   -c SPEC (string, optional): Short form of --on-calendar.
+#   -b TIME (string, optional): Short form of --on-boot-sec.
+#   -a TIME (string, optional): Short form of --on-unit-active-sec.
+#   -i TIME (string, optional): Short form of --on-unit-inactive-sec.
+#   -r TIME (string, optional): Short form of --randomized-delay.
+#   -p (flag, optional): Short form of --persistent.
+#   -u NAME (string, optional): Short form of --unit.
+#   -w TARGET (string, optional): Short form of --wanted-by.
+#   -o DIR (string, optional): Short form of --output-dir.
+#   -f (flag, optional): Short form of --force.
+#   -h (flag, optional): Short form of --help.
 #
-# GLOBAL VARIABLES:
-#     _TIMER_DEFAULT_OUTPUT_DIR - Default output directory
-#     _TIMER_DEFAULT_WANTED_BY - Default install target
+# Globals:
+#   _TIMER_DEFAULT_OUTPUT_DIR (read): Default directory used when --output-dir is not provided.
+#   _TIMER_DEFAULT_WANTED_BY (read): Default install target used when --wanted-by is not provided.
 #
-# RETURNS:
-#     0 - Timer created successfully
-#     1 - Argument parsing or validation failed
-#     2 - File issues
-#     3 - Permission issue
+# Returns:
+#   0 - Timer unit file created successfully, or --help was requested.
+#   1 - Invalid or missing arguments (e.g., blank name, unexpected flag).
+#   2 - File system error (output directory does not exist, or file already exists without --force).
+#   3 - Permission denied writing the timer file.
 #
-# EXAMPLES:
-#     timer --name backup --on-calendar daily --persistent
-#
+# Examples:
+#   timer --name backup --on-calendar daily --persistent
+#   timer --name cleanup --on-boot-sec 5min --on-unit-active-sec 1h --description "Periodic cleanup"
+#   timer --name maintenance --on-calendar "Sun *-*-* 03:00:00" --randomized-delay 30min --persistent
 timer() {
     local name=""
     local description=""
@@ -203,6 +229,21 @@ timer() {
     return 0
 }
 
+# Function: _timer_show_help
+# Description: Prints timer usage information to stdout.
+#
+# Arguments:
+#   None
+#
+# Globals:
+#   _TIMER_DEFAULT_OUTPUT_DIR (read): Displayed as the default output directory in the help text.
+#   _TIMER_DEFAULT_WANTED_BY (read): Displayed as the default install target in the help text.
+#
+# Returns:
+#   0 - Help text printed successfully.
+#
+# Examples:
+#   _timer_show_help
 _timer_show_help() {
     cat << EOF
 Usage: timer [OPTIONS] --name <timer-name>

@@ -2,134 +2,83 @@
 
 # Function: move
 # Description: Moves one or more source files or directories to a destination,
-#              displaying a progress bar that advances once per source item.
-#              Detects cross-filesystem moves and uses rsync (or cp) plus delete;
-#              same-filesystem moves use mv directly.
+#              displaying a per-item loading indicator as each source is moved.
+#              The last positional argument is treated as the destination.
 #
 # Visual Output:
-#   Moving five items, after the second completes:
+#   Moving three files sequentially:
 #
-#     Moving [████████████████░░░░░░░░░░░░░░░░░░░░░░░░]  40% (2/5)
-#
-#   All five items moved:
-#
-#     Moving [████████████████████████████████████████] 100% (5/5)
+#     ⠸ Moving app.log
+#     ✓ app.log moved
+#     ⠸ Moving error.log
+#     ✓ error.log moved
+#     ⠸ Moving debug.log
+#     ✓ debug.log moved
 #
 # Arguments:
-#   --dest DEST   (string, required): Destination path passed directly to mv.
-#   --message MSG (string, optional, default: "Moving"): Label shown on the progress bar.
-#   --            (separator, optional): Treat all subsequent arguments as source paths,
-#                 even if they begin with a hyphen.
-#   SOURCE...     (string, required): One or more source paths to move.
-#                 May be listed before or after named flags.
+#   SOURCE... DEST (string, required): Two or more positional paths. All paths
+#                  except the last are sources; the last is the destination.
+#   --style STYLE  (string, optional, default: "spinner"): Loading indicator style.
+#       Valid values: spinner, dots, bars, arrows, clock.
+#   --message MSG  (string, optional, default: "Moving"): Verb shown in the
+#                  per-item loading indicator (e.g. "Moving app.log").
 #
 # Globals:
-#   GREEN       (read): ANSI color applied to the filled portion of the progress bar.
-#   RESET_COLOR (read): ANSI reset sequence used to restore terminal color.
+#   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
 #
 # Returns:
 #   0 - All items moved successfully.
-#   1 - Missing required argument, no sources provided, or move/copy/remove failed for any item.
+#   1 - Fewer than two paths provided, or mv failed for any item.
 #
 # Examples:
 #   # Move three log files into an archive directory
-#   move --dest /var/log/archive app.log error.log debug.log
+#   move app.log error.log debug.log /var/log/archive/
 #
-#   # Move build artifacts to a publish directory
-#   move --dest /srv/releases/v2.0 dist/ README.md LICENSE
+#   # Move a build artifact to a publish directory
+#   move dist/ /srv/releases/v2.0/
 #
-#   # Custom progress label
-#   move --message "Archiving backups" --dest /mnt/backup monday.tar tuesday.tar
+#   # Custom style and label
+#   move --style bars --message "Archiving" monday.tar tuesday.tar /mnt/backup/
 function move {
-    local dest=""
+    local style="$DEFAULT_LOADING_STYLE"
     local message="Moving"
-    local -a sources=()
+    local -a paths=()
 
     while (( "$#" )); do
         case "$1" in
-            -D|--dest)
-                dest="$2"
+            -s|--style)
+                style="$2"
                 shift 2
                 ;;
             -m|--message)
                 message="$2"
                 shift 2
                 ;;
-            --)
-                shift
-                sources+=("$@")
-                break
-                ;;
             -*)
                 error "move: unknown option: $1"
                 return 1
                 ;;
             *)
-                sources+=("$1")
+                paths+=("$1")
                 shift
                 ;;
         esac
     done
 
-    if [[ -z "$dest" ]]; then
-        error "move: --dest is required"
+    if (( ${#paths[@]} < 2 )); then
+        error "move: at least one source and a destination are required"
         return 1
     fi
 
-    if (( ${#sources[@]} == 0 )); then
-        error "move: at least one source path is required"
-        return 1
-    fi
+    local dest="${paths[-1]}"
+    local -a sources=("${paths[@]:0:${#paths[@]}-1}")
 
-    local total=${#sources[@]}
-    local use_rsync=false
-    command -v rsync &>/dev/null && use_rsync=true
-
-    for (( i = 0; i < total; i++ )); do
-        local src="${sources[$i]}"
-
-        # Detect cross-filesystem move by comparing device IDs
-        local src_dev dest_dev dest_ref
-        src_dev=$(stat --format '%d' "$src" 2>/dev/null)
-        dest_ref="$dest"
-        [[ ! -e "$dest" ]] && dest_ref="$(dirname "$dest")"
-        dest_dev=$(stat --format '%d' "$dest_ref" 2>/dev/null)
-
-        if [[ -n "$src_dev" && -n "$dest_dev" && "$src_dev" != "$dest_dev" ]]; then
-            # Cross-filesystem: copy then delete
-            debug "move: cross-filesystem move detected for '$src'; using copy-then-delete"
-            if [[ "$use_rsync" == true ]]; then
-                debug "move: using rsync for cross-filesystem copy"
-                if ! rsync -a "$src" "$dest" >/dev/null 2>&1; then
-                    error "move: rsync failed copying '$src' to '$dest'"
-                    return 1
-                fi
-            elif [[ -d "$src" ]]; then
-                debug "move: rsync not found, using cp -r"
-                if ! cp -r "$src" "$dest"; then
-                    error "move: failed to copy '$src' to '$dest'"
-                    return 1
-                fi
-            else
-                debug "move: rsync not found, using cp"
-                if ! cp "$src" "$dest"; then
-                    error "move: failed to copy '$src' to '$dest'"
-                    return 1
-                fi
-            fi
-            if ! rm -rf "$src"; then
-                error "move: failed to remove source '$src' after cross-filesystem copy"
-                return 1
-            fi
-        else
-            # Same filesystem: atomic mv
-            debug "move: same-filesystem move, using mv for '$src'"
-            if ! mv "$src" "$dest"; then
-                error "move: failed to move '$src' to '$dest'"
-                return 1
-            fi
-        fi
-
-        progress --current $(( i + 1 )) --total "$total" --message "$message"
+    for src in "${sources[@]}"; do
+        mv "$src" "$dest" &
+        monitor $! \
+            --style "$style" \
+            --message "$message $src" \
+            --success_msg "$src moved" \
+            --error_msg "Failed to move $src" || return 1
     done
 }

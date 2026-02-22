@@ -1,63 +1,57 @@
 #!/usr/bin/env bash
 
 # Function: delete
-# Description: Removes one or more files or directories, displaying a progress bar
-#              that advances once per target item. Each item is removed with the
-#              standard rm command; pass --recursive to remove directories (rm -r).
+# Description: Removes one or more files or directories, displaying a per-item
+#              loading indicator as each target is deleted. Directories are
+#              detected automatically and removed with rm -rf.
 #
 # Visual Output:
-#   Deleting four of five items:
+#   Deleting three items sequentially:
 #
-#     Deleting [████████████████████████████████░░░░░░░░]  80% (4/5)
-#
-#   All five items deleted:
-#
-#     Deleting [████████████████████████████████████████] 100% (5/5)
+#     ⠸ Deleting /tmp/myapp.zip
+#     ✓ /tmp/myapp.zip deleted
+#     ⠸ Deleting /tmp/myapp_extract
+#     ✓ /tmp/myapp_extract deleted
+#     ⠸ Deleting /tmp/patch.diff
+#     ✓ /tmp/patch.diff deleted
 #
 # Arguments:
-#   --recursive   (flag, optional): Remove directories and their contents (rm -r).
-#   --message MSG (string, optional, default: "Deleting"): Label shown on the progress bar.
-#   --            (separator, optional): Treat all subsequent arguments as target paths,
-#                 even if they begin with a hyphen.
-#   TARGET...     (string, required): One or more paths to remove.
-#                 May be listed before or after named flags.
+#   TARGET...     (string, required): One or more positional paths to remove.
+#   --style STYLE (string, optional, default: "spinner"): Loading indicator style.
+#       Valid values: spinner, dots, bars, arrows, clock.
+#   --message MSG (string, optional, default: "Deleting"): Verb shown in the
+#                 per-item loading indicator (e.g. "Deleting /tmp/myapp.zip").
 #
 # Globals:
-#   GREEN       (read): ANSI color applied to the filled portion of the progress bar.
-#   RESET_COLOR (read): ANSI reset sequence used to restore terminal color.
+#   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
 #
 # Returns:
 #   0 - All items removed successfully.
-#   1 - No targets provided or rm failed for any item.
+#   1 - No targets provided, or rm failed for any item.
 #
 # Examples:
-#   # Delete three temporary files
-#   delete /tmp/myapp.zip /tmp/myapp.tar.gz /tmp/patch.diff
+#   # Delete two temporary files
+#   delete /tmp/myapp.zip /tmp/patch.diff
 #
-#   # Recursively delete build and cache directories
-#   delete --recursive build/ .cache/ dist/
+#   # Delete a temporary directory (detected and removed with rm -rf)
+#   delete /tmp/myapp_extract
 #
-#   # Custom progress label
-#   delete --message "Cleaning up" --recursive /tmp/myapp_extract /tmp/myapp_staging
+#   # Custom style and label
+#   delete --style dots --message "Cleaning up" /tmp/myapp_extract /tmp/myapp.zip
 function delete {
-    local recursive=false
+    local style="$DEFAULT_LOADING_STYLE"
     local message="Deleting"
     local -a targets=()
 
     while (( "$#" )); do
         case "$1" in
-            -r|--recursive)
-                recursive=true
-                shift
+            -s|--style)
+                style="$2"
+                shift 2
                 ;;
             -m|--message)
                 message="$2"
                 shift 2
-                ;;
-            --)
-                shift
-                targets+=("$@")
-                break
                 ;;
             -*)
                 error "delete: unknown option: $1"
@@ -75,16 +69,16 @@ function delete {
         return 1
     fi
 
-    local total=${#targets[@]}
-    local rm_flags=()
-    [[ "$recursive" == true ]] && rm_flags+=("-r")
-
-    for (( i = 0; i < total; i++ )); do
-        local target="${targets[$i]}"
-        if ! rm "${rm_flags[@]}" "$target"; then
-            error "delete: failed to remove '$target'"
-            return 1
+    for target in "${targets[@]}"; do
+        if [[ -d "$target" ]]; then
+            rm -rf "$target" &
+        else
+            rm "$target" &
         fi
-        progress --current $(( i + 1 )) --total "$total" --message "$message"
+        monitor $! \
+            --style "$style" \
+            --message "$message $target" \
+            --success_msg "$target deleted" \
+            --error_msg "Failed to delete $target" || return 1
     done
 }

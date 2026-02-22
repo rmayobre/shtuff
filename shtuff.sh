@@ -29,4 +29,10 @@ source "${SHTUFF_DIR}/src/utils/copy.sh"
 source "${SHTUFF_DIR}/src/utils/move.sh"
 source "${SHTUFF_DIR}/src/utils/delete.sh"
 
+# Containers
+source "${SHTUFF_DIR}/src/containers/lxc_create.sh"
+source "${SHTUFF_DIR}/src/containers/lxc_enter.sh"
+source "${SHTUFF_DIR}/src/containers/lxc_push.sh"
+source "${SHTUFF_DIR}/src/containers/lxc_pull.sh"
+
 timer -h

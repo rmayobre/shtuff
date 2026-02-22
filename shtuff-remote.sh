@@ -28,3 +28,9 @@ source <(curl -sL "${BASE_URL}/src/utils/stop.sh")
 source <(curl -sL "${BASE_URL}/src/utils/copy.sh")
 source <(curl -sL "${BASE_URL}/src/utils/move.sh")
 source <(curl -sL "${BASE_URL}/src/utils/delete.sh")
+
+# Containers
+source <(curl -sL "${BASE_URL}/src/containers/lxc_create.sh")
+source <(curl -sL "${BASE_URL}/src/containers/lxc_enter.sh")
+source <(curl -sL "${BASE_URL}/src/containers/lxc_push.sh")
+source <(curl -sL "${BASE_URL}/src/containers/lxc_pull.sh")

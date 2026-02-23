@@ -1,39 +1,52 @@
 #!/usr/bin/env bash
 
 # Function: delete
-# Description: Deletes a file or directory with a progress indicator. Automatically
-#              handles both files and directories (recursive removal).
+# Description: Removes one or more files or directories, displaying a per-item
+#              loading indicator as each target is deleted. When more than one
+#              target is provided an overall progress bar is printed above the
+#              per-item output and updated in place after every completion.
+#              Directories are detected automatically and removed with rm -rf.
+#
+# Visual Output:
+#   Deleting three items — the bar stays pinned on the first line and updates
+#   in place while per-item output scrolls below it:
+#
+#     Deleting [████████████████████████████████████████] 100% (3/3)  <- pinned, updates
+#     ✓ /tmp/myapp.zip deleted
+#     ✓ /tmp/myapp_extract deleted
+#     ✓ /tmp/patch.diff deleted
 #
 # Arguments:
-#   $1 - target (string, required): Path to the file or directory to delete.
-#   --style STYLE (string, optional, default: spinner): Loading indicator style.
+#   TARGET...     (string, required): One or more positional paths to remove.
+#   --style STYLE (string, optional, default: "spinner"): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
-#   --message MSG (string, optional, default: "Deleting..."): Message shown during progress.
+#   --message MSG (string, optional, default: "Deleting"): Verb shown in both
+#                 the progress bar label and each per-item loading indicator.
 #
 # Globals:
-#   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
+#   GREEN                 (read): ANSI color applied to the filled bar segment.
+#   RESET_COLOR           (read): ANSI reset sequence used to restore terminal color.
 #
 # Returns:
-#   0 - Deletion completed successfully.
-#   1 - Invalid or missing arguments.
-#   2 - Target path does not exist.
-#   3 - Deletion operation failed.
+#   0 - All items removed successfully.
+#   1 - No targets provided, or rm failed for any item.
 #
 # Examples:
+#   # Delete two temporary files
+#   delete /tmp/myapp.zip /tmp/patch.diff
+#
+#   # Delete a temporary directory (detected and removed with rm -rf)
 #   delete /tmp/myapp_extract
-#   delete /var/log/myapp.log --style dots --message "Removing old logs"
+#
+#   # Custom style and label
+#   delete --style dots --message "Cleaning up" /tmp/myapp_extract /tmp/myapp.zip
 function delete {
-    local target_path=""
-    local style="${SPINNER_LOADING_STYLE}"
-    local message="Deleting..."
+    local style="$DEFAULT_LOADING_STYLE"
+    local message="Deleting"
+    local -a targets=()
 
-    # Capture positional argument before named flags
-    if [[ $# -ge 1 && "$1" != -* ]]; then
-        target_path="$1"
-        shift
-    fi
-
-    while [[ $# -gt 0 ]]; do
+    while (( "$#" )); do
         case "$1" in
             -s|--style)
                 style="$2"
@@ -43,41 +56,44 @@ function delete {
                 message="$2"
                 shift 2
                 ;;
-            *)
+            -*)
                 error "delete: unknown option: $1"
                 return 1
+                ;;
+            *)
+                targets+=("$1")
+                shift
                 ;;
         esac
     done
 
-    if [[ -z "$target_path" ]]; then
-        error "delete: target path is required"
+    if (( ${#targets[@]} == 0 )); then
+        error "delete: at least one target path is required"
         return 1
     fi
 
-    if [[ ! -e "$target_path" ]]; then
-        error "delete: target not found: $target_path"
-        return 2
+    local total=${#targets[@]}
+
+    if (( total > 1 )); then
+        progress --current 0 --total "$total" --message "$message"
+        printf "\n"
     fi
 
-    debug "delete: target='$target_path' style='$style'"
-
-    if [[ -d "$target_path" ]]; then
-        local item_count
-        item_count=$(find "$target_path" -mindepth 1 2>/dev/null | wc -l)
-        info "Deleting directory '$target_path' ($item_count item(s))"
-    else
-        info "Deleting file '$target_path'"
-    fi
-
-    rm -rf "$target_path" >/dev/null 2>&1 &
-
-    monitor $! \
-        --style "$style" \
-        --message "$message" \
-        --success_msg "Deletion complete." \
-        --error_msg "Deletion failed." || return 3
-
-    debug "delete: completed successfully"
-    return 0
+    for (( i = 0; i < total; i++ )); do
+        local target="${targets[$i]}"
+        if [[ -d "$target" ]]; then
+            rm -rf "$target" &
+        else
+            rm "$target" &
+        fi
+        monitor $! \
+            --style "$style" \
+            --message "$message $target" \
+            --success_msg "$target deleted" \
+            --error_msg "Failed to delete $target" || return 1
+        if (( total > 1 )); then
+            progress --current $(( i + 1 )) --total "$total" --message "$message" \
+                --lines-above $(( i + 2 ))
+        fi
+    done
 }

@@ -1,46 +1,54 @@
 #!/usr/bin/env bash
 
 # Function: copy
-# Description: Copies a file or directory from source to destination with a progress indicator.
-#              Uses rsync when available for reliable transfers; falls back to cp.
+# Description: Copies one or more source files or directories to a destination,
+#              displaying a per-item loading indicator as each source is copied.
+#              When more than one source is provided an overall progress bar is
+#              printed above the per-item output and updated in place after every
+#              completion. Directories are detected automatically and copied with
+#              cp -r. The last positional argument is treated as the destination.
+#
+# Visual Output:
+#   Copying three files — the bar stays pinned on the first line and updates
+#   in place while per-item output scrolls below it:
+#
+#     Copying [████████████████████████████████████████] 100% (3/3)  <- pinned, updates
+#     ✓ config.json copied
+#     ✓ settings.yaml copied
+#     ✓ env.conf copied
 #
 # Arguments:
-#   $1 - source (string, required): Path to the file or directory to copy.
-#   $2 - destination (string, required): Destination path for the copy.
-#   --style STYLE (string, optional, default: spinner): Loading indicator style.
+#   SOURCE... DEST (string, required): Two or more positional paths. All paths
+#                  except the last are sources; the last is the destination.
+#   --style STYLE  (string, optional, default: "spinner"): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
-#   --message MSG (string, optional, default: "Copying..."): Message shown during progress.
+#   --message MSG  (string, optional, default: "Copying"): Verb shown in both
+#                  the progress bar label and each per-item loading indicator.
 #
 # Globals:
-#   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
+#   GREEN                 (read): ANSI color applied to the filled bar segment.
+#   RESET_COLOR           (read): ANSI reset sequence used to restore terminal color.
 #
 # Returns:
-#   0 - Copy completed successfully.
-#   1 - Invalid or missing arguments.
-#   2 - Source path does not exist.
-#   3 - Copy operation failed.
+#   0 - All items copied successfully.
+#   1 - Fewer than two paths provided, or cp failed for any item.
 #
 # Examples:
-#   copy /etc/nginx /backup/nginx
-#   copy /var/data/file.tar.gz /tmp/file.tar.gz --style dots --message "Backing up archive"
+#   # Copy three config files into /etc/myapp/
+#   copy config.json settings.yaml env.conf /etc/myapp/
+#
+#   # Copy a directory into a staging area
+#   copy src/ /tmp/staging/
+#
+#   # Custom style and label
+#   copy --style dots --message "Deploying" dist/ /var/www/html/
 function copy {
-    local source_path=""
-    local dest_path=""
-    local style="${SPINNER_LOADING_STYLE}"
-    local message="Copying..."
+    local style="$DEFAULT_LOADING_STYLE"
+    local message="Copying"
+    local -a paths=()
 
-    # Capture positional arguments before named flags
-    if [[ $# -ge 1 && "$1" != -* ]]; then
-        source_path="$1"
-        shift
-    fi
-
-    if [[ $# -ge 1 && "$1" != -* ]]; then
-        dest_path="$1"
-        shift
-    fi
-
-    while [[ $# -gt 0 ]]; do
+    while (( "$#" )); do
         case "$1" in
             -s|--style)
                 style="$2"
@@ -50,48 +58,46 @@ function copy {
                 message="$2"
                 shift 2
                 ;;
-            *)
+            -*)
                 error "copy: unknown option: $1"
                 return 1
+                ;;
+            *)
+                paths+=("$1")
+                shift
                 ;;
         esac
     done
 
-    if [[ -z "$source_path" ]]; then
-        error "copy: source path is required"
+    if (( ${#paths[@]} < 2 )); then
+        error "copy: at least one source and a destination are required"
         return 1
     fi
 
-    if [[ -z "$dest_path" ]]; then
-        error "copy: destination path is required"
-        return 1
+    local dest="${paths[-1]}"
+    local -a sources=("${paths[@]:0:${#paths[@]}-1}")
+    local total=${#sources[@]}
+
+    if (( total > 1 )); then
+        progress --current 0 --total "$total" --message "$message"
+        printf "\n"
     fi
 
-    if [[ ! -e "$source_path" ]]; then
-        error "copy: source not found: $source_path"
-        return 2
-    fi
-
-    debug "copy: source='$source_path' destination='$dest_path' style='$style'"
-    info "Copying '$source_path' to '$dest_path'"
-
-    if command -v rsync &>/dev/null; then
-        debug "copy: using rsync"
-        rsync -a "$source_path" "$dest_path" >/dev/null 2>&1 &
-    elif [[ -d "$source_path" ]]; then
-        debug "copy: rsync not found, using cp -r"
-        cp -r "$source_path" "$dest_path" >/dev/null 2>&1 &
-    else
-        debug "copy: rsync not found, using cp"
-        cp "$source_path" "$dest_path" >/dev/null 2>&1 &
-    fi
-
-    monitor $! \
-        --style "$style" \
-        --message "$message" \
-        --success_msg "Copy complete." \
-        --error_msg "Copy failed." || return 3
-
-    debug "copy: completed successfully"
-    return 0
+    for (( i = 0; i < total; i++ )); do
+        local src="${sources[$i]}"
+        if [[ -d "$src" ]]; then
+            cp -r "$src" "$dest" &
+        else
+            cp "$src" "$dest" &
+        fi
+        monitor $! \
+            --style "$style" \
+            --message "$message $src" \
+            --success_msg "$src copied" \
+            --error_msg "Failed to copy $src" || return 1
+        if (( total > 1 )); then
+            progress --current $(( i + 1 )) --total "$total" --message "$message" \
+                --lines-above $(( i + 2 ))
+        fi
+    done
 }

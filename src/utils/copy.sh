@@ -3,29 +3,37 @@
 # Function: copy
 # Description: Copies one or more source files or directories to a destination,
 #              displaying a per-item loading indicator as each source is copied.
+#              When more than one source is provided an overall progress bar is
+#              printed above each item and updated after every completion.
 #              Directories are detected automatically and copied with cp -r.
 #              The last positional argument is treated as the destination.
 #
 # Visual Output:
-#   Copying three files sequentially:
+#   Copying three files (bar updates after each item completes):
 #
+#     Copying [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0% (0/3)
 #     ⠸ Copying config.json
 #     ✓ config.json copied
+#     Copying [█████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░]  33% (1/3)
 #     ⠸ Copying settings.yaml
 #     ✓ settings.yaml copied
+#     Copying [██████████████████████████░░░░░░░░░░░░░░]  66% (2/3)
 #     ⠸ Copying env.conf
 #     ✓ env.conf copied
+#     Copying [████████████████████████████████████████] 100% (3/3)
 #
 # Arguments:
 #   SOURCE... DEST (string, required): Two or more positional paths. All paths
 #                  except the last are sources; the last is the destination.
 #   --style STYLE  (string, optional, default: "spinner"): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
-#   --message MSG  (string, optional, default: "Copying"): Verb shown in the
-#                  per-item loading indicator (e.g. "Copying config.json").
+#   --message MSG  (string, optional, default: "Copying"): Verb shown in both
+#                  the progress bar label and each per-item loading indicator.
 #
 # Globals:
 #   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
+#   GREEN                 (read): ANSI color applied to the filled bar segment.
+#   RESET_COLOR           (read): ANSI reset sequence used to restore terminal color.
 #
 # Returns:
 #   0 - All items copied successfully.
@@ -73,8 +81,15 @@ function copy {
 
     local dest="${paths[-1]}"
     local -a sources=("${paths[@]:0:${#paths[@]}-1}")
+    local total=${#sources[@]}
 
-    for src in "${sources[@]}"; do
+    if (( total > 1 )); then
+        progress --current 0 --total "$total" --message "$message"
+        printf "\n"
+    fi
+
+    for (( i = 0; i < total; i++ )); do
+        local src="${sources[$i]}"
         if [[ -d "$src" ]]; then
             cp -r "$src" "$dest" &
         else
@@ -85,5 +100,11 @@ function copy {
             --message "$message $src" \
             --success_msg "$src copied" \
             --error_msg "Failed to copy $src" || return 1
+        if (( total > 1 )); then
+            progress --current $(( i + 1 )) --total "$total" --message "$message"
+            if (( i + 1 < total )); then
+                printf "\n"
+            fi
+        fi
     done
 }

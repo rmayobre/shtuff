@@ -2,28 +2,36 @@
 
 # Function: delete
 # Description: Removes one or more files or directories, displaying a per-item
-#              loading indicator as each target is deleted. Directories are
-#              detected automatically and removed with rm -rf.
+#              loading indicator as each target is deleted. When more than one
+#              target is provided an overall progress bar is printed above each
+#              item and updated after every completion. Directories are detected
+#              automatically and removed with rm -rf.
 #
 # Visual Output:
-#   Deleting three items sequentially:
+#   Deleting three items (bar updates after each item completes):
 #
+#     Deleting [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0% (0/3)
 #     ⠸ Deleting /tmp/myapp.zip
 #     ✓ /tmp/myapp.zip deleted
+#     Deleting [█████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░]  33% (1/3)
 #     ⠸ Deleting /tmp/myapp_extract
 #     ✓ /tmp/myapp_extract deleted
+#     Deleting [██████████████████████████░░░░░░░░░░░░░░]  66% (2/3)
 #     ⠸ Deleting /tmp/patch.diff
 #     ✓ /tmp/patch.diff deleted
+#     Deleting [████████████████████████████████████████] 100% (3/3)
 #
 # Arguments:
 #   TARGET...     (string, required): One or more positional paths to remove.
 #   --style STYLE (string, optional, default: "spinner"): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
-#   --message MSG (string, optional, default: "Deleting"): Verb shown in the
-#                 per-item loading indicator (e.g. "Deleting /tmp/myapp.zip").
+#   --message MSG (string, optional, default: "Deleting"): Verb shown in both
+#                 the progress bar label and each per-item loading indicator.
 #
 # Globals:
 #   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
+#   GREEN                 (read): ANSI color applied to the filled bar segment.
+#   RESET_COLOR           (read): ANSI reset sequence used to restore terminal color.
 #
 # Returns:
 #   0 - All items removed successfully.
@@ -69,7 +77,15 @@ function delete {
         return 1
     fi
 
-    for target in "${targets[@]}"; do
+    local total=${#targets[@]}
+
+    if (( total > 1 )); then
+        progress --current 0 --total "$total" --message "$message"
+        printf "\n"
+    fi
+
+    for (( i = 0; i < total; i++ )); do
+        local target="${targets[$i]}"
         if [[ -d "$target" ]]; then
             rm -rf "$target" &
         else
@@ -80,5 +96,11 @@ function delete {
             --message "$message $target" \
             --success_msg "$target deleted" \
             --error_msg "Failed to delete $target" || return 1
+        if (( total > 1 )); then
+            progress --current $(( i + 1 )) --total "$total" --message "$message"
+            if (( i + 1 < total )); then
+                printf "\n"
+            fi
+        fi
     done
 }

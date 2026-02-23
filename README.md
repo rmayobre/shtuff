@@ -48,6 +48,36 @@ uninstall htop curl nano # Remove package(s)
 clean                    # Cleanup unused packages and cache
 ```
 
+## Release Source
+
+Source a pinned, stable version by downloading a specific release tarball from GitHub
+Releases. This avoids pulling from `main` and gives you reproducible, version-locked
+behaviour.
+
+```bash
+#!/bin/bash
+
+VERSION="v1.0.0"  # pin to the release tag you want
+SHTUFF_TMP="/tmp/shtuff-${VERSION}"
+
+mkdir -p "${SHTUFF_TMP}"
+curl -sL "https://github.com/rmayobre/shtuff/releases/download/${VERSION}/shtuff-${VERSION}.tar.gz" \
+    | tar -xz -C "${SHTUFF_TMP}"
+
+source "${SHTUFF_TMP}/shtuff.sh"
+
+# Now you have access to all my shtuff (pinned to the chosen version)
+
+install htop curl nano   # Install package(s)
+update                   # Update packages and cache
+uninstall htop curl nano # Remove package(s)
+clean                    # Cleanup unused packages and cache
+```
+
+The tarball is extracted into a temporary directory, and `shtuff.sh` is sourced from
+there. Because `shtuff.sh` resolves the `src/` files relative to its own location, all
+utilities are available immediately after the `source` line.
+
 ## Forking
 
 Just fork the project and write your scripts in the same repository. NOTE: update the base URL defined in the `shtuff-remote.sh` file.

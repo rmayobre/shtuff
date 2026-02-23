@@ -4,23 +4,18 @@
 # Description: Copies one or more source files or directories to a destination,
 #              displaying a per-item loading indicator as each source is copied.
 #              When more than one source is provided an overall progress bar is
-#              printed above each item and updated after every completion.
-#              Directories are detected automatically and copied with cp -r.
-#              The last positional argument is treated as the destination.
+#              printed above the per-item output and updated in place after every
+#              completion. Directories are detected automatically and copied with
+#              cp -r. The last positional argument is treated as the destination.
 #
 # Visual Output:
-#   Copying three files (bar updates after each item completes):
+#   Copying three files — the bar stays pinned on the first line and updates
+#   in place while per-item output scrolls below it:
 #
-#     Copying [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0% (0/3)
-#     ⠸ Copying config.json
+#     Copying [████████████████████████████████████████] 100% (3/3)  <- pinned, updates
 #     ✓ config.json copied
-#     Copying [█████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░]  33% (1/3)
-#     ⠸ Copying settings.yaml
 #     ✓ settings.yaml copied
-#     Copying [██████████████████████████░░░░░░░░░░░░░░]  66% (2/3)
-#     ⠸ Copying env.conf
 #     ✓ env.conf copied
-#     Copying [████████████████████████████████████████] 100% (3/3)
 #
 # Arguments:
 #   SOURCE... DEST (string, required): Two or more positional paths. All paths
@@ -101,10 +96,8 @@ function copy {
             --success_msg "$src copied" \
             --error_msg "Failed to copy $src" || return 1
         if (( total > 1 )); then
-            progress --current $(( i + 1 )) --total "$total" --message "$message"
-            if (( i + 1 < total )); then
-                printf "\n"
-            fi
+            progress --current $(( i + 1 )) --total "$total" --message "$message" \
+                --lines-above $(( i + 2 ))
         fi
     done
 }

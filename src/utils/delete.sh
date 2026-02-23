@@ -3,23 +3,18 @@
 # Function: delete
 # Description: Removes one or more files or directories, displaying a per-item
 #              loading indicator as each target is deleted. When more than one
-#              target is provided an overall progress bar is printed above each
-#              item and updated after every completion. Directories are detected
-#              automatically and removed with rm -rf.
+#              target is provided an overall progress bar is printed above the
+#              per-item output and updated in place after every completion.
+#              Directories are detected automatically and removed with rm -rf.
 #
 # Visual Output:
-#   Deleting three items (bar updates after each item completes):
+#   Deleting three items — the bar stays pinned on the first line and updates
+#   in place while per-item output scrolls below it:
 #
-#     Deleting [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0% (0/3)
-#     ⠸ Deleting /tmp/myapp.zip
+#     Deleting [████████████████████████████████████████] 100% (3/3)  <- pinned, updates
 #     ✓ /tmp/myapp.zip deleted
-#     Deleting [█████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░]  33% (1/3)
-#     ⠸ Deleting /tmp/myapp_extract
 #     ✓ /tmp/myapp_extract deleted
-#     Deleting [██████████████████████████░░░░░░░░░░░░░░]  66% (2/3)
-#     ⠸ Deleting /tmp/patch.diff
 #     ✓ /tmp/patch.diff deleted
-#     Deleting [████████████████████████████████████████] 100% (3/3)
 #
 # Arguments:
 #   TARGET...     (string, required): One or more positional paths to remove.
@@ -97,10 +92,8 @@ function delete {
             --success_msg "$target deleted" \
             --error_msg "Failed to delete $target" || return 1
         if (( total > 1 )); then
-            progress --current $(( i + 1 )) --total "$total" --message "$message"
-            if (( i + 1 < total )); then
-                printf "\n"
-            fi
+            progress --current $(( i + 1 )) --total "$total" --message "$message" \
+                --lines-above $(( i + 2 ))
         fi
     done
 }

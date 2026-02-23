@@ -4,22 +4,17 @@
 # Description: Moves one or more source files or directories to a destination,
 #              displaying a per-item loading indicator as each source is moved.
 #              When more than one source is provided an overall progress bar is
-#              printed above each item and updated after every completion.
-#              The last positional argument is treated as the destination.
+#              printed above the per-item output and updated in place after every
+#              completion. The last positional argument is treated as the destination.
 #
 # Visual Output:
-#   Moving three files (bar updates after each item completes):
+#   Moving three files — the bar stays pinned on the first line and updates
+#   in place while per-item output scrolls below it:
 #
-#     Moving [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░]   0% (0/3)
-#     ⠸ Moving app.log
+#     Moving [████████████████████████████████████████] 100% (3/3)  <- pinned, updates
 #     ✓ app.log moved
-#     Moving [█████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░]  33% (1/3)
-#     ⠸ Moving error.log
 #     ✓ error.log moved
-#     Moving [██████████████████████████░░░░░░░░░░░░░░]  66% (2/3)
-#     ⠸ Moving debug.log
 #     ✓ debug.log moved
-#     Moving [████████████████████████████████████████] 100% (3/3)
 #
 # Arguments:
 #   SOURCE... DEST (string, required): Two or more positional paths. All paths
@@ -96,10 +91,8 @@ function move {
             --success_msg "$src moved" \
             --error_msg "Failed to move $src" || return 1
         if (( total > 1 )); then
-            progress --current $(( i + 1 )) --total "$total" --message "$message"
-            if (( i + 1 < total )); then
-                printf "\n"
-            fi
+            progress --current $(( i + 1 )) --total "$total" --message "$message" \
+                --lines-above $(( i + 2 ))
         fi
     done
 }

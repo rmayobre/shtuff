@@ -7,6 +7,12 @@
 #              automatically when --current equals --total, or immediately when
 #              --done is passed.
 #
+#              When --lines-above N is provided the function moves the cursor up
+#              N lines before drawing, then restores the cursor to its original
+#              position afterward. This keeps the bar pinned at the top of a
+#              block of scrolling output (e.g. per-item monitor messages) without
+#              the caller needing to manage cursor movement itself.
+#
 # Visual Output:
 #   In-progress (current = 4, total = 10, message = "Downloading", width = 40):
 #
@@ -16,17 +22,22 @@
 #
 #     Downloading [████████████████████████████████████████] 100% (10/10)
 #
-#   With a wider bar (--width 60) and custom message at 75%:
+#   Pinned bar (--lines-above 2) while per-item output scrolls below it:
 #
-#     Installing  [█████████████████████████████████████████████░░░░░░░░░░░░░░░]  75% (15/20)
+#     Copying [██████████████████████████░░░░░░░░░░░░░░]  50% (1/2)   <- stays here
+#     ✓ first.txt copied
+#     ⠸ Copying second.txt                                             <- monitor below
 #
 # Arguments:
-#   --current N   (integer, required): Current step/value (0 to --total inclusive).
-#   --total N     (integer, required): Total steps/value representing 100%.
-#   --message MSG (string, optional, default: "Progress"): Label printed before the bar.
-#   --width N     (integer, optional, default: 40): Number of fill characters in the bar.
-#   --done        (flag, optional): Force a trailing newline, finalizing the bar output.
-#                 Automatically implied when --current equals --total.
+#   --current N      (integer, required): Current step/value (0 to --total inclusive).
+#   --total N        (integer, required): Total steps/value representing 100%.
+#   --message MSG    (string, optional, default: "Progress"): Label printed before the bar.
+#   --width N        (integer, optional, default: 40): Number of fill characters in the bar.
+#   --lines-above N  (integer, optional, default: 0): Lines between the current cursor
+#                    position and the bar line. When non-zero, the cursor is moved up N
+#                    lines before drawing and restored to its original position afterward.
+#   --done           (flag, optional): Force a trailing newline, finalizing the bar output.
+#                    Automatically implied when --current equals --total.
 #
 # Globals:
 #   GREEN       (read): ANSI color applied to the filled portion of the bar.
@@ -35,7 +46,8 @@
 # Returns:
 #   0 - Success.
 #   1 - Missing or invalid argument: --current or --total absent or non-numeric,
-#       --total is zero, --width is zero or non-numeric, or --current exceeds --total.
+#       --total is zero, --width is zero or non-numeric, --lines-above is non-numeric,
+#       or --current exceeds --total.
 #
 # Examples:
 #   # Iterate over a list of files and report progress after each one
@@ -46,19 +58,21 @@
 #       progress --current $(( i + 1 )) --total "$total" --message "Processing files"
 #   done
 #
-#   # Custom bar width for a download loop
-#   for i in $(seq 1 20); do
-#       sleep 0.05
-#       progress --current "$i" --total 20 --message "Downloading" --width 60
+#   # Pinned bar above per-item monitor output (bar is i+2 lines above after item i)
+#   progress --current 0 --total "$total" --message "Copying"
+#   printf "\n"
+#   for (( i = 0; i < total; i++ )); do
+#       cp "${sources[$i]}" "$dest" &
+#       monitor $! --message "Copying ${sources[$i]}"
+#       progress --current $(( i + 1 )) --total "$total" --message "Copying" \
+#           --lines-above $(( i + 2 ))
 #   done
-#
-#   # Manually finalize the bar before reaching --total
-#   progress --current 7 --total 10 --message "Uploading" --done
 function progress {
     local current=""
     local total=""
     local message="Progress"
     local width=40
+    local lines_above=0
     local done_flag=false
 
     while (( "$#" )); do
@@ -77,6 +91,10 @@ function progress {
                 ;;
             -w|--width)
                 width="$2"
+                shift 2
+                ;;
+            -l|--lines-above)
+                lines_above="$2"
                 shift 2
                 ;;
             -d|--done)
@@ -115,9 +133,19 @@ function progress {
         return 1
     fi
 
+    if ! [[ "$lines_above" =~ ^[0-9]+$ ]]; then
+        error "progress: --lines-above must be a non-negative integer"
+        return 1
+    fi
+
     if (( current > total )); then
         error "progress: --current ($current) exceeds --total ($total)"
         return 1
+    fi
+
+    # Move cursor up to the bar line when it was drawn above the current position.
+    if (( lines_above > 0 )); then
+        printf "\033[%dA\r" "$lines_above"
     fi
 
     # Calculate how many characters to fill vs leave empty.
@@ -150,7 +178,21 @@ function progress {
         "$pct_str" "$count_str"
 
     # Print a newline to finalize the bar when complete or explicitly requested.
+    local printed_newline=false
     if [[ "$done_flag" == true ]] || (( current == total )); then
         printf "\n"
+        printed_newline=true
+    fi
+
+    # Restore cursor to its original position below the bar.
+    if (( lines_above > 0 )); then
+        if [[ "$printed_newline" == true ]]; then
+            # The auto-\n already moved down one line; move down the remaining distance.
+            if (( lines_above > 1 )); then
+                printf "\033[%dB\r" "$((lines_above - 1))"
+            fi
+        else
+            printf "\033[%dB\r" "$lines_above"
+        fi
     fi
 }

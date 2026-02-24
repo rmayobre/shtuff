@@ -38,7 +38,6 @@ source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/m
 # --- Configuration ---
 readonly BENTOPDF_SERVICE="bentopdf"
 CONTAINER_NAME="${CONTAINER_NAME:-bentopdf}"
-CONTAINER_VMID="${CONTAINER_VMID:-200}"
 PCT_TEMPLATE="${PCT_TEMPLATE:-local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst}"
 BENTOPDF_PORT="${BENTOPDF_PORT:-3000}"
 BENTOPDF_DIR="${BENTOPDF_DIR:-/var/www/bentopdf}"
@@ -48,7 +47,6 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         -n|--name)
             CONTAINER_NAME="$2"
-            CONTAINER_VMID="$2"
             shift 2
             ;;
         -p|--port)
@@ -74,8 +72,7 @@ while [[ $# -gt 0 ]]; do
             echo "  -h, --help              Show this help message"
             echo ""
             echo "Environment Variables:"
-            echo "  CONTAINER_NAME   Container name — equivalent to --name (LXC)"
-            echo "  CONTAINER_VMID   Container VMID  — equivalent to --name (PCT)"
+            echo "  CONTAINER_NAME   Container name / VMID — equivalent to --name"
             echo "  PCT_TEMPLATE     Equivalent to --template"
             echo "  BENTOPDF_PORT    Equivalent to --port"
             echo "  BENTOPDF_DIR     Equivalent to --dir"
@@ -94,61 +91,37 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-# --- Detect Backend ---
-# Mirrors the logic inside container() — check for pct, fall back to lxc.
-if command -v pct &>/dev/null; then
-    BACKEND="pct"
-    CONTAINER_ID="$CONTAINER_VMID"
-    info "Detected Proxmox VE — using PCT backend (VMID: ${CONTAINER_ID})"
-else
-    BACKEND="lxc"
-    CONTAINER_ID="$CONTAINER_NAME"
-    info "Using LXC backend (container name: ${CONTAINER_ID})"
-fi
-
 info "Starting BentoPDF container installation (Debian Trixie, no Docker)..."
 
 # --- Step 1: Create Debian Trixie Container ---
 # PCT and LXC use different arguments to specify the base image, so each
 # backend gets its own create call with the appropriate flags.
-if [[ "$BACKEND" == "pct" ]]; then
+if command -v pct &>/dev/null; then
     container create \
-        --name "${CONTAINER_ID}" \
+        --name "${CONTAINER_NAME}" \
         --template "${PCT_TEMPLATE}" \
         --hostname "${BENTOPDF_SERVICE}" \
         --memory 1024 \
         --cores 2 \
-        --disk-size 16 \
-        --style "$SPINNER_LOADING_STYLE" || exit 1
+        --disk-size 16 || exit 1
 else
     container create \
-        --name "${CONTAINER_ID}" \
+        --name "${CONTAINER_NAME}" \
         --dist debian \
         --release trixie \
         --arch amd64 \
-        --style "$SPINNER_LOADING_STYLE" || exit 1
+        --hostname "${BENTOPDF_SERVICE}" \
+        --memory 1024 \
+        --cores 2 || exit 1
 fi
 
 # --- Step 2: Start Container ---
-if [[ "$BACKEND" == "pct" ]]; then
-    pct start "${CONTAINER_ID}" &
-else
-    lxc-start -n "${CONTAINER_ID}" &
-fi
-monitor $! \
-    --style "$SPINNER_LOADING_STYLE" \
-    --message "Starting container '${CONTAINER_ID}'" \
-    --success_msg "Container '${CONTAINER_ID}' is running." \
-    --error_msg "Failed to start container '${CONTAINER_ID}'." || exit 1
+container start --name "${CONTAINER_NAME}" || exit 1
 
 # --- Step 3: Install curl Inside Container ---
 # Debian minimal images ship without curl. Install it before running the
 # BentoPDF installer, which sources shtuff remotely via curl.
-if [[ "$BACKEND" == "pct" ]]; then
-    pct exec "${CONTAINER_ID}" -- bash -c "apt-get update -qq && apt-get install -y curl" &
-else
-    lxc-attach -n "${CONTAINER_ID}" -- bash -c "apt-get update -qq && apt-get install -y curl" &
-fi
+container exec --name "${CONTAINER_NAME}" -- bash -c "apt-get update -qq && apt-get install -y curl" &
 monitor $! \
     --style "$SPINNER_LOADING_STYLE" \
     --message "Preparing container environment" \
@@ -160,18 +133,14 @@ monitor $! \
 # The install script is sourced remotely and handles all remaining steps:
 # package updates, Node.js installation, release download, and systemd service
 # setup. Output is shown in full so progress is visible during this long step.
-info "Installing BentoPDF inside container '${CONTAINER_ID}'..."
+info "Installing BentoPDF inside container '${CONTAINER_NAME}'..."
 INSTALL_CMD="bash <(curl -sL 'https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/examples/install-bentodpf-native.sh') --port ${BENTOPDF_PORT} --dir ${BENTOPDF_DIR}"
-if [[ "$BACKEND" == "pct" ]]; then
-    pct exec "${CONTAINER_ID}" -- bash -c "${INSTALL_CMD}" || exit 1
-else
-    lxc-attach -n "${CONTAINER_ID}" -- bash -c "${INSTALL_CMD}" || exit 1
-fi
+container exec --name "${CONTAINER_NAME}" -- bash -c "${INSTALL_CMD}" || exit 1
 
 # --- Done ---
-info "BentoPDF installed successfully inside container '${CONTAINER_ID}'."
+info "BentoPDF installed successfully inside container '${CONTAINER_NAME}'."
 info "Access BentoPDF at: http://localhost:${BENTOPDF_PORT}"
 info "Manage the service inside the container: systemctl {start|stop|restart|status} ${BENTOPDF_SERVICE}"
 info ""
-info "Entering container '${CONTAINER_ID}'..."
-container enter --name "${CONTAINER_ID}"
+info "Entering container '${CONTAINER_NAME}'..."
+container enter --name "${CONTAINER_NAME}"

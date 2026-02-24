@@ -7,7 +7,7 @@
 #
 # Arguments:
 #   $1 - command (string, required): Subcommand to run.
-#       Valid values: create, enter, push, pull.
+#       Valid values: create, start, exec, enter, push, pull.
 #   --name NAME (string, required by all subcommands): Container name (LXC) or
 #       numeric VMID (PCT). Translated to the appropriate backend identifier automatically.
 #
@@ -22,9 +22,13 @@
 #       effective when --storage is btrfs or zfs.
 #   --password PASSWORD (string, optional): Root password for the container.
 #
+#   exec subcommand — run a command inside the container without an interactive session:
+#   -- COMMAND... (required): Everything after -- is the command to run inside the container.
+#
 #   All other subcommand-specific flags are also forwarded unchanged. See
-#   pct_create / lxc_create, pct_enter / lxc_enter, pct_push / lxc_push, and
-#   pct_pull / lxc_pull for the complete list of accepted flags per backend.
+#   pct_create / lxc_create, pct_start / lxc_start, pct_exec / lxc_exec,
+#   pct_enter / lxc_enter, pct_push / lxc_push, and pct_pull / lxc_pull for the
+#   complete list of accepted flags per backend.
 #
 # Globals:
 #   None
@@ -39,6 +43,8 @@
 #   container create --name mycontainer --memory 1024 --cores 2 --hostname myapp
 #   container create --name 100 --template "local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst" \
 #       --memory 1024 --cores 2 --disk-size 16 --hostname myapp
+#   container start --name mycontainer
+#   container exec --name mycontainer -- bash -c "apt-get update && apt-get install -y curl"
 #   container enter --name mycontainer
 #   container enter --name 100 --user deploy
 #   container push /etc/app.conf /etc/app.conf --name mycontainer
@@ -49,11 +55,13 @@ function container {
 
     case "$command" in
         create) _container_create "$@" ;;
+        start)  _container_start  "$@" ;;
+        exec)   _container_exec   "$@" ;;
         enter)  _container_enter  "$@" ;;
         push)   _container_push   "$@" ;;
         pull)   _container_pull   "$@" ;;
         *)
-            error "container: unknown command: '$command'. Valid commands: create, enter, push, pull"
+            error "container: unknown command: '$command'. Valid commands: create, start, exec, enter, push, pull"
             return 1
             ;;
     esac
@@ -66,6 +74,88 @@ _container_backend() {
         echo "pct"
     else
         echo "lxc"
+    fi
+}
+
+# _container_start
+# Extracts --name NAME from args, maps it to --vmid (PCT) or --name (LXC),
+# and forwards all remaining flags to the appropriate start function.
+_container_start() {
+    local name=""
+    local passthrough=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -n|--name)
+                name="$2"
+                shift 2
+                ;;
+            *)
+                passthrough+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$name" ]]; then
+        error "container start: --name is required"
+        return 1
+    fi
+
+    local backend
+    backend=$(_container_backend)
+    debug "container start: backend='$backend' name='$name'"
+
+    if [[ "$backend" == "pct" ]]; then
+        pct_start --vmid "$name" "${passthrough[@]}"
+    else
+        lxc_start --name "$name" "${passthrough[@]}"
+    fi
+}
+
+# _container_exec
+# Extracts --name NAME from args, maps it to --vmid (PCT) or --name (LXC),
+# and forwards the command (everything after --) to the appropriate exec function.
+_container_exec() {
+    local name=""
+    local cmd=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -n|--name)
+                name="$2"
+                shift 2
+                ;;
+            --)
+                shift
+                cmd=("$@")
+                break
+                ;;
+            *)
+                error "container exec: unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    if [[ -z "$name" ]]; then
+        error "container exec: --name is required"
+        return 1
+    fi
+
+    if [[ ${#cmd[@]} -eq 0 ]]; then
+        error "container exec: a command is required after --"
+        return 1
+    fi
+
+    local backend
+    backend=$(_container_backend)
+    debug "container exec: backend='$backend' name='$name'"
+
+    if [[ "$backend" == "pct" ]]; then
+        pct_exec --vmid "$name" -- "${cmd[@]}"
+    else
+        lxc_exec --name "$name" -- "${cmd[@]}"
     fi
 }
 

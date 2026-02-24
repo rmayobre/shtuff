@@ -32,7 +32,6 @@ source "${SHTUFF_DIR}/src/utils/stop.sh"
 source "${SHTUFF_DIR}/src/utils/copy.sh"
 source "${SHTUFF_DIR}/src/utils/move.sh"
 source "${SHTUFF_DIR}/src/utils/delete.sh"
-<<<<<<< HEAD
 
 # Containers
 source "${SHTUFF_DIR}/src/containers/lxc_create.sh"
@@ -44,7 +43,3 @@ source "${SHTUFF_DIR}/src/containers/pct_enter.sh"
 source "${SHTUFF_DIR}/src/containers/pct_push.sh"
 source "${SHTUFF_DIR}/src/containers/pct_pull.sh"
 source "${SHTUFF_DIR}/src/containers/container.sh"
-
-timer -h
-=======
->>>>>>> main

@@ -7,7 +7,7 @@
 #
 # Arguments:
 #   $1 - command (string, required): Subcommand to run.
-#       Valid values: create, start, exec, enter, push, pull.
+#       Valid values: create, start, exec, enter, push, pull, delete.
 #   --name NAME (string, required by all subcommands): Container name (LXC) or
 #       numeric VMID (PCT). Translated to the appropriate backend identifier automatically.
 #
@@ -27,8 +27,12 @@
 #
 #   All other subcommand-specific flags are also forwarded unchanged. See
 #   pct_create / lxc_create, pct_start / lxc_start, pct_exec / lxc_exec,
-#   pct_enter / lxc_enter, pct_push / lxc_push, and pct_pull / lxc_pull for the
-#   complete list of accepted flags per backend.
+#   pct_enter / lxc_enter, pct_push / lxc_push, pct_pull / lxc_pull, and
+#   pct_delete / lxc_delete for the complete list of accepted flags per backend.
+#
+#   delete subcommand:
+#   --force (flag, optional): Stop the container before destroying if it is running.
+#   --purge (flag, optional, PCT only): Remove from related configurations and jobs.
 #
 # Globals:
 #   None
@@ -49,6 +53,8 @@
 #   container enter --name 100 --user deploy
 #   container push /etc/app.conf /etc/app.conf --name mycontainer
 #   container pull /var/log/app.log /tmp/app.log --name 100
+#   container delete --name mycontainer
+#   container delete --name 100 --force --purge
 function container {
     local command="${1:-}"
     shift || true
@@ -60,8 +66,9 @@ function container {
         enter)  _container_enter  "$@" ;;
         push)   _container_push   "$@" ;;
         pull)   _container_pull   "$@" ;;
+        delete) _container_delete "$@" ;;
         *)
-            error "container: unknown command: '$command'. Valid commands: create, start, exec, enter, push, pull"
+            error "container: unknown command: '$command'. Valid commands: create, start, exec, enter, push, pull, delete"
             return 1
             ;;
     esac
@@ -326,5 +333,41 @@ _container_pull() {
         pct_pull "$source_path" "$dest_path" --vmid "$name" "${passthrough[@]}"
     else
         lxc_pull "$source_path" "$dest_path" --name "$name" "${passthrough[@]}"
+    fi
+}
+
+# _container_delete
+# Extracts --name NAME from args, maps it to --vmid (PCT) or --name (LXC),
+# and forwards all remaining flags to the appropriate delete function.
+_container_delete() {
+    local name=""
+    local passthrough=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -n|--name)
+                name="$2"
+                shift 2
+                ;;
+            *)
+                passthrough+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$name" ]]; then
+        error "container delete: --name is required"
+        return 1
+    fi
+
+    local backend
+    backend=$(_container_backend)
+    debug "container delete: backend='$backend' name='$name'"
+
+    if [[ "$backend" == "pct" ]]; then
+        pct_delete --vmid "$name" "${passthrough[@]}"
+    else
+        lxc_delete --name "$name" "${passthrough[@]}"
     fi
 }

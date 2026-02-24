@@ -10,9 +10,21 @@
 #       Valid values: create, enter, push, pull.
 #   --name NAME (string, required by all subcommands): Container name (LXC) or
 #       numeric VMID (PCT). Translated to the appropriate backend identifier automatically.
-#   Additional flags are passed through to the underlying pct_* or lxc_* function.
-#       See pct_create / lxc_create, pct_enter / lxc_enter, pct_push / lxc_push,
-#       and pct_pull / lxc_pull for the full list of accepted flags per backend.
+#
+#   create subcommand — resource allocation flags (passed through to backend):
+#   --hostname HOSTNAME (string, optional): Hostname to assign inside the container.
+#   --memory MB (integer, optional): Memory limit in megabytes.
+#   --cores N (integer, optional): Number of CPU cores to allocate.
+#   --storage STORAGE (string, optional): Storage type. For LXC: backing store type
+#       (dir, btrfs, zfs, overlayfs, best; default: dir). For PCT: Proxmox storage
+#       pool name (e.g. local-lvm; default: local-lvm).
+#   --disk-size GB (integer, optional): Rootfs size in gigabytes. For LXC, only
+#       effective when --storage is btrfs or zfs.
+#   --password PASSWORD (string, optional): Root password for the container.
+#
+#   All other subcommand-specific flags are also forwarded unchanged. See
+#   pct_create / lxc_create, pct_enter / lxc_enter, pct_push / lxc_push, and
+#   pct_pull / lxc_pull for the complete list of accepted flags per backend.
 #
 # Globals:
 #   None
@@ -23,8 +35,10 @@
 #   N - Exit code propagated from the delegated backend function.
 #
 # Examples:
-#   container create --name mycontainer --template download --dist ubuntu --release 22.04
-#   container create --name 100 --template "local:vztmpl/ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
+#   container create --name mycontainer --dist debian --release trixie
+#   container create --name mycontainer --memory 1024 --cores 2 --hostname myapp
+#   container create --name 100 --template "local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst" \
+#       --memory 1024 --cores 2 --disk-size 16 --hostname myapp
 #   container enter --name mycontainer
 #   container enter --name 100 --user deploy
 #   container push /etc/app.conf /etc/app.conf --name mycontainer

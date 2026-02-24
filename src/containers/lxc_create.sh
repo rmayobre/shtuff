@@ -8,8 +8,8 @@
 # Arguments:
 #   --name NAME (string, required): Name for the new container.
 #   --template TEMPLATE (string, optional, default: "download"): LXC template to use.
-#   --dist DIST (string, optional, default: "ubuntu"): Distribution name (used with "download" template).
-#   --release RELEASE (string, optional, default: "22.04"): Distribution release (used with "download" template).
+#   --dist DIST (string, optional, default: "debian"): Distribution name (used with "download" template).
+#   --release RELEASE (string, optional, default: "trixie"): Distribution release (used with "download" template).
 #   --arch ARCH (string, optional, default: "amd64"): Architecture (used with "download" template).
 #   --hostname HOSTNAME (string, optional): Hostname to assign inside the container.
 #   --memory MB (integer, optional): Memory limit in megabytes.
@@ -42,8 +42,8 @@
 function lxc_create {
     local name=""
     local template="download"
-    local dist="ubuntu"
-    local release="22.04"
+    local dist="debian"
+    local release="trixie"
     local arch="amd64"
     local hostname=""
     local memory=""
@@ -113,6 +113,10 @@ function lxc_create {
     if [[ -z "$name" ]]; then
         error "lxc_create: --name is required"
         return 1
+    fi
+
+    if [[ $EUID -ne 0 ]]; then
+        warn "lxc_create: not running as root — container creation may fail without elevated privileges"
     fi
 
     # Ensure LXC is installed

@@ -54,6 +54,10 @@ function pct_enter {
         return 1
     fi
 
+    if [[ $EUID -ne 0 ]]; then
+        warn "pct_enter: not running as root — PCT operations may fail without elevated privileges"
+    fi
+
     if ! command -v pct &>/dev/null; then
         error "pct_enter: pct is not available. PCT is part of Proxmox VE and cannot be installed on non-Proxmox systems."
         return 1

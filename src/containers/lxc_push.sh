@@ -79,6 +79,10 @@ function lxc_push {
         return 1
     fi
 
+    if [[ $EUID -ne 0 ]]; then
+        warn "lxc_push: not running as root — writing to container rootfs may fail without elevated privileges"
+    fi
+
     if ! command -v lxc-info &>/dev/null; then
         error "lxc_push: LXC is not installed. Run lxc_create first or install lxc manually."
         return 1

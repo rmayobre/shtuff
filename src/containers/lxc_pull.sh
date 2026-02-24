@@ -80,6 +80,10 @@ function lxc_pull {
         return 1
     fi
 
+    if [[ $EUID -ne 0 ]]; then
+        warn "lxc_pull: not running as root — reading from container rootfs may fail without elevated privileges"
+    fi
+
     if ! command -v lxc-info &>/dev/null; then
         error "lxc_pull: LXC is not installed. Run lxc_create first or install lxc manually."
         return 1

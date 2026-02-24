@@ -52,6 +52,10 @@ function lxc_enter {
         return 1
     fi
 
+    if [[ $EUID -ne 0 ]]; then
+        warn "lxc_enter: not running as root — attaching to containers may fail without elevated privileges"
+    fi
+
     if ! command -v lxc-attach &>/dev/null; then
         error "lxc_enter: LXC is not installed. Run lxc_create first or install lxc manually."
         return 1

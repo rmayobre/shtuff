@@ -78,6 +78,51 @@ The tarball is extracted into a temporary directory, and `shtuff.sh` is sourced 
 there. Because `shtuff.sh` resolves the `src/` files relative to its own location, all
 utilities are available immediately after the `source` line.
 
+## Latest Release Source
+
+Source the latest stable release automatically. This pattern checks whether a
+local copy of shtuff already exists, compares its version against the latest
+GitHub release, and downloads a fresh copy only when the local one is missing
+or out of date.
+
+```bash
+#!/bin/bash
+
+SHTUFF_LOCAL="${HOME}/.local/share/shtuff"
+SHTUFF_REPO="rmayobre/shtuff"
+
+# Resolve the latest release tag from GitHub
+LATEST_VERSION=$(curl -sL "https://api.github.com/repos/${SHTUFF_REPO}/releases/latest" \
+    | grep '"tag_name"' | cut -d'"' -f4)
+
+# Read the version embedded in the local copy (if one exists)
+LOCAL_VERSION=""
+if [[ -f "${SHTUFF_LOCAL}/shtuff.sh" ]]; then
+    LOCAL_VERSION=$(grep -m1 'SHTUFF_VERSION=' "${SHTUFF_LOCAL}/shtuff.sh" \
+        | cut -d'"' -f2)
+fi
+
+# Download when no local copy is found or it is behind the latest release
+if [[ -z "${LOCAL_VERSION}" || "${LOCAL_VERSION}" != "${LATEST_VERSION}" ]]; then
+    mkdir -p "${SHTUFF_LOCAL}"
+    curl -sL "https://github.com/${SHTUFF_REPO}/releases/download/${LATEST_VERSION}/shtuff-${LATEST_VERSION}.tar.gz" \
+        | tar -xz -C "${SHTUFF_LOCAL}"
+fi
+
+source "${SHTUFF_LOCAL}/shtuff.sh"
+
+# Now you have access to all my shtuff (always on the latest release)
+
+install htop curl nano   # Install package(s)
+update                   # Update packages and cache
+uninstall htop curl nano # Remove package(s)
+clean                    # Cleanup unused packages and cache
+```
+
+The local copy is kept in `~/.local/share/shtuff/` and reused across script
+runs. Only one network round-trip (to the GitHub API) is needed on subsequent
+runs when the local copy is already current — the tarball is not re-downloaded.
+
 ## Forking
 
 Just fork the project and write your scripts in the same repository. NOTE: update the base URL defined in the `shtuff-remote.sh` file.

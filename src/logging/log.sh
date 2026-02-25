@@ -206,3 +206,27 @@ info() {
 debug() {
     log $DEBUG_LEVEL "$@"
 }
+
+# Function: debug_pipe
+# Description: Reads lines from stdin and logs each at debug level; only emitted when
+#              LOG_LEVEL=debug. Use as a pipe target instead of redirecting to /dev/null
+#              to suppress output in normal runs while preserving it for debugging.
+#
+# Arguments:
+#   None — reads from stdin.
+#
+# Globals:
+#   DEBUG_LEVEL (read): Constant string identifying the debug log level.
+#
+# Returns:
+#   0 - All lines consumed; each non-empty line logged or suppressed by log level threshold.
+#
+# Examples:
+#   apt-get install -y curl 2>&1 | debug_pipe
+#   some_command 2>&1 | debug_pipe
+debug_pipe() {
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        log "$DEBUG_LEVEL" "$line"
+    done
+}

@@ -7,7 +7,7 @@
 #
 # Arguments:
 #   $1 - command (string, required): Subcommand to run.
-#       Valid values: create, start, exec, enter, push, pull, delete.
+#       Valid values: create, config, start, exec, enter, push, pull, delete.
 #   --name NAME (string, required by all subcommands): Container name (LXC) or
 #       numeric VMID (PCT). Translated to the appropriate backend identifier automatically.
 #
@@ -29,6 +29,14 @@
 #   pct_create / lxc_create, pct_start / lxc_start, pct_exec / lxc_exec,
 #   pct_enter / lxc_enter, pct_push / lxc_push, pct_pull / lxc_pull, and
 #   pct_delete / lxc_delete for the complete list of accepted flags per backend.
+#
+#   config subcommand — update resource settings on an existing container:
+#   --hostname HOSTNAME (string, optional): New hostname.
+#   --memory MB (integer, optional): New memory limit in megabytes.
+#   --cores N (integer, optional): New CPU core count.
+#   --set KEY=VALUE (string, optional, repeatable, LXC only): Set an arbitrary
+#       lxc.* config key. May be specified multiple times.
+#   Any additional flags accepted by 'pct set' are forwarded on PCT hosts.
 #
 #   delete subcommand:
 #   --force (flag, optional): Stop the container before destroying if it is running.
@@ -53,6 +61,9 @@
 #   container enter --name 100 --user deploy
 #   container push /etc/app.conf /etc/app.conf --name mycontainer
 #   container pull /var/log/app.log /tmp/app.log --name 100
+#   container config --name mycontainer --memory 2048 --cores 4
+#   container config --name mycontainer --hostname newname
+#   container config --name mycontainer --set lxc.net.0.type=veth
 #   container delete --name mycontainer
 #   container delete --name 100 --force --purge
 function container {
@@ -61,6 +72,7 @@ function container {
 
     case "$command" in
         create) _container_create "$@" ;;
+        config) _container_config "$@" ;;
         start)  _container_start  "$@" ;;
         exec)   _container_exec   "$@" ;;
         enter)  _container_enter  "$@" ;;
@@ -68,7 +80,7 @@ function container {
         pull)   _container_pull   "$@" ;;
         delete) _container_delete "$@" ;;
         *)
-            error "container: unknown command: '$command'. Valid commands: create, start, exec, enter, push, pull, delete"
+            error "container: unknown command: '$command'. Valid commands: create, config, start, exec, enter, push, pull, delete"
             return 1
             ;;
     esac
@@ -163,6 +175,42 @@ _container_exec() {
         pct_exec --vmid "$name" -- "${cmd[@]}"
     else
         lxc_exec --name "$name" -- "${cmd[@]}"
+    fi
+}
+
+# _container_config
+# Extracts --name NAME from args, maps it to --vmid (PCT) or --name (LXC),
+# and forwards all remaining flags to the appropriate config function.
+_container_config() {
+    local name=""
+    local passthrough=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -n|--name)
+                name="$2"
+                shift 2
+                ;;
+            *)
+                passthrough+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$name" ]]; then
+        error "container config: --name is required"
+        return 1
+    fi
+
+    local backend
+    backend=$(_container_backend)
+    debug "container config: backend='$backend' name='$name'"
+
+    if [[ "$backend" == "pct" ]]; then
+        pct_config --vmid "$name" "${passthrough[@]}"
+    else
+        lxc_config --name "$name" "${passthrough[@]}"
     fi
 }
 

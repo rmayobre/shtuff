@@ -112,13 +112,13 @@ function lxc_pull {
 
     if command -v rsync &>/dev/null; then
         debug "lxc_pull: using rsync"
-        rsync -a "$full_source" "$dest_path" >/dev/null 2>&1 &
+        (rsync -a "$full_source" "$dest_path" 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
     elif [[ -d "$full_source" ]]; then
         debug "lxc_pull: rsync not found, using cp -r"
-        cp -r "$full_source" "$dest_path" >/dev/null 2>&1 &
+        (cp -r "$full_source" "$dest_path" 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
     else
         debug "lxc_pull: rsync not found, using cp"
-        cp "$full_source" "$dest_path" >/dev/null 2>&1 &
+        (cp "$full_source" "$dest_path" 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
     fi
 
     monitor $! \

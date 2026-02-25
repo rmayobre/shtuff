@@ -146,14 +146,14 @@ function lxc_create {
 
     if [[ "$template" == "download" ]]; then
         info "Creating LXC container '$name' ($dist/$release/$arch)"
-        lxc-create "${lxc_args[@]}" -t download -- \
+        (lxc-create "${lxc_args[@]}" -t download -- \
             --dist "$dist" \
             --release "$release" \
             --arch "$arch" \
-            >/dev/null 2>&1 &
+            2>&1 | log_output; exit "${PIPESTATUS[0]}") &
     else
         info "Creating LXC container '$name' using template '$template'"
-        lxc-create "${lxc_args[@]}" -t "$template" >/dev/null 2>&1 &
+        (lxc-create "${lxc_args[@]}" -t "$template" 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
     fi
 
     monitor $! \
@@ -182,9 +182,9 @@ function lxc_create {
 
     # Set root password by starting the container briefly
     if [[ -n "$password" ]]; then
-        (lxc-start -n "$name" &>/dev/null &&
-         lxc-attach -n "$name" -- bash -c "echo 'root:${password}' | chpasswd" &>/dev/null &&
-         lxc-stop -n "$name" &>/dev/null) &
+        ({ lxc-start -n "$name" &&
+           lxc-attach -n "$name" -- bash -c "echo 'root:${password}' | chpasswd" &&
+           lxc-stop -n "$name"; } 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
         monitor $! \
             --style "$style" \
             --message "Setting root password" \

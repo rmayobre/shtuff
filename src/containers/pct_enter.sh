@@ -74,7 +74,7 @@ function pct_enter {
 
     if [[ "$state" != "running" ]]; then
         info "Container $vmid is not running — starting it..."
-        pct start "$vmid" >/dev/null 2>&1 &
+        (pct start "$vmid" 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
         monitor $! \
             --style "${SPINNER_LOADING_STYLE}" \
             --message "Starting container $vmid" \

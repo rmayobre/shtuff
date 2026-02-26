@@ -96,7 +96,7 @@ function pct_pull {
     debug "pct_pull: vmid='$vmid' source='$source_path' dest='$dest_path'"
     info "Pulling '$source_path' from container $vmid to '$dest_path'"
 
-    (pct pull "$vmid" "$source_path" "$dest_path" 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
+    pct pull "$vmid" "$source_path" "$dest_path" > >(log_output) 2>&1 &
     monitor $! \
         --style "$style" \
         --message "$message" \

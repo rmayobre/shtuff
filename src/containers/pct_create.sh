@@ -130,7 +130,7 @@ function pct_create {
     debug "pct_create: vmid='$vmid' template='$template' args='${pct_args[*]}'"
     info "Creating PCT container $vmid from template '$template'"
 
-    (pct create "${pct_args[@]}" 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
+    pct create "${pct_args[@]}" > >(log_output) 2>&1 &
     monitor $! \
         --style "$style" \
         --message "Creating container $vmid" \

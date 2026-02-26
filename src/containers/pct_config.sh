@@ -74,7 +74,7 @@ function pct_config {
     fi
 
     debug "pct_config: vmid='$vmid' args='${passthrough[*]}'"
-    (pct set "$vmid" "${passthrough[@]}" 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
+    pct set "$vmid" "${passthrough[@]}" > >(log_output) 2>&1 &
     monitor $! \
         --style "$style" \
         --message "Configuring container $vmid" \

@@ -134,7 +134,7 @@ function pct_push {
     debug "pct_push: vmid='$vmid' source='$source_path' dest='$dest_path'"
     info "Pushing '$source_path' into container $vmid at '$dest_path'"
 
-    (pct push "${pct_args[@]}" 2>&1 | log_output; exit "${PIPESTATUS[0]}") &
+    pct push "${pct_args[@]}" > >(log_output) 2>&1 &
     monitor $! \
         --style "$style" \
         --message "$message" \

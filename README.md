@@ -669,3 +669,82 @@ for i in "${!files[@]}"; do
     progress --current $(( i + 1 )) --total "$total" --message "Processing files"
 done
 ```
+
+---
+
+## Forms
+
+Interactive terminal prompts that store user input in the global variable
+`answer`. Read `$answer` immediately after calling either function.
+
+### `question`
+
+Displays a prompt string and reads a single line of free-form text from the
+user, storing the result in `$answer`.
+
+```
+question PROMPT
+```
+
+| Argument | Type   | Required | Description |
+|----------|--------|----------|-------------|
+| `PROMPT` | string | yes      | Text displayed to the user before the input cursor. |
+
+**Globals written:** `answer` — set to the string the user entered.
+
+**Returns:** `0` on success; `1` if no prompt argument was provided.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+question "What is your name?"
+echo "Hello, $answer!"
+
+question "Which port should the server listen on?"
+PORT="$answer"
+```
+
+### `options`
+
+Displays a numbered list of choices, prompts the user to select one by
+number, re-prompts on invalid input, and stores the selected value in
+`$answer`.
+
+```
+options PROMPT --choice VALUE [--choice VALUE ...]
+```
+
+| Argument / Option       | Type   | Required   | Description |
+|-------------------------|--------|------------|-------------|
+| `PROMPT`                | string | yes        | Question text displayed above the numbered list. |
+| `--choice VALUE`        | string | yes (×1+)  | A choice to add to the list. Repeat for each option; order is preserved. |
+
+**Globals written:** `answer` — set to the text of the choice the user selected (not the number).
+
+**Returns:** `0` on success; `1` if the prompt is missing, an unknown flag is passed, or no `--choice` values are provided.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+options "What would you like to do?" \
+    --choice "Install" \
+    --choice "Update" \
+    --choice "Exit"
+echo "You chose: $answer"
+
+options "Select an environment:" \
+    --choice "development" \
+    --choice "staging" \
+    --choice "production"
+DEPLOY_ENV="$answer"
+```
+
+**Example terminal output:**
+
+```
+What would you like to do?
+  1) Install
+  2) Update
+  3) Exit
+Enter number [1-3]:
+```

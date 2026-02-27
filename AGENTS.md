@@ -94,6 +94,28 @@ different devices.
 *contents* in-place (e.g. before replacing files), use the `rm -rf "${DIR:?}"/*`
 safety pattern — not `delete`.
 
+### Forms
+
+Interactive prompts that store user input in the global variable `answer`.
+Always read `$answer` immediately after the call.
+
+```bash
+# Free-form text input
+question "What is your name?"
+NAME="$answer"
+
+# Numbered choice selection
+options "Select an environment:" \
+    --choice "development" \
+    --choice "staging" \
+    --choice "production"
+DEPLOY_ENV="$answer"
+```
+
+- `question PROMPT` — reads a line of text; result in `$answer`.
+- `options PROMPT --choice VAL [--choice VAL ...]` — displays a numbered
+  list, re-prompts on invalid input; selected choice text in `$answer`.
+
 ### Systemd Service Generator
 
 ```bash
@@ -320,6 +342,7 @@ Only call these documented public functions. Everything else is private:
 | Packaging   | `install`, `update`, `uninstall`, `clean` |
 | Utils       | `monitor`, `stop`, `copy`, `move`, `delete` |
 | Systemd     | `service`, `timer` |
+| Forms       | `question`, `options` |
 
 Any function whose name begins with `_` (e.g. `_log_write`, `_detect_pm`) is an
 internal implementation detail. Do not call it, reference it, or rely on its

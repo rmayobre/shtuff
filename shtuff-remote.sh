@@ -33,6 +33,9 @@ source <(curl -sL "${BASE_URL}/src/utils/copy.sh")
 source <(curl -sL "${BASE_URL}/src/utils/move.sh")
 source <(curl -sL "${BASE_URL}/src/utils/delete.sh")
 
+# Forms
+source <(curl -sL "${BASE_URL}/src/forms/question.sh")
+
 # Containers
 source <(curl -sL "${BASE_URL}/src/containers/lxc_config.sh")
 source <(curl -sL "${BASE_URL}/src/containers/lxc_create.sh")

@@ -106,6 +106,10 @@ options "Select an environment:" \      # Numbered list; selected text in $answe
     --choice "staging" \
     --choice "production"
 DEPLOY_ENV="$answer"
+
+if confirm "Overwrite existing files?"; then   # Yes/No; returns 0=yes 1=no
+    copy src/ dest/ || exit 1
+fi
 ```
 
 ### Systemd Timer Creation
@@ -201,7 +205,7 @@ as `delete` removes the path itself. Use `delete` for temp files and directories
   behavior may change without notice. Only call the documented public functions
   (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`,
   `monitor`, `stop`, `copy`, `move`, `delete`, `service`, `timer`,
-  `question`, `options`).
+  `question`, `options`, `confirm`).
 
 ---
 
@@ -288,7 +292,7 @@ shtuff/
 │   ├── graphics/          # ANSI colors, loading indicators
 │   ├── logging/           # log(), info(), warn(), error(), debug()
 │   ├── packaging/         # install(), update(), uninstall(), clean()
-│   ├── forms/             # question(), options()
+│   ├── forms/             # question(), options(), confirm()
 │   ├── systemd/           # service(), timer()
 │   └── utils/             # monitor(), stop(), copy(), move(), delete()
 └── examples/

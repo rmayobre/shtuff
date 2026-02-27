@@ -748,3 +748,40 @@ What would you like to do?
   3) Exit
 Enter number [1-3]:
 ```
+
+### `confirm`
+
+Displays a yes/no question, stores `"yes"` or `"no"` in `$answer`, and
+returns `0` for yes or `1` for no. Can be used as an `if` condition directly.
+Uses whiptail if available; falls back to a `[y/n]` terminal prompt.
+
+```
+confirm PROMPT
+```
+
+| Argument | Type   | Required | Description |
+|----------|--------|----------|-------------|
+| `PROMPT` | string | yes      | The yes/no question displayed to the user. |
+
+**Globals written:** `answer` — set to `"yes"` or `"no"`.
+
+**Returns:** `0` if the user answered yes; `1` if no; `2` if no prompt was provided.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+# Use as a condition
+if confirm "Overwrite existing files?"; then
+    copy src/ dest/ || exit 1
+fi
+
+# Inspect $answer
+confirm "Enable debug logging?"
+echo "You chose: $answer"
+```
+
+**Example terminal output:**
+
+```
+Overwrite existing files? [y/n]:
+```

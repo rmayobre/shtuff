@@ -36,6 +36,7 @@ source "${SHTUFF_DIR}/src/utils/delete.sh"
 # Forms
 source "${SHTUFF_DIR}/src/forms/question.sh"
 source "${SHTUFF_DIR}/src/forms/options.sh"
+source "${SHTUFF_DIR}/src/forms/confirm.sh"
 
 # Containers
 source "${SHTUFF_DIR}/src/containers/lxc_config.sh"

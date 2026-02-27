@@ -115,6 +115,8 @@ DEPLOY_ENV="$answer"
 - `question PROMPT` — reads a line of text; result in `$answer`.
 - `options PROMPT --choice VAL [--choice VAL ...]` — displays a numbered
   list, re-prompts on invalid input; selected choice text in `$answer`.
+- `confirm PROMPT` — yes/no dialog; sets `$answer` to `"yes"` or `"no"`;
+  returns `0` for yes, `1` for no. Can be used directly in `if` statements.
 
 ### Systemd Service Generator
 
@@ -342,7 +344,7 @@ Only call these documented public functions. Everything else is private:
 | Packaging   | `install`, `update`, `uninstall`, `clean` |
 | Utils       | `monitor`, `stop`, `copy`, `move`, `delete` |
 | Systemd     | `service`, `timer` |
-| Forms       | `question`, `options` |
+| Forms       | `question`, `options`, `confirm` |
 
 Any function whose name begins with `_` (e.g. `_log_write`, `_detect_pm`) is an
 internal implementation detail. Do not call it, reference it, or rely on its

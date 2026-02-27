@@ -3,7 +3,8 @@
 # Function: options
 # Description: Displays a numbered list of choices, prompts the user to pick
 #              one by number, and stores the selected value in the global
-#              variable 'answer'.
+#              variable 'answer'. Uses whiptail if available for a graphical
+#              menu; falls back to a plain terminal prompt.
 #
 # Arguments:
 #   $1 - prompt (string, required): The question text displayed above the list.
@@ -61,21 +62,37 @@ function options {
         return 1
     fi
 
-    printf "%s\n" "$prompt"
     local i
-    for (( i=0; i<${#choices[@]}; i++ )); do
-        printf "  %d) %s\n" "$((i+1))" "${choices[$i]}"
-    done
-
     local selection
-    while true; do
-        read -r -p "Enter number [1-${#choices[@]}]: " selection
-        if [[ "$selection" =~ ^[0-9]+$ ]] && \
-           (( selection >= 1 && selection <= ${#choices[@]} )); then
-            break
-        fi
-        warn "Please enter a number between 1 and ${#choices[@]}."
-    done
+
+    if command -v whiptail &>/dev/null; then
+        local height=$(( ${#choices[@]} + 7 ))
+        local list_height=${#choices[@]}
+        local -a menu_items=()
+        for (( i=0; i<${#choices[@]}; i++ )); do
+            menu_items+=("$((i+1))" "${choices[$i]}")
+        done
+        while true; do
+            selection=$(whiptail --menu "$prompt" "$height" 60 "$list_height" \
+                "${menu_items[@]}" 3>&1 1>&2 2>&3)
+            if [[ $? -eq 0 && -n "$selection" ]]; then
+                break
+            fi
+        done
+    else
+        printf "%s\n" "$prompt"
+        for (( i=0; i<${#choices[@]}; i++ )); do
+            printf "  %d) %s\n" "$((i+1))" "${choices[$i]}"
+        done
+        while true; do
+            read -r -p "Enter number [1-${#choices[@]}]: " selection
+            if [[ "$selection" =~ ^[0-9]+$ ]] && \
+               (( selection >= 1 && selection <= ${#choices[@]} )); then
+                break
+            fi
+            warn "Please enter a number between 1 and ${#choices[@]}."
+        done
+    fi
 
     answer="${choices[$((selection-1))]}"
 }

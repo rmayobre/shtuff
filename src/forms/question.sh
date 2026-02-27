@@ -2,7 +2,8 @@
 
 # Function: question
 # Description: Prompts the user with a question and stores their input in the
-#              global variable 'answer'.
+#              global variable 'answer'. Uses whiptail if available for a
+#              graphical dialog; falls back to a plain terminal prompt.
 #
 # Arguments:
 #   $1 - prompt (string, required): The question text displayed to the user.
@@ -28,5 +29,9 @@ function question {
     fi
 
     answer=""
-    read -r -p "${prompt} " answer
+    if command -v whiptail &>/dev/null; then
+        answer=$(whiptail --inputbox "$prompt" 8 60 3>&1 1>&2 2>&3) || answer=""
+    else
+        read -r -p "${prompt} " answer
+    fi
 }

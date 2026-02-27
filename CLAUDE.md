@@ -93,6 +93,25 @@ systemctl enable <name>
 systemctl start <name>
 ```
 
+### Forms
+
+Result is stored in the global variable `$answer` after each call.
+
+```bash
+question "What is your name?"           # Free-form text; result in $answer
+echo "Hello, $answer!"
+
+options "Select an environment:" \      # Numbered list; selected text in $answer
+    --choice "development" \
+    --choice "staging" \
+    --choice "production"
+DEPLOY_ENV="$answer"
+
+if confirm "Overwrite existing files?"; then   # Yes/No; returns 0=yes 1=no
+    copy src/ dest/ || exit 1
+fi
+```
+
 ### Systemd Timer Creation
 ```bash
 timer \
@@ -185,7 +204,8 @@ as `delete` removes the path itself. Use `delete` for temp files and directories
   used by shtuff itself and are not part of the public API. Their signatures and
   behavior may change without notice. Only call the documented public functions
   (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`,
-  `monitor`, `stop`, `copy`, `move`, `delete`, `service`, `timer`).
+  `monitor`, `stop`, `copy`, `move`, `delete`, `service`, `timer`,
+  `question`, `options`, `confirm`).
 
 ---
 
@@ -272,6 +292,7 @@ shtuff/
 │   ├── graphics/          # ANSI colors, loading indicators
 │   ├── logging/           # log(), info(), warn(), error(), debug()
 │   ├── packaging/         # install(), update(), uninstall(), clean()
+│   ├── forms/             # question(), options(), confirm()
 │   ├── systemd/           # service(), timer()
 │   └── utils/             # monitor(), stop(), copy(), move(), delete()
 └── examples/

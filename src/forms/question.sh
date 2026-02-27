@@ -1,23 +1,24 @@
 #!/usr/bin/env bash
 
 # Function: question
-# Description: Prompts the user with a question and captures their input.
+# Description: Prompts the user with a question and stores their input in the
+#              global variable 'answer'.
 #
 # Arguments:
 #   $1 - prompt (string, required): The question text displayed to the user.
 #
 # Globals:
-#   None
+#   answer (write): Set to the string the user entered at the prompt.
 #
 # Returns:
 #   0 - Input read successfully.
 #   1 - No prompt argument provided.
 #
 # Examples:
-#   name=$(question "What is your name?")
-#   echo "Hello, $name!"
+#   question "What is your name?"
+#   echo "Hello, $answer!"
 #
-#   port=$(question "Which port should the server listen on?")
+#   question "Which port should the server listen on?"
 function question {
     local prompt="$1"
 
@@ -26,7 +27,6 @@ function question {
         return 1
     fi
 
-    local answer
+    answer=""
     read -r -p "${prompt} " answer
-    echo "$answer"
 }

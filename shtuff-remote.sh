@@ -22,6 +22,9 @@ source <(curl -sL "${BASE_URL}/src/packaging/update.sh")
 source <(curl -sL "${BASE_URL}/src/systemd/service.sh")
 source <(curl -sL "${BASE_URL}/src/systemd/timer.sh")
 
+# Networking
+source <(curl -sL "${BASE_URL}/src/networking/download.sh")
+
 # Utilities
 source <(curl -sL "${BASE_URL}/src/utils/copy.sh")
 source <(curl -sL "${BASE_URL}/src/utils/delete.sh")

@@ -22,6 +22,9 @@ source "${SHTUFF_DIR}/src/packaging/update.sh"
 source "${SHTUFF_DIR}/src/systemd/service.sh"
 source "${SHTUFF_DIR}/src/systemd/timer.sh"
 
+# Networking
+source "${SHTUFF_DIR}/src/networking/download.sh"
+
 # Utilities
 source "${SHTUFF_DIR}/src/utils/copy.sh"
 source "${SHTUFF_DIR}/src/utils/delete.sh"

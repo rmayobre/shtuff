@@ -24,6 +24,10 @@ source <(curl -sL "${BASE_URL}/src/systemd/timer.sh")
 
 # Networking
 source <(curl -sL "${BASE_URL}/src/networking/download.sh")
+source <(curl -sL "${BASE_URL}/src/networking/check_port.sh")
+source <(curl -sL "${BASE_URL}/src/networking/wait_for_port.sh")
+source <(curl -sL "${BASE_URL}/src/networking/bridge.sh")
+source <(curl -sL "${BASE_URL}/src/networking/forward.sh")
 
 # Utilities
 source <(curl -sL "${BASE_URL}/src/utils/copy.sh")
@@ -58,4 +62,6 @@ source <(curl -sL "${BASE_URL}/src/containers/pct_exec.sh")
 source <(curl -sL "${BASE_URL}/src/containers/pct_push.sh")
 source <(curl -sL "${BASE_URL}/src/containers/pct_pull.sh")
 source <(curl -sL "${BASE_URL}/src/containers/pct_start.sh")
+source <(curl -sL "${BASE_URL}/src/containers/lxc_network.sh")
+source <(curl -sL "${BASE_URL}/src/containers/pct_network.sh")
 source <(curl -sL "${BASE_URL}/src/containers/container.sh")

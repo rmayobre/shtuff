@@ -24,6 +24,10 @@ source "${SHTUFF_DIR}/src/systemd/timer.sh"
 
 # Networking
 source "${SHTUFF_DIR}/src/networking/download.sh"
+source "${SHTUFF_DIR}/src/networking/check_port.sh"
+source "${SHTUFF_DIR}/src/networking/wait_for_port.sh"
+source "${SHTUFF_DIR}/src/networking/bridge.sh"
+source "${SHTUFF_DIR}/src/networking/forward.sh"
 
 # Utilities
 source "${SHTUFF_DIR}/src/utils/copy.sh"
@@ -58,4 +62,6 @@ source "${SHTUFF_DIR}/src/containers/pct_exec.sh"
 source "${SHTUFF_DIR}/src/containers/pct_push.sh"
 source "${SHTUFF_DIR}/src/containers/pct_pull.sh"
 source "${SHTUFF_DIR}/src/containers/pct_start.sh"
+source "${SHTUFF_DIR}/src/containers/lxc_network.sh"
+source "${SHTUFF_DIR}/src/containers/pct_network.sh"
 source "${SHTUFF_DIR}/src/containers/container.sh"

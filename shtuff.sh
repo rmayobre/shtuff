@@ -28,6 +28,7 @@ source "${SHTUFF_DIR}/src/networking/check_port.sh"
 source "${SHTUFF_DIR}/src/networking/wait_for_port.sh"
 source "${SHTUFF_DIR}/src/networking/bridge.sh"
 source "${SHTUFF_DIR}/src/networking/forward.sh"
+source "${SHTUFF_DIR}/src/networking/network.sh"
 
 # Utilities
 source "${SHTUFF_DIR}/src/utils/copy.sh"

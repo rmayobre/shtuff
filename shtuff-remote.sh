@@ -28,6 +28,7 @@ source <(curl -sL "${BASE_URL}/src/networking/check_port.sh")
 source <(curl -sL "${BASE_URL}/src/networking/wait_for_port.sh")
 source <(curl -sL "${BASE_URL}/src/networking/bridge.sh")
 source <(curl -sL "${BASE_URL}/src/networking/forward.sh")
+source <(curl -sL "${BASE_URL}/src/networking/network.sh")
 
 # Utilities
 source <(curl -sL "${BASE_URL}/src/utils/copy.sh")

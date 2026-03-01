@@ -8,7 +8,7 @@
 #
 # Arguments:
 #   $1 - command (string, required): Subcommand to run.
-#       Valid values: download, check-port, wait-for-port, bridge, forward.
+#       Valid values: download, check, wait, bridge, forward.
 #
 #   download subcommand:
 #   --url URL (string, required): URL to download.
@@ -17,10 +17,10 @@
 #   --style STYLE (string, optional): Loading indicator style.
 #   --message MSG (string, optional): Progress message.
 #
-#   check-port subcommand:
+#   check subcommand:
 #   --port PORT (integer, required): Port number to check (1–65535).
 #
-#   wait-for-port subcommand:
+#   wait subcommand:
 #   --host HOST (string, required): Hostname or IP to probe.
 #   --port PORT (integer, required): TCP port to probe.
 #   --timeout SECONDS (integer, optional, default: 30): Max seconds to wait.
@@ -45,8 +45,8 @@
 #
 # Examples:
 #   network download --url https://example.com/file.zip --dir /tmp
-#   network check-port --port 8080
-#   network wait-for-port --host 127.0.0.1 --port 8080 --timeout 60
+#   network check --port 8080
+#   network wait --host 127.0.0.1 --port 8080 --timeout 60
 #   network bridge create --name lxcbr0 --ip 10.0.0.1/24
 #   network bridge add-interface --name lxcbr0 --interface eth0
 #   network bridge delete --name lxcbr0
@@ -58,13 +58,13 @@ function network {
     shift || true
 
     case "$command" in
-        download)      download      "$@" ;;
-        check-port)    check_port    "$@" ;;
-        wait-for-port) wait_for_port "$@" ;;
-        bridge)        bridge        "$@" ;;
-        forward)       forward       "$@" ;;
+        download) download      "$@" ;;
+        check)    check_port    "$@" ;;
+        wait)     wait_for_port "$@" ;;
+        bridge)   bridge        "$@" ;;
+        forward)  forward       "$@" ;;
         *)
-            error "network: unknown command: '$command'. Valid commands: download, check-port, wait-for-port, bridge, forward"
+            error "network: unknown command: '$command'. Valid commands: download, check, wait, bridge, forward"
             return 1
             ;;
     esac

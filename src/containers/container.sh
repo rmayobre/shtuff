@@ -66,21 +66,40 @@
 #   container config --name mycontainer --set lxc.net.0.type=veth
 #   container delete --name mycontainer
 #   container delete --name 100 --force --purge
+#
+#   network subcommand — configure a container's network interface:
+#   --bridge BRIDGE (string, optional): Host bridge interface to attach to.
+#       Default: lxcbr0 (LXC) or vmbr0 (PCT).
+#   --ip IP/PREFIX (string, optional): Static IP with prefix (e.g. 10.0.0.10/24).
+#       Omit to leave address unconfigured (use a DHCP client inside the container).
+#       Use 'dhcp' on PCT to request dynamic assignment via pct.
+#   --gateway GW (string, optional): Default gateway IP.
+#   --dns NAMESERVERS (string, optional, PCT only): Space-separated DNS nameserver
+#       IPs (e.g. "8.8.8.8 8.8.4.4").
+#   --index N (integer, optional, default: 0): Network interface index.
+#   --type TYPE (string, optional, LXC only): Interface type.
+#       Valid values: veth, macvlan, ipvlan, none. Default: veth.
+#   --hwaddr MAC (string, optional, LXC only): Hardware (MAC) address to assign.
+#
+#   container network --name mycontainer --bridge lxcbr0 --ip 10.0.0.10/24 --gateway 10.0.0.1
+#   container network --name 100 --ip 192.168.1.100/24 --gateway 192.168.1.1
+#   container network --name 100 --ip dhcp --dns "8.8.8.8 8.8.4.4"
 function container {
     local command="${1:-}"
     shift || true
 
     case "$command" in
-        create) _container_create "$@" ;;
-        config) _container_config "$@" ;;
-        start)  _container_start  "$@" ;;
-        exec)   _container_exec   "$@" ;;
-        enter)  _container_enter  "$@" ;;
-        push)   _container_push   "$@" ;;
-        pull)   _container_pull   "$@" ;;
-        delete) _container_delete "$@" ;;
+        create)  _container_create  "$@" ;;
+        config)  _container_config  "$@" ;;
+        start)   _container_start   "$@" ;;
+        exec)    _container_exec    "$@" ;;
+        enter)   _container_enter   "$@" ;;
+        push)    _container_push    "$@" ;;
+        pull)    _container_pull    "$@" ;;
+        delete)  _container_delete  "$@" ;;
+        network) _container_network "$@" ;;
         *)
-            error "container: unknown command: '$command'. Valid commands: create, config, start, exec, enter, push, pull, delete"
+            error "container: unknown command: '$command'. Valid commands: create, config, start, exec, enter, push, pull, delete, network"
             return 1
             ;;
     esac
@@ -381,6 +400,42 @@ _container_pull() {
         pct_pull "$source_path" "$dest_path" --vmid "$name" "${passthrough[@]}"
     else
         lxc_pull "$source_path" "$dest_path" --name "$name" "${passthrough[@]}"
+    fi
+}
+
+# _container_network
+# Extracts --name NAME from args, maps it to --vmid (PCT) or --name (LXC),
+# and forwards all remaining flags to pct_network or lxc_network.
+_container_network() {
+    local name=""
+    local passthrough=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -n|--name)
+                name="$2"
+                shift 2
+                ;;
+            *)
+                passthrough+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$name" ]]; then
+        error "container network: --name is required"
+        return 1
+    fi
+
+    local backend
+    backend=$(_container_backend)
+    debug "container network: backend='$backend' name='$name'"
+
+    if [[ "$backend" == "pct" ]]; then
+        pct_network --vmid "$name" "${passthrough[@]}"
+    else
+        lxc_network --name "$name" "${passthrough[@]}"
     fi
 }
 

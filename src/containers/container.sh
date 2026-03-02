@@ -8,8 +8,9 @@
 # Arguments:
 #   $1 - command (string, required): Subcommand to run.
 #       Valid values: create, config, start, exec, enter, push, pull, delete.
-#   --name NAME (string, required by all subcommands): Container name (LXC) or
-#       numeric VMID (PCT). Translated to the appropriate backend identifier automatically.
+#   --name NAME (string, required by all subcommands): Container name / hostname.
+#       For PCT backends, used as the container hostname and the VMID is automatically
+#       generated via pct_next_vmid. For LXC backends, used as the container name.
 #
 #   create subcommand — resource allocation flags (passed through to backend):
 #   --hostname HOSTNAME (string, optional): Hostname to assign inside the container.
@@ -53,8 +54,8 @@
 # Examples:
 #   container create --name mycontainer --dist debian --release trixie
 #   container create --name mycontainer --memory 1024 --cores 2 --hostname myapp
-#   container create --name 100 --template "local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst" \
-#       --memory 1024 --cores 2 --disk-size 16 --hostname myapp
+#   container create --name myapp --template "local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst" \
+#       --memory 1024 --cores 2 --disk-size 16
 #   container start --name mycontainer
 #   container exec --name mycontainer -- bash -c "apt-get update && apt-get install -y curl"
 #   container enter --name mycontainer
@@ -234,8 +235,8 @@ _container_config() {
 }
 
 # _container_create
-# Extracts --name NAME from args, maps it to --vmid (PCT) or --name (LXC),
-# and forwards all remaining flags to the appropriate create function.
+# Extracts --name NAME from args. For PCT, auto-generates the VMID via pct_next_vmid
+# and uses --name as the hostname. For LXC, forwards --name unchanged.
 _container_create() {
     local name=""
     local passthrough=()
@@ -263,7 +264,10 @@ _container_create() {
     debug "container create: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_create --vmid "$name" "${passthrough[@]}"
+        local vmid
+        vmid=$(pct_next_vmid) || return 1
+        debug "container create: auto-assigned vmid='$vmid' hostname='$name'"
+        pct_create --vmid "$vmid" --hostname "$name" "${passthrough[@]}"
     else
         lxc_create --name "$name" "${passthrough[@]}"
     fi

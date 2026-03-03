@@ -10,8 +10,10 @@
 #   --purge (flag, optional): Remove the container from related configurations and jobs.
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #
 # Returns:
@@ -28,6 +30,7 @@ function pct_delete {
     local force=0
     local purge=0
     local style="${SPINNER_LOADING_STYLE}"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -47,6 +50,10 @@ function pct_delete {
                 style="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "pct_delete: unknown option: $1"
                 return 1
@@ -57,6 +64,14 @@ function pct_delete {
     if [[ -z "$vmid" ]]; then
         error "pct_delete: --vmid is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        local dry_destroy_args="$vmid"
+        [[ "$force" -eq 1 ]] && dry_destroy_args+=" --force"
+        [[ "$purge" -eq 1 ]] && dry_destroy_args+=" --purge"
+        echo "DRY RUN: pct destroy ${dry_destroy_args}"
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

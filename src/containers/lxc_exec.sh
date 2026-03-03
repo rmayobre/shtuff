@@ -8,9 +8,10 @@
 #   --name NAME (string, required): Name of the container to execute the command in.
 #   -- COMMAND... (required): The command and its arguments to run inside the container.
 #       Everything after -- is passed verbatim to lxc-attach.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
-#   None
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Command completed successfully.
@@ -24,12 +25,17 @@
 function lxc_exec {
     local name=""
     local cmd=()
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -n|--name)
                 name="$2"
                 shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
                 ;;
             --)
                 shift
@@ -51,6 +57,11 @@ function lxc_exec {
     if [[ ${#cmd[@]} -eq 0 ]]; then
         error "lxc_exec: a command is required after --"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: lxc-attach -n \"$name\" -- ${cmd[*]}"
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

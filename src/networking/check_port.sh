@@ -7,9 +7,11 @@
 #
 # Arguments:
 #   --port PORT (integer, required): Port number to check (1–65535).
+#   --dry-run (flag, optional): Print the system calls that would be executed without
+#       running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
-#   None
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Port number is valid and is not currently in use.
@@ -26,12 +28,17 @@
 #   fi
 function check_port {
     local port=""
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             -p|--port)
                 port="$2"
                 shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
                 ;;
             *)
                 error "check_port: unknown option: $1"
@@ -48,6 +55,11 @@ function check_port {
     if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
         error "check_port: invalid port number: '$port' (must be an integer between 1 and 65535)"
         return 2
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: check if port $port is bound on localhost (via ss or /proc/net/tcp)"
+        return 0
     fi
 
     debug "check_port: checking port $port"

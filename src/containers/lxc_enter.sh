@@ -8,9 +8,11 @@
 #   --name NAME (string, required): Name of the container to enter.
 #   --user USER (string, optional, default: "root"): User to run the shell as inside the container.
 #   --shell SHELL (string, optional, default: "/bin/bash"): Shell executable to launch.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Session ended normally.
@@ -25,6 +27,7 @@ function lxc_enter {
     local name=""
     local user="root"
     local shell="/bin/bash"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -40,6 +43,10 @@ function lxc_enter {
                 shell="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "lxc_enter: unknown option: $1"
                 return 1
@@ -50,6 +57,12 @@ function lxc_enter {
     if [[ -z "$name" ]]; then
         error "lxc_enter: --name is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: lxc-start -n \"$name\" (if not running)"
+        echo "DRY RUN: lxc-attach -n \"$name\" -- su -l \"$user\" -s \"$shell\""
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

@@ -17,6 +17,8 @@
 #   --exec-start-pre COMMAND (string, optional): Command to run before ExecStart.
 #   --exec-stop COMMAND (string, optional): Command to run when stopping the service.
 #   --output-dir DIR (string, optional, default: /etc/systemd/system): Directory to write the unit file into.
+#   --dry-run (flag, optional): Print the file that would be created without writing it.
+#       Defaults to IS_DRY_RUN if not specified.
 #   -n NAME (string, required): Short form of --name.
 #   -d DESC (string, required): Short form of --description.
 #   -e COMMAND (string, required): Short form of --exec-start.
@@ -27,7 +29,7 @@
 #   -o DIR (string, optional): Short form of --output-dir.
 #
 # Globals:
-#   None
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Service unit file created successfully.
@@ -62,6 +64,7 @@ service() {
     local exec_start_pre=""
     local exec_stop=""
     local output_dir="/etc/systemd/system"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
@@ -118,6 +121,10 @@ service() {
                 output_dir="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "Unknown option: $1" >&2
                 return 1
@@ -147,6 +154,34 @@ service() {
     fi
 
     local service_file="${output_dir}/${service_name}"
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: would write $service_file"
+        echo "[Unit]"
+        echo "Description=$description"
+        echo "After=network.target"
+        echo ""
+        echo "[Service]"
+        echo "Type=simple"
+        echo "ExecStart=$exec_start"
+        echo "Restart=$restart"
+        echo "RestartSec=${restart_sec}s"
+        [[ -n "$working_directory" ]] && echo "WorkingDirectory=$working_directory"
+        [[ -n "$user"              ]] && echo "User=$user"
+        [[ -n "$group"             ]] && echo "Group=$group"
+        if [[ -n "$environment" ]]; then
+            IFS=' ' read -ra ENV_ARRAY <<< "$environment"
+            for env_var in "${ENV_ARRAY[@]}"; do
+                echo "Environment=$env_var"
+            done
+        fi
+        [[ -n "$exec_start_pre" ]] && echo "ExecStartPre=$exec_start_pre"
+        [[ -n "$exec_stop"      ]] && echo "ExecStop=$exec_stop"
+        echo ""
+        echo "[Install]"
+        echo "WantedBy=$wanted_by"
+        return 0
+    fi
 
     info "Creating service file: $service_file"
 

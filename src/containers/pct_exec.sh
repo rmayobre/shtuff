@@ -7,11 +7,12 @@
 #
 # Arguments:
 #   --vmid VMID (integer, required): Numeric ID of the container to execute the command in.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #   -- COMMAND... (required): The command and its arguments to run inside the container.
 #       Everything after -- is passed verbatim to pct exec.
 #
 # Globals:
-#   None
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Command completed successfully.
@@ -25,12 +26,17 @@
 function pct_exec {
     local vmid=""
     local cmd=()
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --vmid)
                 vmid="$2"
                 shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
                 ;;
             --)
                 shift
@@ -52,6 +58,11 @@ function pct_exec {
     if [[ ${#cmd[@]} -eq 0 ]]; then
         error "pct_exec: a command is required after --"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: pct exec $vmid -- ${cmd[*]}"
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

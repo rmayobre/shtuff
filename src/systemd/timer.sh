@@ -27,6 +27,8 @@ readonly _TIMER_DEFAULT_WANTED_BY="timers.target"
 #   --wanted-by TARGET (string, optional, default: timers.target): Systemd install target.
 #   --output-dir DIR (string, optional, default: /etc/systemd/system): Directory to write the unit file into.
 #   --force (flag, optional): Overwrite an existing timer file at the output path.
+#   --dry-run (flag, optional): Print the file that would be created without writing it.
+#       Defaults to IS_DRY_RUN if not specified.
 #   --help (flag, optional): Print usage information and return without creating a file.
 #   -n NAME (string, required): Short form of --name.
 #   -d DESC (string, optional): Short form of --description.
@@ -45,6 +47,7 @@ readonly _TIMER_DEFAULT_WANTED_BY="timers.target"
 # Globals:
 #   _TIMER_DEFAULT_OUTPUT_DIR (read): Default directory used when --output-dir is not provided.
 #   _TIMER_DEFAULT_WANTED_BY (read): Default install target used when --wanted-by is not provided.
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Timer unit file created successfully, or --help was requested.
@@ -70,6 +73,7 @@ timer() {
     local output_dir="${_TIMER_DEFAULT_OUTPUT_DIR}"
     local force="false"
     local has_schedule="false"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -125,6 +129,10 @@ timer() {
                 force="true"
                 shift
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             -h|--help)
                 _timer_show_help
                 return 0
@@ -146,12 +154,6 @@ timer() {
         error "Invalid timer name: $name"
         error "Name must contain only letters, numbers, underscores, and hyphens"
         return 1
-    fi
-
-    # Validate output directory exists (or can be created)
-    if [[ ! -d "$output_dir" ]]; then
-        error "Output directory does not exist: $output_dir"
-        return 2
     fi
 
     local content=""
@@ -206,9 +208,20 @@ timer() {
     content+="[Install]\n"
     content+="WantedBy=${wanted_by}\n"
 
-
     # Determine output path
     local output_path="$output_dir/$name.timer"
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: would write $output_path"
+        printf "%b" "${content}"
+        return 0
+    fi
+
+    # Validate output directory exists (or can be created)
+    if [[ ! -d "$output_dir" ]]; then
+        error "Output directory does not exist: $output_dir"
+        return 2
+    fi
 
     # Check if timer file exists
     if [[ -f "${output_path}" ]] && [[ "${force}" != "true" ]]; then
@@ -269,6 +282,7 @@ TIMER OPTIONS:
 OUTPUT OPTIONS:
     -o, --output-dir DIR            Output directory (default: ${_TIMER_DEFAULT_OUTPUT_DIR})
     -f, --force                     Overwrite existing files
+        --dry-run                   Print the file that would be created without writing it
 
 GENERAL OPTIONS:
     -h, --help                      Show this help message

@@ -24,8 +24,11 @@
 #   list subcommand:
 #   No additional arguments. Displays current NAT PREROUTING rules.
 #
+#   --dry-run (flag, optional): Print the system calls that would be executed without
+#       running them. Defaults to IS_DRY_RUN if not specified.
+#
 # Globals:
-#   None
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Command completed successfully.
@@ -44,6 +47,17 @@ function forward {
     local command="${1:-}"
     shift || true
 
+    # Pre-parse --dry-run from the remaining args before dispatching.
+    local dry_run="${IS_DRY_RUN:-false}"
+    local -a sub_args=()
+    for arg in "$@"; do
+        if [[ "$arg" == "--dry-run" ]]; then
+            dry_run="true"
+        else
+            sub_args+=("$arg")
+        fi
+    done
+
     if ! command -v iptables &>/dev/null; then
         error "forward: 'iptables' command not found. Install iptables to manage port forwarding."
         return 1
@@ -54,9 +68,9 @@ function forward {
     fi
 
     case "$command" in
-        add)    _forward_add    "$@" ;;
-        remove) _forward_remove "$@" ;;
-        list)   _forward_list   "$@" ;;
+        add)    _forward_add    "$dry_run" "${sub_args[@]}" ;;
+        remove) _forward_remove "$dry_run" "${sub_args[@]}" ;;
+        list)   _forward_list   "$dry_run" "${sub_args[@]}" ;;
         *)
             error "forward: unknown command: '$command'. Valid commands: add, remove, list"
             return 1
@@ -67,6 +81,7 @@ function forward {
 # _forward_add
 # Adds a DNAT rule in the NAT PREROUTING chain and ensures MASQUERADE is set.
 _forward_add() {
+    local dry_run="$1"; shift
     local from_port="" to_host="" to_port="" protocol="tcp"
 
     while [[ $# -gt 0 ]]; do
@@ -124,6 +139,13 @@ _forward_add() {
         return 1
     fi
 
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: echo 1 > /proc/sys/net/ipv4/ip_forward"
+        echo "DRY RUN: iptables -t nat -A PREROUTING -p $protocol --dport $from_port -j DNAT --to-destination ${to_host}:${to_port}"
+        echo "DRY RUN: iptables -t nat -A POSTROUTING -j MASQUERADE"
+        return 0
+    fi
+
     debug "forward add: from_port=$from_port to_host=$to_host to_port=$to_port protocol=$protocol"
 
     # Enable IP forwarding
@@ -161,6 +183,7 @@ _forward_add() {
 # _forward_remove
 # Removes matching DNAT rules from the NAT PREROUTING chain.
 _forward_remove() {
+    local dry_run="$1"; shift
     local from_port="" protocol="tcp"
 
     while [[ $# -gt 0 ]]; do
@@ -195,6 +218,11 @@ _forward_remove() {
         return 1
     fi
 
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: iptables -t nat -D PREROUTING -p $protocol --dport $from_port -j DNAT ..."
+        return 0
+    fi
+
     debug "forward remove: searching for DNAT rules on $protocol port $from_port"
 
     # Find all matching PREROUTING rules for this port and protocol, then delete them.
@@ -222,6 +250,13 @@ _forward_remove() {
 # _forward_list
 # Displays current NAT PREROUTING rules.
 _forward_list() {
+    local dry_run="$1"; shift
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: iptables -t nat -L PREROUTING -n --line-numbers"
+        return 0
+    fi
+
     debug "forward list: iptables -t nat -L PREROUTING -n --line-numbers"
     if ! iptables -t nat -L PREROUTING -n --line-numbers 2>/dev/null; then
         error "forward list: failed to list NAT rules"

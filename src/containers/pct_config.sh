@@ -12,9 +12,11 @@
 #   --cores N (integer, optional): Number of CPU cores to allocate.
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #   Any other flags accepted by 'pct set' may also be passed and are forwarded as-is.
 #
 # Globals:
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #
 # Returns:
@@ -30,6 +32,7 @@
 function pct_config {
     local vmid=""
     local style="${SPINNER_LOADING_STYLE}"
+    local dry_run="${IS_DRY_RUN:-false}"
     local -a passthrough=()
 
     while [[ $# -gt 0 ]]; do
@@ -41,6 +44,10 @@ function pct_config {
             -s|--style)
                 style="$2"
                 shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
                 ;;
             *)
                 passthrough+=("$1")
@@ -56,6 +63,11 @@ function pct_config {
 
     if [[ ${#passthrough[@]} -eq 0 ]]; then
         warn "pct_config: no configuration options provided — nothing to update"
+        return 0
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: pct set $vmid ${passthrough[*]}"
         return 0
     fi
 

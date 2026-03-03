@@ -9,9 +9,11 @@
 #   --force (flag, optional): Stop the container before destroying if it is running.
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Container destroyed successfully.
@@ -26,6 +28,7 @@ function lxc_delete {
     local name=""
     local force=0
     local style="${SPINNER_LOADING_STYLE}"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -41,6 +44,10 @@ function lxc_delete {
                 style="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "lxc_delete: unknown option: $1"
                 return 1
@@ -51,6 +58,13 @@ function lxc_delete {
     if [[ -z "$name" ]]; then
         error "lxc_delete: --name is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        local dry_destroy_args="-n \"$name\""
+        [[ "$force" -eq 1 ]] && dry_destroy_args+=" -f"
+        echo "DRY RUN: lxc-destroy ${dry_destroy_args}"
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

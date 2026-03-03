@@ -28,8 +28,12 @@
 #   --name NAME (string, required): Name of the bridge to remove the interface from.
 #   --interface IFACE (string, required): Network interface to detach from the bridge.
 #
+#   --dry-run (flag, optional): Print the system calls that would be executed without
+#       running them. Defaults to IS_DRY_RUN if not specified.
+#
 # Globals:
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Command completed successfully.
@@ -47,6 +51,17 @@ function bridge {
     local command="${1:-}"
     shift || true
 
+    # Pre-parse --dry-run from the remaining args before dispatching.
+    local dry_run="${IS_DRY_RUN:-false}"
+    local -a sub_args=()
+    for arg in "$@"; do
+        if [[ "$arg" == "--dry-run" ]]; then
+            dry_run="true"
+        else
+            sub_args+=("$arg")
+        fi
+    done
+
     if ! command -v ip &>/dev/null; then
         error "bridge: 'ip' command not found. Install iproute2 to manage bridge interfaces."
         return 1
@@ -57,10 +72,10 @@ function bridge {
     fi
 
     case "$command" in
-        create)          _bridge_create          "$@" ;;
-        delete)          _bridge_delete          "$@" ;;
-        add-interface)   _bridge_add_interface   "$@" ;;
-        remove-interface) _bridge_remove_interface "$@" ;;
+        create)           _bridge_create          "$dry_run" "${sub_args[@]}" ;;
+        delete)           _bridge_delete          "$dry_run" "${sub_args[@]}" ;;
+        add-interface)    _bridge_add_interface   "$dry_run" "${sub_args[@]}" ;;
+        remove-interface) _bridge_remove_interface "$dry_run" "${sub_args[@]}" ;;
         *)
             error "bridge: unknown command: '$command'. Valid commands: create, delete, add-interface, remove-interface"
             return 1
@@ -71,6 +86,7 @@ function bridge {
 # _bridge_create
 # Creates a new bridge interface, optionally assigns an IP, and brings it up.
 _bridge_create() {
+    local dry_run="$1"; shift
     local name="" ip=""
 
     while [[ $# -gt 0 ]]; do
@@ -93,6 +109,13 @@ _bridge_create() {
     if [[ -z "$name" ]]; then
         error "bridge create: --name is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: ip link add $name type bridge"
+        [[ -n "$ip" ]] && echo "DRY RUN: ip addr add $ip dev $name"
+        echo "DRY RUN: ip link set $name up"
+        return 0
     fi
 
     if ip link show "$name" &>/dev/null; then
@@ -129,6 +152,7 @@ _bridge_create() {
 # _bridge_delete
 # Brings down and removes an existing bridge interface.
 _bridge_delete() {
+    local dry_run="$1"; shift
     local name=""
 
     while [[ $# -gt 0 ]]; do
@@ -147,6 +171,12 @@ _bridge_delete() {
     if [[ -z "$name" ]]; then
         error "bridge delete: --name is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: ip link set $name down"
+        echo "DRY RUN: ip link delete $name type bridge"
+        return 0
     fi
 
     if ! ip link show "$name" &>/dev/null; then
@@ -173,6 +203,7 @@ _bridge_delete() {
 # _bridge_add_interface
 # Attaches a network interface to an existing bridge.
 _bridge_add_interface() {
+    local dry_run="$1"; shift
     local name="" interface=""
 
     while [[ $# -gt 0 ]]; do
@@ -202,6 +233,11 @@ _bridge_add_interface() {
         return 1
     fi
 
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: ip link set $interface master $name"
+        return 0
+    fi
+
     if ! ip link show "$name" &>/dev/null; then
         error "bridge add-interface: bridge '$name' does not exist"
         return 2
@@ -225,6 +261,7 @@ _bridge_add_interface() {
 # _bridge_remove_interface
 # Detaches a network interface from a bridge.
 _bridge_remove_interface() {
+    local dry_run="$1"; shift
     local name="" interface=""
 
     while [[ $# -gt 0 ]]; do
@@ -252,6 +289,11 @@ _bridge_remove_interface() {
     if [[ -z "$interface" ]]; then
         error "bridge remove-interface: --interface is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "DRY RUN: ip link set $interface nomaster"
+        return 0
     fi
 
     if ! ip link show "$interface" &>/dev/null; then

@@ -18,8 +18,10 @@
 #       Controls which --netN option is configured.
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #
 # Returns:
@@ -41,6 +43,7 @@ function pct_network {
     local dns=""
     local index=0
     local style="${SPINNER_LOADING_STYLE}"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -72,6 +75,10 @@ function pct_network {
                 style="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "pct_network: unknown option: $1"
                 return 1
@@ -87,6 +94,15 @@ function pct_network {
     if ! [[ "$index" =~ ^[0-9]+$ ]]; then
         error "pct_network: --index must be a non-negative integer"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        local dry_net_string="name=eth${index},bridge=${bridge}"
+        [[ -n "$ip" ]] && dry_net_string+=",ip=${ip}"
+        [[ -n "$ip" && "$ip" != "dhcp" && -n "$gateway" ]] && dry_net_string+=",gw=${gateway}"
+        echo "DRY RUN: pct set $vmid --net${index} \"${dry_net_string}\""
+        [[ -n "$dns" ]] && echo "DRY RUN: pct set $vmid --nameserver \"$dns\""
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

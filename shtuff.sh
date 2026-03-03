@@ -3,6 +3,11 @@
 # Current directory path of this project.
 SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+# When set to "true", all functions that support --dry-run will print the system
+# calls they would execute instead of running them. Can be overridden per-call
+# with --dry-run.
+IS_DRY_RUN=${IS_DRY_RUN:-false}
+
 # Globals
 source "${SHTUFF_DIR}/src/graphics/colors.sh"
 

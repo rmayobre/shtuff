@@ -67,7 +67,7 @@ function pct_config {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: pct set $vmid ${passthrough[*]}"
+        echo "pct set $vmid ${passthrough[*]}"
         return 0
     fi
 

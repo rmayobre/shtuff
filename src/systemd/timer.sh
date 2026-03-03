@@ -212,7 +212,7 @@ timer() {
     local output_path="$output_dir/$name.timer"
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: would write $output_path"
+        echo "would write $output_path"
         printf "%b" "${content}"
         return 0
     fi

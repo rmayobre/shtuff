@@ -63,7 +63,7 @@ function lxc_delete {
     if [[ "$dry_run" == "true" ]]; then
         local dry_destroy_args="-n \"$name\""
         [[ "$force" -eq 1 ]] && dry_destroy_args+=" -f"
-        echo "DRY RUN: lxc-destroy ${dry_destroy_args}"
+        echo "lxc-destroy ${dry_destroy_args}"
         return 0
     fi
 

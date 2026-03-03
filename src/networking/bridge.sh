@@ -112,9 +112,9 @@ _bridge_create() {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: ip link add $name type bridge"
-        [[ -n "$ip" ]] && echo "DRY RUN: ip addr add $ip dev $name"
-        echo "DRY RUN: ip link set $name up"
+        echo "ip link add $name type bridge"
+        [[ -n "$ip" ]] && echo "ip addr add $ip dev $name"
+        echo "ip link set $name up"
         return 0
     fi
 
@@ -174,8 +174,8 @@ _bridge_delete() {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: ip link set $name down"
-        echo "DRY RUN: ip link delete $name type bridge"
+        echo "ip link set $name down"
+        echo "ip link delete $name type bridge"
         return 0
     fi
 
@@ -234,7 +234,7 @@ _bridge_add_interface() {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: ip link set $interface master $name"
+        echo "ip link set $interface master $name"
         return 0
     fi
 
@@ -292,7 +292,7 @@ _bridge_remove_interface() {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: ip link set $interface nomaster"
+        echo "ip link set $interface nomaster"
         return 0
     fi
 

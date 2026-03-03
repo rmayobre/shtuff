@@ -90,11 +90,11 @@ function lxc_push {
         local rootfs="/var/lib/lxc/${name}/rootfs"
         local full_dest="${rootfs}${dest_path}"
         if command -v rsync &>/dev/null; then
-            echo "DRY RUN: rsync -a \"$source_path\" \"$full_dest\""
+            echo "rsync -a \"$source_path\" \"$full_dest\""
         elif [[ -d "$source_path" ]]; then
-            echo "DRY RUN: cp -r \"$source_path\" \"$full_dest\""
+            echo "cp -r \"$source_path\" \"$full_dest\""
         else
-            echo "DRY RUN: cp \"$source_path\" \"$full_dest\""
+            echo "cp \"$source_path\" \"$full_dest\""
         fi
         return 0
     fi

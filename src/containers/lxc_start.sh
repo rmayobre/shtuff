@@ -54,7 +54,7 @@ function lxc_start {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: lxc-start -n \"$name\""
+        echo "lxc-start -n \"$name\""
         return 0
     fi
 

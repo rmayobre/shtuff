@@ -140,9 +140,9 @@ _forward_add() {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: echo 1 > /proc/sys/net/ipv4/ip_forward"
-        echo "DRY RUN: iptables -t nat -A PREROUTING -p $protocol --dport $from_port -j DNAT --to-destination ${to_host}:${to_port}"
-        echo "DRY RUN: iptables -t nat -A POSTROUTING -j MASQUERADE"
+        echo "echo 1 > /proc/sys/net/ipv4/ip_forward"
+        echo "iptables -t nat -A PREROUTING -p $protocol --dport $from_port -j DNAT --to-destination ${to_host}:${to_port}"
+        echo "iptables -t nat -A POSTROUTING -j MASQUERADE"
         return 0
     fi
 
@@ -219,7 +219,7 @@ _forward_remove() {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: iptables -t nat -D PREROUTING -p $protocol --dport $from_port -j DNAT ..."
+        echo "iptables -t nat -D PREROUTING -p $protocol --dport $from_port -j DNAT ..."
         return 0
     fi
 
@@ -253,7 +253,7 @@ _forward_list() {
     local dry_run="$1"; shift
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: iptables -t nat -L PREROUTING -n --line-numbers"
+        echo "iptables -t nat -L PREROUTING -n --line-numbers"
         return 0
     fi
 

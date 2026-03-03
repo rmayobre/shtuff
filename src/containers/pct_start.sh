@@ -54,7 +54,7 @@ function pct_start {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: pct start $vmid"
+        echo "pct start $vmid"
         return 0
     fi
 

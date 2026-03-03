@@ -105,12 +105,12 @@ function lxc_config {
 
     if [[ "$dry_run" == "true" ]]; then
         local config_file="/var/lib/lxc/${name}/config"
-        [[ -n "$hostname" ]] && echo "DRY RUN: set lxc.uts.name = $hostname in $config_file"
-        [[ -n "$memory"   ]] && echo "DRY RUN: set lxc.cgroup2.memory.max = ${memory}M in $config_file"
-        [[ -n "$cores"    ]] && echo "DRY RUN: set lxc.cgroup2.cpuset.cpus = 0-$((cores - 1)) in $config_file"
+        [[ -n "$hostname" ]] && echo "set lxc.uts.name = $hostname in $config_file"
+        [[ -n "$memory"   ]] && echo "set lxc.cgroup2.memory.max = ${memory}M in $config_file"
+        [[ -n "$cores"    ]] && echo "set lxc.cgroup2.cpuset.cpus = 0-$((cores - 1)) in $config_file"
         local i
         for i in "${!set_keys[@]}"; do
-            echo "DRY RUN: set ${set_keys[$i]} = ${set_vals[$i]} in $config_file"
+            echo "set ${set_keys[$i]} = ${set_vals[$i]} in $config_file"
         done
         return 0
     fi

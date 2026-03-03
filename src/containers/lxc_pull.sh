@@ -91,11 +91,11 @@ function lxc_pull {
         local rootfs="/var/lib/lxc/${name}/rootfs"
         local full_source="${rootfs}${source_path}"
         if command -v rsync &>/dev/null; then
-            echo "DRY RUN: rsync -a \"$full_source\" \"$dest_path\""
+            echo "rsync -a \"$full_source\" \"$dest_path\""
         elif [[ -d "$full_source" ]]; then
-            echo "DRY RUN: cp -r \"$full_source\" \"$dest_path\""
+            echo "cp -r \"$full_source\" \"$dest_path\""
         else
-            echo "DRY RUN: cp \"$full_source\" \"$dest_path\""
+            echo "cp \"$full_source\" \"$dest_path\""
         fi
         return 0
     fi

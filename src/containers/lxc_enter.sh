@@ -60,8 +60,8 @@ function lxc_enter {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: lxc-start -n \"$name\" (if not running)"
-        echo "DRY RUN: lxc-attach -n \"$name\" -- su -l \"$user\" -s \"$shell\""
+        echo "lxc-start -n \"$name\" (if not running)"
+        echo "lxc-attach -n \"$name\" -- su -l \"$user\" -s \"$shell\""
         return 0
     fi
 

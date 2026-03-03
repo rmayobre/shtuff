@@ -61,7 +61,7 @@ function pct_exec {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: pct exec $vmid -- ${cmd[*]}"
+        echo "pct exec $vmid -- ${cmd[*]}"
         return 0
     fi
 

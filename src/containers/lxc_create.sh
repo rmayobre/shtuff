@@ -129,14 +129,14 @@ function lxc_create {
             dry_lxc_args+=" --bsize \"${disk_size}G\""
         fi
         if [[ "$template" == "download" ]]; then
-            echo "DRY RUN: lxc-create ${dry_lxc_args} -t download -- --dist \"$dist\" --release \"$release\" --arch \"$arch\""
+            echo "lxc-create ${dry_lxc_args} -t download -- --dist \"$dist\" --release \"$release\" --arch \"$arch\""
         else
-            echo "DRY RUN: lxc-create ${dry_lxc_args} -t \"$template\""
+            echo "lxc-create ${dry_lxc_args} -t \"$template\""
         fi
-        [[ -n "$hostname" ]] && echo "DRY RUN: printf '\\nlxc.uts.name = %s\\n' \"$hostname\" >> $config_file"
-        [[ -n "$memory"   ]] && echo "DRY RUN: printf 'lxc.cgroup2.memory.max = %sM\\n' \"$memory\" >> $config_file"
-        [[ -n "$cores"    ]] && echo "DRY RUN: printf 'lxc.cgroup2.cpuset.cpus = 0-%s\\n' \"$((cores - 1))\" >> $config_file"
-        [[ -n "$password" ]] && echo "DRY RUN: lxc-start -n \"$name\" && lxc-attach -n \"$name\" -- bash -c \"echo 'root:***' | chpasswd\" && lxc-stop -n \"$name\""
+        [[ -n "$hostname" ]] && echo "printf '\\nlxc.uts.name = %s\\n' \"$hostname\" >> $config_file"
+        [[ -n "$memory"   ]] && echo "printf 'lxc.cgroup2.memory.max = %sM\\n' \"$memory\" >> $config_file"
+        [[ -n "$cores"    ]] && echo "printf 'lxc.cgroup2.cpuset.cpus = 0-%s\\n' \"$((cores - 1))\" >> $config_file"
+        [[ -n "$password" ]] && echo "lxc-start -n \"$name\" && lxc-attach -n \"$name\" -- bash -c \"echo 'root:***' | chpasswd\" && lxc-stop -n \"$name\""
         return 0
     fi
 

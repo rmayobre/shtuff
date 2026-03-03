@@ -156,7 +156,7 @@ service() {
     local service_file="${output_dir}/${service_name}"
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: would write $service_file"
+        echo "would write $service_file"
         echo "[Unit]"
         echo "Description=$description"
         echo "After=network.target"

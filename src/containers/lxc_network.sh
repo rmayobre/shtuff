@@ -109,14 +109,14 @@ function lxc_network {
     if [[ "$dry_run" == "true" ]]; then
         local config_file="/var/lib/lxc/${name}/config"
         local prefix="lxc.net.${index}"
-        echo "DRY RUN: set ${prefix}.type = $type in $config_file"
+        echo "set ${prefix}.type = $type in $config_file"
         if [[ "$type" != "none" ]]; then
-            echo "DRY RUN: set ${prefix}.link = $bridge in $config_file"
-            echo "DRY RUN: set ${prefix}.flags = up in $config_file"
+            echo "set ${prefix}.link = $bridge in $config_file"
+            echo "set ${prefix}.flags = up in $config_file"
         fi
-        [[ -n "$ip"      ]] && echo "DRY RUN: set ${prefix}.ipv4.address = $ip in $config_file"
-        [[ -n "$ip" && -n "$gateway" ]] && echo "DRY RUN: set ${prefix}.ipv4.gateway = $gateway in $config_file"
-        [[ -n "$hwaddr"  ]] && echo "DRY RUN: set ${prefix}.hwaddr = $hwaddr in $config_file"
+        [[ -n "$ip"      ]] && echo "set ${prefix}.ipv4.address = $ip in $config_file"
+        [[ -n "$ip" && -n "$gateway" ]] && echo "set ${prefix}.ipv4.gateway = $gateway in $config_file"
+        [[ -n "$hwaddr"  ]] && echo "set ${prefix}.hwaddr = $hwaddr in $config_file"
         return 0
     fi
 

@@ -60,7 +60,7 @@ function lxc_exec {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "DRY RUN: lxc-attach -n \"$name\" -- ${cmd[*]}"
+        echo "lxc-attach -n \"$name\" -- ${cmd[*]}"
         return 0
     fi
 

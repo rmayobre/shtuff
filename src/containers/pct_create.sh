@@ -112,7 +112,7 @@ function pct_create {
         local dry_pct_args="$vmid \"$template\" --memory $memory --cores $cores --storage $storage --rootfs ${storage}:${disk_size}"
         [[ -n "$hostname" ]] && dry_pct_args+=" --hostname \"$hostname\""
         [[ -n "$password" ]] && dry_pct_args+=" --password ***"
-        echo "DRY RUN: pct create ${dry_pct_args}"
+        echo "pct create ${dry_pct_args}"
         return 0
     fi
 

@@ -22,11 +22,14 @@
 #       Valid values: spinner, dots, bars, arrows, clock.
 #   --message MSG (string, optional, default: "Deleting"): Verb shown in both
 #                 the progress bar label and each per-item loading indicator.
+#   --dry-run     (flag, optional): Print the delete commands that would be executed
+#                 without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
 #   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
 #   GREEN                 (read): ANSI color applied to the filled bar segment.
 #   RESET_COLOR           (read): ANSI reset sequence used to restore terminal color.
+#   IS_DRY_RUN            (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - All items removed successfully.
@@ -44,6 +47,7 @@
 function delete {
     local style="$DEFAULT_LOADING_STYLE"
     local message="Deleting"
+    local dry_run="${IS_DRY_RUN:-false}"
     local -a targets=()
 
     while (( "$#" )); do
@@ -55,6 +59,10 @@ function delete {
             -m|--message)
                 message="$2"
                 shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
                 ;;
             -*)
                 error "delete: unknown option: $1"
@@ -73,6 +81,17 @@ function delete {
     fi
 
     local total=${#targets[@]}
+
+    if [[ "$dry_run" == "true" ]]; then
+        for target in "${targets[@]}"; do
+            if [[ -d "$target" ]]; then
+                echo "rm -rf \"$target\""
+            else
+                echo "rm \"$target\""
+            fi
+        done
+        return 0
+    fi
 
     if (( total > 1 )); then
         progress --current 0 --total "$total" --message "$message"

@@ -23,11 +23,14 @@
 #       Valid values: spinner, dots, bars, arrows, clock.
 #   --message MSG  (string, optional, default: "Moving"): Verb shown in both
 #                  the progress bar label and each per-item loading indicator.
+#   --dry-run      (flag, optional): Print the move commands that would be executed
+#                  without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
 #   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
 #   GREEN                 (read): ANSI color applied to the filled bar segment.
 #   RESET_COLOR           (read): ANSI reset sequence used to restore terminal color.
+#   IS_DRY_RUN            (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - All items moved successfully.
@@ -45,6 +48,7 @@
 function move {
     local style="$DEFAULT_LOADING_STYLE"
     local message="Moving"
+    local dry_run="${IS_DRY_RUN:-false}"
     local -a paths=()
 
     while (( "$#" )); do
@@ -56,6 +60,10 @@ function move {
             -m|--message)
                 message="$2"
                 shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
                 ;;
             -*)
                 error "move: unknown option: $1"
@@ -76,6 +84,13 @@ function move {
     local dest="${paths[-1]}"
     local -a sources=("${paths[@]:0:${#paths[@]}-1}")
     local total=${#sources[@]}
+
+    if [[ "$dry_run" == "true" ]]; then
+        for src in "${sources[@]}"; do
+            echo "mv \"$src\" \"$dest\""
+        done
+        return 0
+    fi
 
     if (( total > 1 )); then
         progress --current 0 --total "$total" --message "$message"

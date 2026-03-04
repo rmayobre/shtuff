@@ -17,6 +17,7 @@ jobs:
         run: |
           bash -n tests/file_operations_test.sh
           bash -n tests/dry_run_test.sh
+          bash -n tests/container_dry_run_test.sh
 
       - name: Run file operations tests
         run: bash file_operations_test.sh
@@ -24,6 +25,9 @@ jobs:
 
       - name: Run dry-run tests
         run: bash tests/dry_run_test.sh
+
+      - name: Run container dry-run tests
+        run: bash tests/container_dry_run_test.sh
 
   release:
     needs: test

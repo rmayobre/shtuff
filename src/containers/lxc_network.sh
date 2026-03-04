@@ -22,9 +22,10 @@
 #       (e.g. 00:16:3e:ab:cd:ef). Omit to let LXC auto-generate one.
 #   --index N (integer, optional, default: 0): Network interface index.
 #       Controls which lxc.net.N.* block is configured.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
-#   None
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Network configuration updated successfully.
@@ -46,6 +47,7 @@ function lxc_network {
     local gateway=""
     local hwaddr=""
     local index=0
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -77,6 +79,10 @@ function lxc_network {
                 index="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "lxc_network: unknown option: $1"
                 return 1
@@ -98,6 +104,20 @@ function lxc_network {
     if ! [[ "$index" =~ ^[0-9]+$ ]]; then
         error "lxc_network: --index must be a non-negative integer"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        local config_file="/var/lib/lxc/${name}/config"
+        local prefix="lxc.net.${index}"
+        echo "set ${prefix}.type = $type in $config_file"
+        if [[ "$type" != "none" ]]; then
+            echo "set ${prefix}.link = $bridge in $config_file"
+            echo "set ${prefix}.flags = up in $config_file"
+        fi
+        [[ -n "$ip"      ]] && echo "set ${prefix}.ipv4.address = $ip in $config_file"
+        [[ -n "$ip" && -n "$gateway" ]] && echo "set ${prefix}.ipv4.gateway = $gateway in $config_file"
+        [[ -n "$hwaddr"  ]] && echo "set ${prefix}.hwaddr = $hwaddr in $config_file"
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

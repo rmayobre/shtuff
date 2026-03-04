@@ -23,9 +23,11 @@
 #       The container is started briefly to apply the password, then stopped.
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Container created successfully.
@@ -52,6 +54,7 @@ function lxc_create {
     local disk_size=""
     local password=""
     local style="${SPINNER_LOADING_STYLE}"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -103,6 +106,10 @@ function lxc_create {
                 style="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "lxc_create: unknown option: $1"
                 return 1
@@ -113,6 +120,24 @@ function lxc_create {
     if [[ -z "$name" ]]; then
         error "lxc_create: --name is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        local config_file="/var/lib/lxc/${name}/config"
+        local dry_lxc_args="-n \"$name\" -B \"$storage\""
+        if [[ -n "$disk_size" && ( "$storage" == "btrfs" || "$storage" == "zfs" ) ]]; then
+            dry_lxc_args+=" --bsize \"${disk_size}G\""
+        fi
+        if [[ "$template" == "download" ]]; then
+            echo "lxc-create ${dry_lxc_args} -t download -- --dist \"$dist\" --release \"$release\" --arch \"$arch\""
+        else
+            echo "lxc-create ${dry_lxc_args} -t \"$template\""
+        fi
+        [[ -n "$hostname" ]] && echo "printf '\\nlxc.uts.name = %s\\n' \"$hostname\" >> $config_file"
+        [[ -n "$memory"   ]] && echo "printf 'lxc.cgroup2.memory.max = %sM\\n' \"$memory\" >> $config_file"
+        [[ -n "$cores"    ]] && echo "printf 'lxc.cgroup2.cpuset.cpus = 0-%s\\n' \"$((cores - 1))\" >> $config_file"
+        [[ -n "$password" ]] && echo "lxc-start -n \"$name\" && lxc-attach -n \"$name\" -- bash -c \"echo 'root:***' | chpasswd\" && lxc-stop -n \"$name\""
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

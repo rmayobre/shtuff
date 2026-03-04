@@ -15,9 +15,12 @@
 #       probe attempt.
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
+#   --dry-run (flag, optional): Print the system calls that would be executed without
+#       running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Port became reachable within the timeout.
@@ -34,6 +37,7 @@ function wait_for_port {
     local timeout=30
     local interval=2
     local style="${SPINNER_LOADING_STYLE}"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -56,6 +60,10 @@ function wait_for_port {
             -s|--style)
                 style="$2"
                 shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
                 ;;
             *)
                 error "wait_for_port: unknown option: $1"
@@ -87,6 +95,11 @@ function wait_for_port {
     if ! [[ "$interval" =~ ^[0-9]+$ ]] || (( interval < 1 )); then
         error "wait_for_port: --interval must be a positive integer"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "poll $host:$port every ${interval}s for up to ${timeout}s"
+        return 0
     fi
 
     debug "wait_for_port: host='$host' port='$port' timeout=${timeout}s interval=${interval}s"

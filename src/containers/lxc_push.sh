@@ -12,9 +12,11 @@
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
 #   --message MSG (string, optional, default: "Pushing to container..."): Progress message.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - File(s) pushed successfully.
@@ -31,6 +33,7 @@ function lxc_push {
     local name=""
     local style="${SPINNER_LOADING_STYLE}"
     local message="Pushing to container..."
+    local dry_run="${IS_DRY_RUN:-false}"
 
     # Capture positional arguments before named flags
     if [[ $# -ge 1 && "$1" != -* ]]; then
@@ -57,6 +60,10 @@ function lxc_push {
                 message="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "lxc_push: unknown option: $1"
                 return 1
@@ -77,6 +84,19 @@ function lxc_push {
     if [[ -z "$name" ]]; then
         error "lxc_push: --name is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        local rootfs="/var/lib/lxc/${name}/rootfs"
+        local full_dest="${rootfs}${dest_path}"
+        if command -v rsync &>/dev/null; then
+            echo "rsync -a \"$source_path\" \"$full_dest\""
+        elif [[ -d "$source_path" ]]; then
+            echo "cp -r \"$source_path\" \"$full_dest\""
+        else
+            echo "cp \"$source_path\" \"$full_dest\""
+        fi
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

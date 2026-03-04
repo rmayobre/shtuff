@@ -13,9 +13,10 @@
 #   --cores N (integer, optional): CPU core count (lxc.cgroup2.cpuset.cpus).
 #   --set KEY=VALUE (string, optional, repeatable): Set any arbitrary lxc.* config key.
 #       May be specified multiple times to update several keys in one call.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
-#   None
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
 #   0 - Configuration updated successfully.
@@ -35,6 +36,7 @@ function lxc_config {
     local cores=""
     local -a set_keys=()
     local -a set_vals=()
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -58,6 +60,10 @@ function lxc_config {
                 set_keys+=("${2%%=*}")
                 set_vals+=("${2#*=}")
                 shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
                 ;;
             *)
                 error "lxc_config: unknown option: $1"
@@ -94,6 +100,18 @@ function lxc_config {
     # Check that at least one setting was requested
     if [[ -z "$hostname" && -z "$memory" && -z "$cores" && ${#set_keys[@]} -eq 0 ]]; then
         warn "lxc_config: no configuration options provided — nothing to update"
+        return 0
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        local config_file="/var/lib/lxc/${name}/config"
+        [[ -n "$hostname" ]] && echo "set lxc.uts.name = $hostname in $config_file"
+        [[ -n "$memory"   ]] && echo "set lxc.cgroup2.memory.max = ${memory}M in $config_file"
+        [[ -n "$cores"    ]] && echo "set lxc.cgroup2.cpuset.cpus = 0-$((cores - 1)) in $config_file"
+        local i
+        for i in "${!set_keys[@]}"; do
+            echo "set ${set_keys[$i]} = ${set_vals[$i]} in $config_file"
+        done
         return 0
     fi
 

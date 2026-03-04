@@ -15,8 +15,10 @@
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
 #   --message MSG (string, optional, default: "Pushing to container..."): Progress message.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #
 # Returns:
@@ -37,6 +39,7 @@ function pct_push {
     local owner_group=""
     local style="${SPINNER_LOADING_STYLE}"
     local message="Pushing to container..."
+    local dry_run="${IS_DRY_RUN:-false}"
 
     # Capture positional arguments before named flags
     if [[ $# -ge 1 && "$1" != -* ]]; then
@@ -75,6 +78,10 @@ function pct_push {
                 message="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "pct_push: unknown option: $1"
                 return 1
@@ -95,6 +102,15 @@ function pct_push {
     if [[ -z "$vmid" ]]; then
         error "pct_push: --vmid is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        local dry_pct_args="$vmid \"$source_path\" \"$dest_path\""
+        [[ -n "$perms"       ]] && dry_pct_args+=" --perms $perms"
+        [[ -n "$owner_user"  ]] && dry_pct_args+=" --user $owner_user"
+        [[ -n "$owner_group" ]] && dry_pct_args+=" --group $owner_group"
+        echo "pct push ${dry_pct_args}"
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

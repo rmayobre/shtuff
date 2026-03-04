@@ -3,6 +3,11 @@
 # Base URL for scripts. Change if this project has been forked.
 BASE_URL="https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/"
 
+# When set to "true", all functions that support --dry-run will print the system
+# calls they would execute instead of running them. Can be overridden per-call
+# with --dry-run.
+IS_DRY_RUN=${IS_DRY_RUN:-false}
+
 # Globals
 source <(curl -sL "${BASE_URL}/src/graphics/colors.sh")
 

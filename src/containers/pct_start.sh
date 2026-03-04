@@ -7,8 +7,10 @@
 #   --vmid VMID (integer, required): Numeric ID of the container to start.
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #
 # Returns:
@@ -23,6 +25,7 @@
 function pct_start {
     local vmid=""
     local style="${SPINNER_LOADING_STYLE}"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -34,6 +37,10 @@ function pct_start {
                 style="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "pct_start: unknown option: $1"
                 return 1
@@ -44,6 +51,11 @@ function pct_start {
     if [[ -z "$vmid" ]]; then
         error "pct_start: --vmid is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "pct start $vmid"
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

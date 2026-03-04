@@ -17,8 +17,10 @@
 #   --password PASSWORD (string, optional): Root password for the container.
 #   --style STYLE (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #
 # Returns:
@@ -45,6 +47,7 @@ function pct_create {
     local disk_size="8"
     local password=""
     local style="${SPINNER_LOADING_STYLE}"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -84,6 +87,10 @@ function pct_create {
                 style="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "pct_create: unknown option: $1"
                 return 1
@@ -99,6 +106,14 @@ function pct_create {
     if [[ -z "$template" ]]; then
         error "pct_create: --template is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        local dry_pct_args="$vmid \"$template\" --memory $memory --cores $cores --storage $storage --rootfs ${storage}:${disk_size}"
+        [[ -n "$hostname" ]] && dry_pct_args+=" --hostname \"$hostname\""
+        [[ -n "$password" ]] && dry_pct_args+=" --password ***"
+        echo "pct create ${dry_pct_args}"
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

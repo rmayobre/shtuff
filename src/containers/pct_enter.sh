@@ -10,8 +10,10 @@
 #   --user USER (string, optional, default: "root"): User to run the shell as inside the container.
 #   --shell SHELL (string, optional, default: "/bin/bash"): Shell executable to launch (used
 #       when --user is not root).
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #
 # Returns:
@@ -27,6 +29,7 @@ function pct_enter {
     local vmid=""
     local user="root"
     local shell="/bin/bash"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -42,6 +45,10 @@ function pct_enter {
                 shell="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 error "pct_enter: unknown option: $1"
                 return 1
@@ -52,6 +59,16 @@ function pct_enter {
     if [[ -z "$vmid" ]]; then
         error "pct_enter: --vmid is required"
         return 1
+    fi
+
+    if [[ "$dry_run" == "true" ]]; then
+        echo "pct start $vmid (if not running)"
+        if [[ "$user" == "root" ]]; then
+            echo "pct enter $vmid"
+        else
+            echo "pct exec $vmid -- su -l \"$user\" -s \"$shell\""
+        fi
+        return 0
     fi
 
     if [[ $EUID -ne 0 ]]; then

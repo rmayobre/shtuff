@@ -87,7 +87,7 @@ function move {
 
     if [[ "$dry_run" == "true" ]]; then
         for src in "${sources[@]}"; do
-            echo "mv \"$src\" \"$dest\""
+            echo "[DRY RUN] mv \"$src\" \"$dest\""
         done
         return 0
     fi

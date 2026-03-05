@@ -58,7 +58,7 @@ function check_port {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "check if port $port is bound on localhost (via ss or /proc/net/tcp)"
+        echo "[DRY RUN] check if port $port is bound on localhost (via ss or /proc/net/tcp)"
         return 0
     fi
 

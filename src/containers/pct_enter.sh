@@ -62,11 +62,11 @@ function pct_enter {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "pct start $vmid (if not running)"
+        echo "[DRY RUN] pct start $vmid (if not running)"
         if [[ "$user" == "root" ]]; then
-            echo "pct enter $vmid"
+            echo "[DRY RUN] pct enter $vmid"
         else
-            echo "pct exec $vmid -- su -l \"$user\" -s \"$shell\""
+            echo "[DRY RUN] pct exec $vmid -- su -l \"$user\" -s \"$shell\""
         fi
         return 0
     fi

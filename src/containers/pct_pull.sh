@@ -87,7 +87,7 @@ function pct_pull {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "pct pull $vmid \"$source_path\" \"$dest_path\""
+        echo "[DRY RUN] pct pull $vmid \"$source_path\" \"$dest_path\""
         return 0
     fi
 

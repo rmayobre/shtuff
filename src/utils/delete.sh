@@ -85,9 +85,9 @@ function delete {
     if [[ "$dry_run" == "true" ]]; then
         for target in "${targets[@]}"; do
             if [[ -d "$target" ]]; then
-                echo "rm -rf \"$target\""
+                echo "[DRY RUN] rm -rf \"$target\""
             else
-                echo "rm \"$target\""
+                echo "[DRY RUN] rm \"$target\""
             fi
         done
         return 0

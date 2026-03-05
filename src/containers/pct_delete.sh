@@ -70,7 +70,7 @@ function pct_delete {
         local dry_destroy_args="$vmid"
         [[ "$force" -eq 1 ]] && dry_destroy_args+=" --force"
         [[ "$purge" -eq 1 ]] && dry_destroy_args+=" --purge"
-        echo "pct destroy ${dry_destroy_args}"
+        echo "[DRY RUN] pct destroy ${dry_destroy_args}"
         return 0
     fi
 

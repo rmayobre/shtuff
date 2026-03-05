@@ -89,9 +89,9 @@ function copy {
     if [[ "$dry_run" == "true" ]]; then
         for src in "${sources[@]}"; do
             if [[ -d "$src" ]]; then
-                echo "cp -r \"$src\" \"$dest\""
+                echo "[DRY RUN] cp -r \"$src\" \"$dest\""
             else
-                echo "cp \"$src\" \"$dest\""
+                echo "[DRY RUN] cp \"$src\" \"$dest\""
             fi
         done
         return 0

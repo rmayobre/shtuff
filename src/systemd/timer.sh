@@ -212,8 +212,8 @@ timer() {
     local output_path="$output_dir/$name.timer"
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "would write $output_path"
-        printf "%b" "${content}"
+        echo "[DRY RUN] would write $output_path"
+        printf "%b" "${content}" | sed 's/^/[DRY RUN] /'
         return 0
     fi
 

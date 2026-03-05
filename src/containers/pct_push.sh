@@ -109,7 +109,7 @@ function pct_push {
         [[ -n "$perms"       ]] && dry_pct_args+=" --perms $perms"
         [[ -n "$owner_user"  ]] && dry_pct_args+=" --user $owner_user"
         [[ -n "$owner_group" ]] && dry_pct_args+=" --group $owner_group"
-        echo "pct push ${dry_pct_args}"
+        echo "[DRY RUN] pct push ${dry_pct_args}"
         return 0
     fi
 

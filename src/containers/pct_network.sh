@@ -100,8 +100,8 @@ function pct_network {
         local dry_net_string="name=eth${index},bridge=${bridge}"
         [[ -n "$ip" ]] && dry_net_string+=",ip=${ip}"
         [[ -n "$ip" && "$ip" != "dhcp" && -n "$gateway" ]] && dry_net_string+=",gw=${gateway}"
-        echo "pct set $vmid --net${index} \"${dry_net_string}\""
-        [[ -n "$dns" ]] && echo "pct set $vmid --nameserver \"$dns\""
+        echo "[DRY RUN] pct set $vmid --net${index} \"${dry_net_string}\""
+        [[ -n "$dns" ]] && echo "[DRY RUN] pct set $vmid --nameserver \"$dns\""
         return 0
     fi
 

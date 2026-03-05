@@ -187,6 +187,11 @@ function lxc_create {
         --success_msg "Container '$name' created." \
         --error_msg "Container '$name' creation failed." || return 3
 
+    # Warn if the default LXC bridge does not exist on the host
+    if ! ip link show lxcbr0 &>/dev/null; then
+        warn "lxc_create: bridge 'lxcbr0' does not exist — container '$name' will have no network access until a bridge is created and configured via lxc_network"
+    fi
+
     # Apply resource constraints to the container config file
     local config_file="/var/lib/lxc/${name}/config"
 

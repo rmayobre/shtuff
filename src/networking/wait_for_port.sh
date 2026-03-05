@@ -98,7 +98,7 @@ function wait_for_port {
     fi
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "poll $host:$port every ${interval}s for up to ${timeout}s"
+        echo "[DRY RUN] poll $host:$port every ${interval}s for up to ${timeout}s"
         return 0
     fi
 

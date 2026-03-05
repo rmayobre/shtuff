@@ -156,30 +156,30 @@ service() {
     local service_file="${output_dir}/${service_name}"
 
     if [[ "$dry_run" == "true" ]]; then
-        echo "would write $service_file"
-        echo "[Unit]"
-        echo "Description=$description"
-        echo "After=network.target"
-        echo ""
-        echo "[Service]"
-        echo "Type=simple"
-        echo "ExecStart=$exec_start"
-        echo "Restart=$restart"
-        echo "RestartSec=${restart_sec}s"
-        [[ -n "$working_directory" ]] && echo "WorkingDirectory=$working_directory"
-        [[ -n "$user"              ]] && echo "User=$user"
-        [[ -n "$group"             ]] && echo "Group=$group"
+        echo "[DRY RUN] would write $service_file"
+        echo "[DRY RUN] [Unit]"
+        echo "[DRY RUN] Description=$description"
+        echo "[DRY RUN] After=network.target"
+        echo "[DRY RUN]"
+        echo "[DRY RUN] [Service]"
+        echo "[DRY RUN] Type=simple"
+        echo "[DRY RUN] ExecStart=$exec_start"
+        echo "[DRY RUN] Restart=$restart"
+        echo "[DRY RUN] RestartSec=${restart_sec}s"
+        [[ -n "$working_directory" ]] && echo "[DRY RUN] WorkingDirectory=$working_directory"
+        [[ -n "$user"              ]] && echo "[DRY RUN] User=$user"
+        [[ -n "$group"             ]] && echo "[DRY RUN] Group=$group"
         if [[ -n "$environment" ]]; then
             IFS=' ' read -ra ENV_ARRAY <<< "$environment"
             for env_var in "${ENV_ARRAY[@]}"; do
-                echo "Environment=$env_var"
+                echo "[DRY RUN] Environment=$env_var"
             done
         fi
-        [[ -n "$exec_start_pre" ]] && echo "ExecStartPre=$exec_start_pre"
-        [[ -n "$exec_stop"      ]] && echo "ExecStop=$exec_stop"
-        echo ""
-        echo "[Install]"
-        echo "WantedBy=$wanted_by"
+        [[ -n "$exec_start_pre" ]] && echo "[DRY RUN] ExecStartPre=$exec_start_pre"
+        [[ -n "$exec_stop"      ]] && echo "[DRY RUN] ExecStop=$exec_stop"
+        echo "[DRY RUN]"
+        echo "[DRY RUN] [Install]"
+        echo "[DRY RUN] WantedBy=$wanted_by"
         return 0
     fi
 

@@ -11,7 +11,7 @@
 #
 # Environment Variables:
 #   LOG_LEVEL     - Set logging threshold (ERROR, WARN, INFO, DEBUG)
-#   LOG_FILE      - Enable file logging by setting file path
+#   LOG_FILE      - Redirect all log output to this file path (suppresses terminal output)
 #   LOG_TIMESTAMP - Set to "false" to disable timestamps
 
 readonly ERROR_LEVEL="error"
@@ -51,7 +51,7 @@ readonly -A LOG_COLORS=(
 #   LOG_LEVELS (read): Associative array mapping level names to numeric priorities.
 #   LOG_LEVEL (read): Current logging threshold; messages above this priority are suppressed.
 #   LOG_COLORS (read): Associative array mapping level names to ANSI color codes.
-#   LOG_FILE (read): Optional file path; when set, messages are also appended to this file.
+#   LOG_FILE (read): Optional file path; when set, messages are written only to this file (terminal output is suppressed).
 #   LOG_TIMESTAMP (read): When "true", a timestamp prefix is prepended to each message.
 #   RESET (read): ANSI reset sequence applied after the colored message on TTY output.
 #
@@ -109,14 +109,7 @@ log() {
     # Format the log message
     local formatted_message="${timestamp}[$level] $message"
 
-    # Output to console with colors (only if outputting to terminal)
-    if [[ -t 1 ]]; then
-        echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET"
-    else
-        echo "$formatted_message"
-    fi
-
-    # Output to log file if specified
+    # Output to log file if specified; suppress terminal output when LOG_FILE is set
     if [[ -n "$LOG_FILE" ]]; then
         # Create log file and directory if they don't exist
         if [[ ! -f "$LOG_FILE" ]]; then
@@ -124,6 +117,13 @@ log() {
             touch "$LOG_FILE"
         fi
         echo "$formatted_message" >> "$LOG_FILE"
+    else
+        # Output to console with colors (only if outputting to terminal)
+        if [[ -t 1 ]]; then
+            echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET"
+        else
+            echo "$formatted_message"
+        fi
     fi
 }
 

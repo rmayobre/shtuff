@@ -43,6 +43,20 @@
 #   --force (flag, optional): Stop the container before destroying if it is running.
 #   --purge (flag, optional, PCT only): Remove from related configurations and jobs.
 #
+#   network subcommand — configure a container's network interface:
+#   --bridge BRIDGE (string, optional): Host bridge interface to attach to.
+#       Default: lxcbr0 (LXC) or vmbr0 (PCT).
+#   --ip IP/PREFIX (string, optional): Static IP with prefix (e.g. 10.0.0.10/24).
+#       Omit to leave address unconfigured (use a DHCP client inside the container).
+#       Use 'dhcp' on PCT to request dynamic assignment via pct.
+#   --gateway GW (string, optional): Default gateway IP.
+#   --dns NAMESERVERS (string, optional, PCT only): Space-separated DNS nameserver
+#       IPs (e.g. "8.8.8.8 8.8.4.4").
+#   --index N (integer, optional, default: 0): Network interface index.
+#   --type TYPE (string, optional, LXC only): Interface type.
+#       Valid values: veth, macvlan, ipvlan, none. Default: veth.
+#   --hwaddr MAC (string, optional, LXC only): Hardware (MAC) address to assign.
+#
 # Globals:
 #   None
 #
@@ -67,21 +81,6 @@
 #   container config --name mycontainer --set lxc.net.0.type=veth
 #   container delete --name mycontainer
 #   container delete --name 100 --force --purge
-#
-#   network subcommand — configure a container's network interface:
-#   --bridge BRIDGE (string, optional): Host bridge interface to attach to.
-#       Default: lxcbr0 (LXC) or vmbr0 (PCT).
-#   --ip IP/PREFIX (string, optional): Static IP with prefix (e.g. 10.0.0.10/24).
-#       Omit to leave address unconfigured (use a DHCP client inside the container).
-#       Use 'dhcp' on PCT to request dynamic assignment via pct.
-#   --gateway GW (string, optional): Default gateway IP.
-#   --dns NAMESERVERS (string, optional, PCT only): Space-separated DNS nameserver
-#       IPs (e.g. "8.8.8.8 8.8.4.4").
-#   --index N (integer, optional, default: 0): Network interface index.
-#   --type TYPE (string, optional, LXC only): Interface type.
-#       Valid values: veth, macvlan, ipvlan, none. Default: veth.
-#   --hwaddr MAC (string, optional, LXC only): Hardware (MAC) address to assign.
-#
 #   container network --name mycontainer --bridge lxcbr0 --ip 10.0.0.10/24 --gateway 10.0.0.1
 #   container network --name 100 --ip 192.168.1.100/24 --gateway 192.168.1.1
 #   container network --name 100 --ip dhcp --dns "8.8.8.8 8.8.4.4"

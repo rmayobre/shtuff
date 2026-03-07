@@ -56,6 +56,7 @@ function monitor {
     local message="Processing"
     local success_msg="Process completed"
     local error_msg="Process failed"
+    local dry_run="${IS_DRY_RUN:-false}"
 
     while (( "$#" )); do
         case "$1" in
@@ -75,11 +76,19 @@ function monitor {
                 error_msg="$2"
                 shift 2
                 ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 break
                 ;;
         esac
     done
+
+    if [[ "$dry_run" == "true" ]]; then
+        return 0
+    fi
 
     # Check if process exists
     if ! kill -0 "$pid" 2>/dev/null; then

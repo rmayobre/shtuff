@@ -51,6 +51,11 @@ source <(curl -sL "${BASE_URL}/src/forms/question.sh")
 source <(curl -sL "${BASE_URL}/src/forms/options.sh")
 source <(curl -sL "${BASE_URL}/src/forms/confirm.sh")
 
+# GPU
+source <(curl -sL "${BASE_URL}/src/gpu/gpu_list.sh")
+source <(curl -sL "${BASE_URL}/src/gpu/gpu_select.sh")
+source <(curl -sL "${BASE_URL}/src/gpu/gpu_install.sh")
+
 # Containers
 source <(curl -sL "${BASE_URL}/src/containers/lxc_config.sh")
 source <(curl -sL "${BASE_URL}/src/containers/lxc_create.sh")

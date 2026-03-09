@@ -3,10 +3,10 @@
 # Detect shell and resolve the directory of this file.
 if [ -n "${BASH_VERSION:-}" ]; then
     SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-    _SHTUFF_SRC="${SHTUFF_DIR}/src"
+    _SHTUFF_SRC="${SHTUFF_DIR}/src/bash"
 else
     SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "$0")" && pwd)
-    _SHTUFF_SRC="${SHTUFF_DIR}/ash"
+    _SHTUFF_SRC="${SHTUFF_DIR}/src/ash"
 fi
 
 # When set to "true", all functions that support --dry-run will print the system

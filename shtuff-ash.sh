@@ -9,41 +9,41 @@ SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "$0")" && pwd)
 IS_DRY_RUN=${IS_DRY_RUN:-false}
 
 # Globals
-. "${SHTUFF_DIR}/ash/graphics/colors.sh"
+. "${SHTUFF_DIR}/src/ash/graphics/colors.sh"
 
 # Logging
-. "${SHTUFF_DIR}/ash/logging/log.sh"
+. "${SHTUFF_DIR}/src/ash/logging/log.sh"
 
 # Graphical
-. "${SHTUFF_DIR}/ash/graphics/draw_loading_indicator.sh"
+. "${SHTUFF_DIR}/src/ash/graphics/draw_loading_indicator.sh"
 
 # Package Management
-. "${SHTUFF_DIR}/ash/packaging/clean.sh"
-. "${SHTUFF_DIR}/ash/packaging/install.sh"
-. "${SHTUFF_DIR}/ash/packaging/uninstall.sh"
-. "${SHTUFF_DIR}/ash/packaging/update.sh"
+. "${SHTUFF_DIR}/src/ash/packaging/clean.sh"
+. "${SHTUFF_DIR}/src/ash/packaging/install.sh"
+. "${SHTUFF_DIR}/src/ash/packaging/uninstall.sh"
+. "${SHTUFF_DIR}/src/ash/packaging/update.sh"
 
 # Systemd
-. "${SHTUFF_DIR}/ash/systemd/service.sh"
-. "${SHTUFF_DIR}/ash/systemd/timer.sh"
+. "${SHTUFF_DIR}/src/ash/systemd/service.sh"
+. "${SHTUFF_DIR}/src/ash/systemd/timer.sh"
 
 # Networking
-. "${SHTUFF_DIR}/ash/networking/download.sh"
-. "${SHTUFF_DIR}/ash/networking/check_port.sh"
-. "${SHTUFF_DIR}/ash/networking/wait_for_port.sh"
-. "${SHTUFF_DIR}/ash/networking/bridge.sh"
-. "${SHTUFF_DIR}/ash/networking/forward.sh"
-. "${SHTUFF_DIR}/ash/networking/network.sh"
+. "${SHTUFF_DIR}/src/ash/networking/download.sh"
+. "${SHTUFF_DIR}/src/ash/networking/check_port.sh"
+. "${SHTUFF_DIR}/src/ash/networking/wait_for_port.sh"
+. "${SHTUFF_DIR}/src/ash/networking/bridge.sh"
+. "${SHTUFF_DIR}/src/ash/networking/forward.sh"
+. "${SHTUFF_DIR}/src/ash/networking/network.sh"
 
 # Utilities
-. "${SHTUFF_DIR}/ash/utils/monitor.sh"
-. "${SHTUFF_DIR}/ash/utils/stop.sh"
-. "${SHTUFF_DIR}/ash/utils/progress.sh"
-. "${SHTUFF_DIR}/ash/utils/copy.sh"
-. "${SHTUFF_DIR}/ash/utils/move.sh"
-. "${SHTUFF_DIR}/ash/utils/delete.sh"
+. "${SHTUFF_DIR}/src/ash/utils/monitor.sh"
+. "${SHTUFF_DIR}/src/ash/utils/stop.sh"
+. "${SHTUFF_DIR}/src/ash/utils/progress.sh"
+. "${SHTUFF_DIR}/src/ash/utils/copy.sh"
+. "${SHTUFF_DIR}/src/ash/utils/move.sh"
+. "${SHTUFF_DIR}/src/ash/utils/delete.sh"
 
 # Forms
-. "${SHTUFF_DIR}/ash/forms/question.sh"
-. "${SHTUFF_DIR}/ash/forms/options.sh"
-. "${SHTUFF_DIR}/ash/forms/confirm.sh"
+. "${SHTUFF_DIR}/src/ash/forms/question.sh"
+. "${SHTUFF_DIR}/src/ash/forms/options.sh"
+. "${SHTUFF_DIR}/src/ash/forms/confirm.sh"

@@ -1,0 +1,105 @@
+#!/bin/sh
+
+# Function: pct_delete
+# Description: Destroys a Proxmox CT container, permanently removing it and all its data.
+#              The container must be stopped first unless --force is specified.
+#
+# Arguments:
+#   --vmid VMID (integer, required): Numeric ID of the container to destroy.
+#   --force (flag, optional): Stop the container before destroying if it is running.
+#   --purge (flag, optional): Remove the container from related configurations and jobs.
+#   --style STYLE (string, optional, default: spinner): Loading indicator style.
+#       Valid values: spinner, dots, bars, arrows, clock.
+#   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
+#
+# Globals:
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
+#   SPINNER_LOADING_STYLE (read): Default loading style constant.
+#
+# Returns:
+#   0 - Container destroyed successfully.
+#   1 - Invalid or missing arguments, or PCT not available on this system.
+#   2 - Container does not exist.
+#   3 - Container destruction failed.
+#
+# Examples:
+#   pct_delete --vmid 100
+#   pct_delete --vmid 101 --force --purge
+pct_delete() {
+    local vmid=""
+    local force=0
+    local purge=0
+    local style="${SPINNER_LOADING_STYLE}"
+    local dry_run="${IS_DRY_RUN:-false}"
+
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --vmid)
+                vmid="$2"
+                shift 2
+                ;;
+            -f|--force)
+                force=1
+                shift
+                ;;
+            --purge)
+                purge=1
+                shift
+                ;;
+            -s|--style)
+                style="$2"
+                shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
+            *)
+                error "pct_delete: unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
+    if [ -z "$vmid" ]; then
+        error "pct_delete: --vmid is required"
+        return 1
+    fi
+
+    if [ "$dry_run" = "true" ]; then
+        local dry_destroy_args="$vmid"
+        [ "$force" -eq 1 ] && dry_destroy_args="${dry_destroy_args} --force"
+        [ "$purge" -eq 1 ] && dry_destroy_args="${dry_destroy_args} --purge"
+        echo "[DRY RUN] pct destroy ${dry_destroy_args}"
+        return 0
+    fi
+
+    if [ "$(id -u)" -ne 0 ]; then
+        warn "pct_delete: not running as root — PCT operations may fail without elevated privileges"
+    fi
+
+    if ! command -v pct >/dev/null 2>&1; then
+        error "pct_delete: pct is not available. PCT is part of Proxmox VE and cannot be installed on non-Proxmox systems."
+        return 1
+    fi
+
+    if ! pct status "$vmid" >/dev/null 2>&1; then
+        error "pct_delete: container $vmid does not exist"
+        return 2
+    fi
+
+    set -- "$vmid"
+    [ "$force" -eq 1 ] && set -- "$@" --force
+    [ "$purge" -eq 1 ] && set -- "$@" --purge
+
+    debug "pct_delete: destroying container $vmid (force=$force purge=$purge)"
+    pct destroy "$@" &
+    monitor $! \
+        --style "$style" \
+        --message "Destroying container $vmid" \
+        --success_msg "Container $vmid destroyed." \
+        --error_msg "Container $vmid destruction failed." || return 3
+
+    debug "pct_delete: container $vmid destroyed successfully"
+    return 0
+}

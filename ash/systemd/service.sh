@@ -1,0 +1,239 @@
+#!/bin/sh
+
+# Function: service
+# Description: Generates a systemd service unit file with the specified configuration.
+#
+# Arguments:
+#   --name NAME (string, required): Service name; .service extension is appended automatically if omitted.
+#   --description DESC (string, required): Human-readable description written to the [Unit] section.
+#   --exec-start COMMAND (string, required): Full command used to start the service.
+#   --working-directory DIR (string, optional): Working directory set for the service process.
+#   --user USER (string, optional): System user the service process runs as.
+#   --group GROUP (string, optional): System group the service process runs as.
+#   --restart POLICY (string, optional, default: on-failure): Systemd restart policy.
+#   --restart-sec SECONDS (integer, optional, default: 5): Seconds to wait before restarting.
+#   --wanted-by TARGET (string, optional, default: multi-user.target): Systemd install target.
+#   --environment ENV (string, optional): Space-separated VAR=value pairs added as Environment= directives.
+#   --exec-start-pre COMMAND (string, optional): Command to run before ExecStart.
+#   --exec-stop COMMAND (string, optional): Command to run when stopping the service.
+#   --output-dir DIR (string, optional, default: /etc/systemd/system): Directory to write the unit file into.
+#   --dry-run (flag, optional): Print the file that would be created without writing it.
+#       Defaults to IS_DRY_RUN if not specified.
+#   -n NAME (string, required): Short form of --name.
+#   -d DESC (string, required): Short form of --description.
+#   -e COMMAND (string, required): Short form of --exec-start.
+#   -w DIR (string, optional): Short form of --working-directory.
+#   -u USER (string, optional): Short form of --user.
+#   -g GROUP (string, optional): Short form of --group.
+#   -r POLICY (string, optional): Short form of --restart.
+#   -o DIR (string, optional): Short form of --output-dir.
+#
+# Globals:
+#   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
+#
+# Returns:
+#   0 - Service unit file created successfully.
+#   1 - Required argument missing or unknown option provided.
+#
+# Examples:
+#   service \
+#       --name "myapp" \
+#       --description "My Web Application" \
+#       --exec-start "/usr/bin/node /opt/myapp/server.js" \
+#       --user "www-data" \
+#       --working-directory "/opt/myapp"
+service() {
+    local service_name=""
+    local description=""
+    local exec_start=""
+    local working_directory=""
+    local user=""
+    local group=""
+    local restart="on-failure"
+    local restart_sec="5"
+    local wanted_by="multi-user.target"
+    local environment=""
+    local exec_start_pre=""
+    local exec_stop=""
+    local output_dir="/etc/systemd/system"
+    local dry_run="${IS_DRY_RUN:-false}"
+
+    # Parse command line arguments
+    while [ "$#" -gt 0 ]; do
+        case $1 in
+            -n|--name)
+                service_name="$2"
+                shift 2
+                ;;
+            -d|--description)
+                description="$2"
+                shift 2
+                ;;
+            -e|--exec-start)
+                exec_start="$2"
+                shift 2
+                ;;
+            -w|--working-directory)
+                working_directory="$2"
+                shift 2
+                ;;
+            -u|--user)
+                user="$2"
+                shift 2
+                ;;
+            -g|--group)
+                group="$2"
+                shift 2
+                ;;
+            -r|--restart)
+                restart="$2"
+                shift 2
+                ;;
+            --restart-sec)
+                restart_sec="$2"
+                shift 2
+                ;;
+            --wanted-by)
+                wanted_by="$2"
+                shift 2
+                ;;
+            --environment)
+                environment="$2"
+                shift 2
+                ;;
+            --exec-start-pre)
+                exec_start_pre="$2"
+                shift 2
+                ;;
+            --exec-stop)
+                exec_stop="$2"
+                shift 2
+                ;;
+            -o|--output-dir)
+                output_dir="$2"
+                shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
+            *)
+                error "Unknown option: $1" >&2
+                return 1
+                ;;
+        esac
+    done
+
+    # Validate required parameters
+    if [ -z "$service_name" ]; then
+        error "Error: Service name is required (use -n or --name)" >&2
+        return 1
+    fi
+
+    if [ -z "$description" ]; then
+        error "Error: Service description is required (use -d or --description)" >&2
+        return 1
+    fi
+
+    if [ -z "$exec_start" ]; then
+        error "Error: ExecStart command is required (use -e or --exec-start)" >&2
+        return 1
+    fi
+
+    # Ensure service name ends with .service
+    case "$service_name" in
+        *.service) ;;
+        *) service_name="${service_name}.service" ;;
+    esac
+
+    local service_file="${output_dir}/${service_name}"
+
+    if [ "$dry_run" = "true" ]; then
+        echo "[DRY RUN] would write $service_file"
+        echo "[DRY RUN] [Unit]"
+        echo "[DRY RUN] Description=$description"
+        echo "[DRY RUN] After=network.target"
+        echo "[DRY RUN]"
+        echo "[DRY RUN] [Service]"
+        echo "[DRY RUN] Type=simple"
+        echo "[DRY RUN] ExecStart=$exec_start"
+        echo "[DRY RUN] Restart=$restart"
+        echo "[DRY RUN] RestartSec=${restart_sec}s"
+        [ -n "$working_directory" ] && echo "[DRY RUN] WorkingDirectory=$working_directory"
+        [ -n "$user"              ] && echo "[DRY RUN] User=$user"
+        [ -n "$group"             ] && echo "[DRY RUN] Group=$group"
+        if [ -n "$environment" ]; then
+            local _old_IFS="$IFS"
+            IFS=' '
+            # Word-split environment string into positional parameters
+            # shellcheck disable=SC2086
+            set -- $environment
+            IFS="$_old_IFS"
+            for _env_var in "$@"; do
+                echo "[DRY RUN] Environment=$_env_var"
+            done
+        fi
+        [ -n "$exec_start_pre" ] && echo "[DRY RUN] ExecStartPre=$exec_start_pre"
+        [ -n "$exec_stop"      ] && echo "[DRY RUN] ExecStop=$exec_stop"
+        echo "[DRY RUN]"
+        echo "[DRY RUN] [Install]"
+        echo "[DRY RUN] WantedBy=$wanted_by"
+        return 0
+    fi
+
+    info "Creating service file: $service_file"
+
+    # Create the service file content
+    cat > "$service_file" << EOF
+[Unit]
+Description=$description
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=$exec_start
+Restart=$restart
+RestartSec=${restart_sec}s
+EOF
+
+    # Add optional parameters if provided
+    if [ -n "$working_directory" ]; then
+        echo "WorkingDirectory=$working_directory" >> "$service_file"
+    fi
+
+    if [ -n "$user" ]; then
+        echo "User=$user" >> "$service_file"
+    fi
+
+    if [ -n "$group" ]; then
+        echo "Group=$group" >> "$service_file"
+    fi
+
+    if [ -n "$environment" ]; then
+        # Split environment string and add each as a separate Environment line
+        local _old_IFS="$IFS"
+        IFS=' '
+        # shellcheck disable=SC2086
+        set -- $environment
+        IFS="$_old_IFS"
+        for _env_var in "$@"; do
+            echo "Environment=$_env_var" >> "$service_file"
+        done
+    fi
+
+    if [ -n "$exec_start_pre" ]; then
+        echo "ExecStartPre=$exec_start_pre" >> "$service_file"
+    fi
+
+    if [ -n "$exec_stop" ]; then
+        echo "ExecStop=$exec_stop" >> "$service_file"
+    fi
+
+    # Add the [Install] section
+    cat >> "$service_file" << EOF
+
+[Install]
+WantedBy=$wanted_by
+EOF
+    return 0
+}

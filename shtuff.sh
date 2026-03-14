@@ -53,3 +53,28 @@ IS_DRY_RUN=${IS_DRY_RUN:-false}
 . "${_SHTUFF_SRC}/forms/question.sh"
 . "${_SHTUFF_SRC}/forms/options.sh"
 . "${_SHTUFF_SRC}/forms/confirm.sh"
+
+# Containers (Bash only)
+if [ -n "${BASH_VERSION:-}" ]; then
+    _SHTUFF_CONTAINERS="${SHTUFF_DIR}/src/ash/containers"
+    . "${_SHTUFF_CONTAINERS}/lxc_config.sh"
+    . "${_SHTUFF_CONTAINERS}/lxc_create.sh"
+    . "${_SHTUFF_CONTAINERS}/lxc_delete.sh"
+    . "${_SHTUFF_CONTAINERS}/lxc_enter.sh"
+    . "${_SHTUFF_CONTAINERS}/lxc_exec.sh"
+    . "${_SHTUFF_CONTAINERS}/lxc_network.sh"
+    . "${_SHTUFF_CONTAINERS}/lxc_pull.sh"
+    . "${_SHTUFF_CONTAINERS}/lxc_push.sh"
+    . "${_SHTUFF_CONTAINERS}/lxc_start.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_config.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_create.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_delete.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_enter.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_exec.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_network.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_next_vmid.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_pull.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_push.sh"
+    . "${_SHTUFF_CONTAINERS}/pct_start.sh"
+    . "${_SHTUFF_CONTAINERS}/container.sh"
+fi

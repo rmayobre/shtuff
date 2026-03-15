@@ -74,26 +74,22 @@ function gpu_select {
     local -a gpu_addrs=()
     local -a gpu_descs=()
     local -a gpu_labels=()
-    local line pci_addr desc vendor
+    local line pci_addr desc vendor display
 
     while IFS= read -r line; do
         pci_addr="${line%% *}"
         desc="${line#* }"
-
-        if echo "$desc" | grep -qi "nvidia"; then
-            vendor="NVIDIA"
-        elif echo "$desc" | grep -qiE "amd|ati|radeon"; then
-            vendor="AMD"
-        elif echo "$desc" | grep -qi "intel"; then
-            vendor="Intel"
-        else
-            vendor="GPU"
-        fi
-
+        vendor=$(_gpu_vendor_from_desc "$desc")
+        case "$vendor" in
+            nvidia)  display="NVIDIA"  ;;
+            amd)     display="AMD"     ;;
+            intel)   display="Intel"   ;;
+            *)       display="GPU"     ;;
+        esac
         gpu_addrs+=("$pci_addr")
         gpu_descs+=("$desc")
-        gpu_labels+=("${pci_addr}  [${vendor}]  ${desc}")
-    done < <(lspci 2>/dev/null | grep -iE 'VGA compatible controller|3D controller|Display controller')
+        gpu_labels+=("${pci_addr}  [${display}]  ${desc}")
+    done < <(lspci 2>/dev/null | grep -iE "$_GPU_LSPCI_FILTER")
 
     if [[ ${#gpu_addrs[@]} -eq 0 ]]; then
         error "gpu_select: no GPU devices detected on this system"
@@ -105,7 +101,6 @@ function gpu_select {
         prompt="Select a GPU for container '${container}'"
     fi
 
-    # Build options call args
     local -a opts_args=("$prompt")
     local i
     for i in "${!gpu_labels[@]}"; do
@@ -114,9 +109,8 @@ function gpu_select {
 
     options "${opts_args[@]}" || return 1
 
-    # answer is now set to the chosen label; extract the PCI address from it
+    # Resolve the chosen label back to its array index
     local selected_label="$answer"
-    local selected_addr="${selected_label%%  *}"
     local selected_index=0
     for i in "${!gpu_labels[@]}"; do
         if [[ "${gpu_labels[$i]}" == "$selected_label" ]]; then
@@ -125,8 +119,8 @@ function gpu_select {
         fi
     done
 
-    # Store the full descriptor in answer (addr + description)
-    answer="${gpu_addrs[$selected_index]} ${gpu_descs[$selected_index]}"
+    local selected_addr="${gpu_addrs[$selected_index]}"
+    answer="${selected_addr} ${gpu_descs[$selected_index]}"
 
     debug "gpu_select: selected pci='${selected_addr}' desc='${gpu_descs[$selected_index]}'"
 
@@ -134,7 +128,6 @@ function gpu_select {
         return 0
     fi
 
-    # Apply passthrough to the container
     _gpu_apply_passthrough \
         --container "$container" \
         --pci-addr "$selected_addr" \
@@ -167,11 +160,7 @@ _gpu_apply_passthrough() {
     done
 
     local backend
-    if command -v pct &>/dev/null; then
-        backend="pct"
-    else
-        backend="lxc"
-    fi
+    backend=$(_container_backend)
 
     debug "_gpu_apply_passthrough: backend='$backend' container='$container' pci='$pci_addr'"
 
@@ -201,11 +190,11 @@ _gpu_apply_passthrough_pct() {
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
-            --vmid)     vmid="$2";     shift 2 ;;
-            --pci-addr) pci_addr="$2"; shift 2 ;;
+            --vmid)     vmid="$2";      shift 2 ;;
+            --pci-addr) pci_addr="$2";  shift 2 ;;
             --pcie)     pcie_mode="$2"; shift 2 ;;
-            --index)    index="$2";    shift 2 ;;
-            --dry-run)  dry_run="$2";  shift 2 ;;
+            --index)    index="$2";     shift 2 ;;
+            --dry-run)  dry_run="$2";   shift 2 ;;
             *) shift ;;
         esac
     done
@@ -218,11 +207,6 @@ _gpu_apply_passthrough_pct() {
     if [[ "$dry_run" == "true" ]]; then
         echo "[DRY RUN] pct set ${vmid} --hostpci${index} ${hostpci_value}"
         return 0
-    fi
-
-    if ! command -v pct &>/dev/null; then
-        error "_gpu_apply_passthrough_pct: pct is not available on this system"
-        return 1
     fi
 
     if ! pct status "$vmid" &>/dev/null; then
@@ -244,6 +228,8 @@ _gpu_apply_passthrough_pct() {
 # _gpu_apply_passthrough_lxc
 # Configures LXC GPU passthrough by adding cgroup device access rules and
 # bind-mounting DRI and NVIDIA device nodes into the container config.
+# Enumerates all /dev/nvidia[0-9]* devices present on the host so multi-GPU
+# systems are fully covered.
 _gpu_apply_passthrough_lxc() {
     local name=""
     local pci_addr=""
@@ -263,19 +249,33 @@ _gpu_apply_passthrough_lxc() {
         return 1
     fi
 
+    # Build the full list of config entries to append
+    local -a entries=()
+    entries+=("lxc.cgroup2.devices.allow = c 226:* rwm")
+    entries+=("lxc.mount.entry = /dev/dri dev/dri none bind,optional,create=dir")
+
+    # Enumerate all NVIDIA GPU device nodes present on the host (nvidia0, nvidia1, …)
+    local -a nv_gpu_devs=(/dev/nvidia[0-9]*)
+    if [[ -e "${nv_gpu_devs[0]}" ]]; then
+        entries+=("lxc.cgroup2.devices.allow = c 195:* rwm")
+        local nv_dev
+        for nv_dev in "${nv_gpu_devs[@]}"; do
+            entries+=("lxc.mount.entry = ${nv_dev} dev/${nv_dev#/dev/} none bind,optional,create=file")
+        done
+        for nv_dev in /dev/nvidiactl /dev/nvidia-uvm /dev/nvidia-uvm-tools; do
+            [[ -e "$nv_dev" ]] || continue
+            entries+=("lxc.mount.entry = ${nv_dev} dev/${nv_dev#/dev/} none bind,optional,create=file")
+        done
+    fi
+
     local config_file="/var/lib/lxc/${name}/config"
 
     if [[ "$dry_run" == "true" ]]; then
         echo "[DRY RUN] Append to ${config_file}:"
-        echo "[DRY RUN]   lxc.cgroup2.devices.allow = c 226:* rwm"
-        echo "[DRY RUN]   lxc.mount.entry = /dev/dri dev/dri none bind,optional,create=dir"
-        if [[ -d /dev/nvidia0 ]] || [[ -e /dev/nvidia0 ]]; then
-            echo "[DRY RUN]   lxc.cgroup2.devices.allow = c 195:* rwm"
-            echo "[DRY RUN]   lxc.mount.entry = /dev/nvidia0 dev/nvidia0 none bind,optional,create=file"
-            echo "[DRY RUN]   lxc.mount.entry = /dev/nvidiactl dev/nvidiactl none bind,optional,create=file"
-            echo "[DRY RUN]   lxc.mount.entry = /dev/nvidia-uvm dev/nvidia-uvm none bind,optional,create=file"
-            echo "[DRY RUN]   lxc.mount.entry = /dev/nvidia-uvm-tools dev/nvidia-uvm-tools none bind,optional,create=file"
-        fi
+        local entry
+        for entry in "${entries[@]}"; do
+            echo "[DRY RUN]   ${entry}"
+        done
         return 0
     fi
 
@@ -293,26 +293,14 @@ _gpu_apply_passthrough_lxc() {
 
     {
         printf "\n# GPU passthrough — %s\n" "$pci_addr"
-        printf "lxc.cgroup2.devices.allow = c 226:* rwm\n"
-        printf "lxc.mount.entry = /dev/dri dev/dri none bind,optional,create=dir\n"
+        local entry
+        for entry in "${entries[@]}"; do
+            printf "%s\n" "$entry"
+        done
     } >> "$config_file" || {
-        error "_gpu_apply_passthrough_lxc: failed to write DRI config to $config_file"
+        error "_gpu_apply_passthrough_lxc: failed to write GPU config to $config_file"
         return 1
     }
-
-    if [[ -e /dev/nvidia0 ]]; then
-        debug "_gpu_apply_passthrough_lxc: NVIDIA devices detected — adding nvidia mount entries"
-        {
-            printf "lxc.cgroup2.devices.allow = c 195:* rwm\n"
-            printf "lxc.mount.entry = /dev/nvidia0 dev/nvidia0 none bind,optional,create=file\n"
-            printf "lxc.mount.entry = /dev/nvidiactl dev/nvidiactl none bind,optional,create=file\n"
-            printf "lxc.mount.entry = /dev/nvidia-uvm dev/nvidia-uvm none bind,optional,create=file\n"
-            printf "lxc.mount.entry = /dev/nvidia-uvm-tools dev/nvidia-uvm-tools none bind,optional,create=file\n"
-        } >> "$config_file" || {
-            error "_gpu_apply_passthrough_lxc: failed to write NVIDIA config to $config_file"
-            return 1
-        }
-    fi
 
     info "GPU passthrough configured for container '$name'. Restart the container to apply changes."
     return 0

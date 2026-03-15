@@ -6,7 +6,8 @@
 #              omitted. Supports NVIDIA (CUDA toolkit + container toolkit), AMD
 #              (ROCm + OpenCL), Intel (VA-API + OpenCL), and a generic OpenCL
 #              fallback. When --container is provided the packages are installed
-#              inside the named container via its exec backend.
+#              inside the named container via its exec backend. Package manager
+#              detection is performed inside the container, not on the host.
 #
 # Arguments:
 #   --vendor VENDOR (string, optional, default: auto): GPU vendor to target.
@@ -67,7 +68,6 @@ function gpu_install {
         esac
     done
 
-    # Validate vendor if explicitly provided
     if [[ -n "$vendor" ]]; then
         case "$vendor" in
             nvidia|amd|intel|generic) ;;
@@ -78,7 +78,6 @@ function gpu_install {
         esac
     fi
 
-    # Auto-detect vendor from lspci when not specified
     if [[ -z "$vendor" ]]; then
         vendor=$(_gpu_detect_vendor)
         debug "gpu_install: auto-detected vendor='$vendor'"
@@ -86,18 +85,10 @@ function gpu_install {
 
     local -a packages=()
     case "$vendor" in
-        nvidia)
-            packages=(nvidia-cuda-toolkit nvidia-container-toolkit)
-            ;;
-        amd)
-            packages=(rocm-opencl-runtime rocm-hip-runtime)
-            ;;
-        intel)
-            packages=(intel-opencl-icd intel-media-va-driver vainfo)
-            ;;
-        generic)
-            packages=(ocl-icd-opencl-dev clinfo)
-            ;;
+        nvidia)  packages=(nvidia-cuda-toolkit nvidia-container-toolkit) ;;
+        amd)     packages=(rocm-opencl-runtime rocm-hip-runtime)         ;;
+        intel)   packages=(intel-opencl-icd intel-media-va-driver vainfo) ;;
+        generic) packages=(ocl-icd-opencl-dev clinfo)                    ;;
     esac
 
     info "gpu_install: installing ${vendor} acceleration libraries: ${packages[*]}"
@@ -121,9 +112,8 @@ function gpu_install {
 }
 
 # _gpu_detect_vendor
-# Prints the detected GPU vendor string (nvidia, amd, intel, or generic) to stdout
-# by inspecting lspci output. Prints "generic" when detection is unavailable or
-# inconclusive. Not part of the public API.
+# Detects the primary GPU vendor on the host using lspci. Prints the canonical
+# lowercase vendor name. Not part of the public API.
 _gpu_detect_vendor() {
     if ! command -v lspci &>/dev/null; then
         debug "_gpu_detect_vendor: lspci not available — defaulting to generic"
@@ -132,7 +122,7 @@ _gpu_detect_vendor() {
     fi
 
     local gpu_line
-    gpu_line=$(lspci 2>/dev/null | grep -iE 'VGA compatible controller|3D controller|Display controller' | head -1)
+    gpu_line=$(lspci 2>/dev/null | grep -iE "$_GPU_LSPCI_FILTER" | head -1)
 
     if [[ -z "$gpu_line" ]]; then
         debug "_gpu_detect_vendor: no GPU found via lspci — defaulting to generic"
@@ -140,15 +130,7 @@ _gpu_detect_vendor() {
         return 0
     fi
 
-    if echo "$gpu_line" | grep -qi "nvidia"; then
-        echo "nvidia"
-    elif echo "$gpu_line" | grep -qiE "amd|ati|radeon"; then
-        echo "amd"
-    elif echo "$gpu_line" | grep -qi "intel"; then
-        echo "intel"
-    else
-        echo "generic"
-    fi
+    _gpu_vendor_from_desc "${gpu_line#* }"
 }
 
 # _gpu_install_on_host
@@ -169,7 +151,8 @@ _gpu_install_on_host() {
 }
 
 # _gpu_install_in_container
-# Runs `install` inside the named container via the appropriate exec backend.
+# Installs packages inside the named container via the appropriate exec backend.
+# The package manager is detected inside the container, not on the host.
 _gpu_install_in_container() {
     local container="$1"
     local style="$2"
@@ -177,47 +160,52 @@ _gpu_install_in_container() {
     local -a pkgs=("$@")
 
     local backend
-    if command -v pct &>/dev/null; then
-        backend="pct"
-    else
-        backend="lxc"
-    fi
+    backend=$(_container_backend)
 
     debug "_gpu_install_in_container: backend='$backend' container='$container' pkgs='${pkgs[*]}'"
 
+    # Build an install command that auto-detects the package manager inside the container
+    local pkg_list="${pkgs[*]}"
+    local install_cmd
+    install_cmd="$(cat <<'INNER'
+if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -qq && apt-get install -y PACKAGES
+elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y PACKAGES
+elif command -v pacman >/dev/null 2>&1; then
+    pacman -Sy --noconfirm PACKAGES
+elif command -v apk >/dev/null 2>&1; then
+    apk add PACKAGES
+else
+    echo "gpu_install: no supported package manager found in container" >&2
+    exit 1
+fi
+INNER
+)"
+    install_cmd="${install_cmd//PACKAGES/${pkg_list}}"
+
+    local exec_pid
     if [[ "$backend" == "pct" ]]; then
         if ! pct status "$container" &>/dev/null; then
             error "_gpu_install_in_container: container $container does not exist"
             return 1
         fi
-
-        local install_cmd="apt-get update -qq && apt-get install -y ${pkgs[*]} 2>&1"
-        if command -v dnf &>/dev/null; then
-            install_cmd="dnf install -y ${pkgs[*]} 2>&1"
-        elif command -v pacman &>/dev/null; then
-            install_cmd="pacman -Sy --noconfirm ${pkgs[*]} 2>&1"
-        fi
-
         pct exec "$container" -- bash -c "$install_cmd" > >(log_output) 2>&1 &
-        monitor $! \
-            --style "$style" \
-            --message "Installing GPU libraries inside container $container" \
-            --success_msg "GPU libraries installed in container $container." \
-            --error_msg "Failed to install GPU libraries in container $container." || return 1
+        exec_pid=$!
     else
         if ! lxc-info -n "$container" &>/dev/null; then
             error "_gpu_install_in_container: container '$container' does not exist"
             return 1
         fi
-
-        local install_cmd="apt-get update -qq && apt-get install -y ${pkgs[*]} 2>&1"
         lxc-attach -n "$container" -- bash -c "$install_cmd" > >(log_output) 2>&1 &
-        monitor $! \
-            --style "$style" \
-            --message "Installing GPU libraries inside container $container" \
-            --success_msg "GPU libraries installed in container $container." \
-            --error_msg "Failed to install GPU libraries in container $container." || return 1
+        exec_pid=$!
     fi
+
+    monitor "$exec_pid" \
+        --style "$style" \
+        --message "Installing GPU libraries inside container $container" \
+        --success_msg "GPU libraries installed in container $container." \
+        --error_msg "Failed to install GPU libraries in container $container." || return 1
 
     return 0
 }

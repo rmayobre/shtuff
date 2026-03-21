@@ -86,12 +86,9 @@ service \
     --restart-sec "10" \
     --environment "NODE_ENV=production PORT=3000" || exit 1
 ```
-After calling `service`, always run:
-```bash
-systemctl daemon-reload
-systemctl enable <name>
-systemctl start <name>
-```
+`service` automatically runs `systemctl daemon-reload`, `systemctl enable`, and
+`systemctl start` after writing the unit file. Pass `--lazy` to write the file only
+and skip those steps.
 
 ### Forms
 
@@ -136,9 +133,8 @@ Follow the structure from `examples/install-bentodpf-native.sh` and
 6. **Step 1:** `update` system packages (run in background, monitor)
 7. **Step 2:** `install` dependencies (run in background, monitor)
 8. **Step 3+:** Download / extract / configure the application
-9. **Service step:** Call `service` to create the systemd unit
-10. **Enable/start step:** `daemon-reload`, `enable`, `start`
-11. **Final `info`** messages showing access URL and management commands
+9. **Service step:** Call `service` to create, enable, and start the systemd unit
+10. **Final `info`** messages showing access URL and management commands
 
 ### Argument Pattern
 ```bash

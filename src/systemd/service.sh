@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Function: service
-# Description: Generates a systemd service unit file with the specified configuration.
+# Description: Generates a systemd service unit file and, by default, enables and starts it.
 #
 # Arguments:
 #   --name NAME (string, required): Service name; .service extension is appended automatically if omitted.
@@ -17,6 +17,7 @@
 #   --exec-start-pre COMMAND (string, optional): Command to run before ExecStart.
 #   --exec-stop COMMAND (string, optional): Command to run when stopping the service.
 #   --output-dir DIR (string, optional, default: /etc/systemd/system): Directory to write the unit file into.
+#   --lazy (flag, optional): Write the unit file but skip daemon-reload, enable, and start.
 #   --dry-run (flag, optional): Print the file that would be created without writing it.
 #       Defaults to IS_DRY_RUN if not specified.
 #   -n NAME (string, required): Short form of --name.
@@ -32,7 +33,7 @@
 #   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
-#   0 - Service unit file created successfully.
+#   0 - Service unit file created (and enabled/started unless --lazy).
 #   1 - Required argument missing or unknown option provided.
 #
 # Examples:
@@ -49,7 +50,8 @@
 #       --exec-start "/usr/local/bin/api-server" \
 #       --user "apiuser" \
 #       --environment "PORT=8080 NODE_ENV=production" \
-#       --restart "always"
+#       --restart "always" \
+#       --lazy
 service() {
     local service_name=""
     local description=""
@@ -64,6 +66,7 @@ service() {
     local exec_start_pre=""
     local exec_stop=""
     local output_dir="/etc/systemd/system"
+    local lazy="false"
     local dry_run="${IS_DRY_RUN:-false}"
 
     # Parse command line arguments
@@ -120,6 +123,10 @@ service() {
             -o|--output-dir)
                 output_dir="$2"
                 shift 2
+                ;;
+            --lazy)
+                lazy="true"
+                shift
                 ;;
             --dry-run)
                 dry_run="true"
@@ -233,5 +240,13 @@ EOF
 [Install]
 WantedBy=$wanted_by
 EOF
+
+    if [[ "$lazy" == "false" ]]; then
+        info "Enabling and starting $service_name"
+        systemctl daemon-reload
+        systemctl enable "$service_name"
+        systemctl start "$service_name"
+    fi
+
     return 0
 }

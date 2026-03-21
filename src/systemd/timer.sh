@@ -4,7 +4,7 @@ readonly _TIMER_DEFAULT_OUTPUT_DIR="/etc/systemd/system"
 readonly _TIMER_DEFAULT_WANTED_BY="timers.target"
 
 # Function: timer
-# Description: Generates a systemd timer unit file with configurable scheduling options.
+# Description: Generates a systemd timer unit file and, by default, enables and starts it.
 #
 # Arguments:
 #   --name NAME (string, required): Timer name without the .timer extension.
@@ -27,6 +27,7 @@ readonly _TIMER_DEFAULT_WANTED_BY="timers.target"
 #   --wanted-by TARGET (string, optional, default: timers.target): Systemd install target.
 #   --output-dir DIR (string, optional, default: /etc/systemd/system): Directory to write the unit file into.
 #   --force (flag, optional): Overwrite an existing timer file at the output path.
+#   --lazy (flag, optional): Write the unit file but skip daemon-reload, enable, and start.
 #   --dry-run (flag, optional): Print the file that would be created without writing it.
 #       Defaults to IS_DRY_RUN if not specified.
 #   --help (flag, optional): Print usage information and return without creating a file.
@@ -50,7 +51,7 @@ readonly _TIMER_DEFAULT_WANTED_BY="timers.target"
 #   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
 #
 # Returns:
-#   0 - Timer unit file created successfully, or --help was requested.
+#   0 - Timer unit file created (and enabled/started unless --lazy), or --help was requested.
 #   1 - Invalid or missing arguments (e.g., blank name, unexpected flag).
 #   2 - File system error (output directory does not exist, or file already exists without --force).
 #   3 - Permission denied writing the timer file.
@@ -58,7 +59,7 @@ readonly _TIMER_DEFAULT_WANTED_BY="timers.target"
 # Examples:
 #   timer --name backup --on-calendar daily --persistent
 #   timer --name cleanup --on-boot-sec 5min --on-unit-active-sec 1h --description "Periodic cleanup"
-#   timer --name maintenance --on-calendar "Sun *-*-* 03:00:00" --randomized-delay 30min --persistent
+#   timer --name maintenance --on-calendar "Sun *-*-* 03:00:00" --randomized-delay 30min --persistent --lazy
 timer() {
     local name=""
     local description=""
@@ -72,6 +73,7 @@ timer() {
     local wanted_by="${_TIMER_DEFAULT_WANTED_BY}"
     local output_dir="${_TIMER_DEFAULT_OUTPUT_DIR}"
     local force="false"
+    local lazy="false"
     local has_schedule="false"
     local dry_run="${IS_DRY_RUN:-false}"
 
@@ -127,6 +129,10 @@ timer() {
                 ;;
             -f|--force)
                 force="true"
+                shift
+                ;;
+            --lazy)
+                lazy="true"
                 shift
                 ;;
             --dry-run)
@@ -239,6 +245,13 @@ timer() {
 
     info "Created timer file: ${output_path}"
 
+    if [[ "$lazy" == "false" ]]; then
+        info "Enabling and starting ${name}.timer"
+        systemctl daemon-reload
+        systemctl enable "${name}.timer"
+        systemctl start "${name}.timer"
+    fi
+
     return 0
 }
 
@@ -282,6 +295,7 @@ TIMER OPTIONS:
 OUTPUT OPTIONS:
     -o, --output-dir DIR            Output directory (default: ${_TIMER_DEFAULT_OUTPUT_DIR})
     -f, --force                     Overwrite existing files
+        --lazy                      Write the unit file only; skip daemon-reload, enable, and start
         --dry-run                   Print the file that would be created without writing it
 
 GENERAL OPTIONS:

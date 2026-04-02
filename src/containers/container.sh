@@ -7,7 +7,7 @@
 #
 # Arguments:
 #   $1 - command (string, required): Subcommand to run.
-#       Valid values: create, config, start, exec, enter, push, pull, delete.
+#       Valid values: create, config, start, exec, enter, push, pull, delete, prompt.
 #   --name NAME (string, required by all subcommands): Container name / hostname.
 #       For PCT backends, used as the container hostname and the VMID is automatically
 #       generated via pct_next_vmid. For LXC backends, used as the container name.
@@ -84,6 +84,8 @@
 #   container network --name mycontainer --bridge lxcbr0 --ip 10.0.0.10/24 --gateway 10.0.0.1
 #   container network --name 100 --ip 192.168.1.100/24 --gateway 192.168.1.1
 #   container network --name 100 --ip dhcp --dns "8.8.8.8 8.8.4.4"
+#   container prompt
+#   CONTAINER_NAME=myapp CONTAINER_MEMORY=1024 container prompt
 function container {
     local command="${1:-}"
     shift || true
@@ -98,8 +100,9 @@ function container {
         pull)    _container_pull    "$@" ;;
         delete)  _container_delete  "$@" ;;
         network) _container_network "$@" ;;
+        prompt)  _container_prompt  "$@" ;;
         *)
-            error "container: unknown command: '$command'. Valid commands: create, config, start, exec, enter, push, pull, delete, network"
+            error "container: unknown command: '$command'. Valid commands: create, config, start, exec, enter, push, pull, delete, network, prompt"
             return 1
             ;;
     esac

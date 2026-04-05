@@ -84,6 +84,8 @@
 #   container network --name mycontainer --bridge lxcbr0 --ip 10.0.0.10/24 --gateway 10.0.0.1
 #   container network --name 100 --ip 192.168.1.100/24 --gateway 192.168.1.1
 #   container network --name 100 --ip dhcp --dns "8.8.8.8 8.8.4.4"
+#   container shell-script --name mycontainer --content '#!/bin/bash\necho hello' --path /usr/local/bin/hello.sh
+#   container shell-script --name 100 --content "$(cat setup.sh)" --path /opt/setup.sh
 #   container prompt
 #   CONTAINER_NAME=myapp CONTAINER_MEMORY=1024 container prompt
 function container {
@@ -99,10 +101,11 @@ function container {
         push)    _container_push    "$@" ;;
         pull)    _container_pull    "$@" ;;
         delete)  _container_delete  "$@" ;;
-        network) _container_network "$@" ;;
-        prompt)  _container_prompt  "$@" ;;
+        network)       _container_network       "$@" ;;
+        shell-script)  _container_shell_script  "$@" ;;
+        prompt)        _container_prompt        "$@" ;;
         *)
-            error "container: unknown command: '$command'. Valid commands: create, config, start, exec, enter, push, pull, delete, network, prompt"
+            error "container: unknown command: '$command'. Valid commands: create, config, start, exec, enter, push, pull, delete, network, shell-script, prompt"
             return 1
             ;;
     esac
@@ -442,6 +445,42 @@ _container_network() {
         pct_network --vmid "$name" "${passthrough[@]}"
     else
         lxc_network --name "$name" "${passthrough[@]}"
+    fi
+}
+
+# _container_shell_script
+# Extracts --name NAME from args, maps it to --vmid (PCT) or --name (LXC),
+# and forwards all remaining flags to the appropriate shell-script function.
+_container_shell_script() {
+    local name=""
+    local passthrough=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -n|--name)
+                name="$2"
+                shift 2
+                ;;
+            *)
+                passthrough+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$name" ]]; then
+        error "container shell-script: --name is required"
+        return 1
+    fi
+
+    local backend
+    backend=$(_container_backend)
+    debug "container shell-script: backend='$backend' name='$name'"
+
+    if [[ "$backend" == "pct" ]]; then
+        pct_shell_script --vmid "$name" "${passthrough[@]}"
+    else
+        lxc_shell_script --name "$name" "${passthrough[@]}"
     fi
 }
 

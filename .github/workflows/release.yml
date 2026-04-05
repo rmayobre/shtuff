@@ -19,6 +19,10 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
 
+      - name: Inject version into shtuff.sh
+        run: |
+          sed -i "s/SHTUFF_VERSION=\"dev\"/SHTUFF_VERSION=\"${{ steps.version.outputs.VERSION }}\"/" shtuff.sh
+
       - name: Build tarball
         run: |
           tar -czf "shtuff-${{ steps.version.outputs.VERSION }}.tar.gz" \

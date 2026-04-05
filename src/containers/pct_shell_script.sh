@@ -8,7 +8,8 @@
 #
 # Arguments:
 #   --vmid VMID       (integer, required): Numeric ID of the target container.
-#   --content CONTENT (string, required): The shell script content to write into the file.
+#   --content CONTENT (string, optional): The shell script content to write into the file.
+#                     Defaults to the value of the $script variable when omitted.
 #   --path PATH       (string, required): Absolute destination path inside the container
 #                     (e.g. /usr/local/bin/myscript.sh).
 #   --style STYLE     (string, optional, default: spinner): Loading indicator style.
@@ -17,6 +18,7 @@
 #                     without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
+#   script                (read): Fallback script content used when --content is omitted.
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #   IS_DRY_RUN            (read): When "true", enables dry-run mode by default.
 #
@@ -71,7 +73,11 @@ function pct_shell_script {
     fi
 
     if [[ -z "$content" ]]; then
-        error "pct_shell_script: --content is required"
+        content="${script:-}"
+    fi
+
+    if [[ -z "$content" ]]; then
+        error "pct_shell_script: --content is required, or set the \$script variable"
         return 1
     fi
 

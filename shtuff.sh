@@ -51,6 +51,11 @@ source "${SHTUFF_DIR}/src/forms/question.sh"
 source "${SHTUFF_DIR}/src/forms/options.sh"
 source "${SHTUFF_DIR}/src/forms/confirm.sh"
 
+# GPU
+source "${SHTUFF_DIR}/src/gpu/gpu_list.sh"
+source "${SHTUFF_DIR}/src/gpu/gpu_select.sh"
+source "${SHTUFF_DIR}/src/gpu/gpu_install.sh"
+
 # Containers
 source "${SHTUFF_DIR}/src/containers/lxc_config.sh"
 source "${SHTUFF_DIR}/src/containers/lxc_create.sh"

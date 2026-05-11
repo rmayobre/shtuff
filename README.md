@@ -785,3 +785,537 @@ echo "You chose: $answer"
 ```
 Overwrite existing files? [y/n]:
 ```
+
+---
+
+## Networking
+
+### `download`
+
+Downloads a file from a URL using `curl` (or `wget` as a fallback), displaying
+a loading indicator during the transfer.
+
+```
+download --url URL [OPTIONS]
+```
+
+| Option / Short             | Type   | Required | Default              | Description |
+|----------------------------|--------|----------|----------------------|-------------|
+| `--url URL`                | string | yes      | —                    | URL of the file to download. |
+| `--dir DIR`                | string | no       | Calling script's directory | Directory to save the file into; created if it does not exist. |
+| `--output NAME`            | string | no       | Basename of URL      | Filename to use when saving. Derived from the URL when omitted. |
+| `--style STYLE` / `-s`     | string | no       | `$DEFAULT_LOADING_STYLE` | Loading indicator style. |
+| `--message MSG` / `-m`     | string | no       | `"Downloading"`      | Label shown beside the indicator. |
+
+**Returns:** `0` on success; `1` if required arguments are missing, no download tool is available, or the download fails.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+download --url "https://example.com/archive.zip"
+download --url "https://example.com/archive.zip" --dir /tmp
+download --url "https://example.com/archive.zip" --dir /opt/myapp --output app.zip
+download --url "https://example.com/archive.zip" --style dots --message "Fetching release"
+```
+
+### `check_port`
+
+Validates a port number and checks whether it is currently bound on the local host.
+
+```
+check_port --port PORT [--dry-run]
+```
+
+| Option       | Type    | Required | Description |
+|--------------|---------|----------|-------------|
+| `--port PORT` | integer | yes     | Port number to check (1–65535). |
+| `--dry-run`  | flag    | no       | Print the system calls that would run without executing them. Defaults to `$IS_DRY_RUN`. |
+
+**Returns:** `0` if the port is valid and free; `1` if the port is in use; `2` if the port number is invalid.
+
+```bash
+check_port --port 8080
+if check_port --port "$PORT"; then
+    info "Port $PORT is available"
+else
+    error "Port $PORT is already in use"
+fi
+```
+
+### `wait_for_port`
+
+Polls a TCP host:port until it accepts connections or a timeout is reached.
+Useful after starting a service to wait until it is ready to accept requests.
+
+```
+wait_for_port --host HOST --port PORT [OPTIONS]
+```
+
+| Option / Short         | Type    | Required | Default   | Description |
+|------------------------|---------|----------|-----------|-------------|
+| `--host HOST`          | string  | yes      | —         | Hostname or IP address to probe. |
+| `--port PORT`          | integer | yes      | —         | TCP port to probe (1–65535). |
+| `--timeout SECONDS`    | integer | no       | `30`      | Maximum seconds to wait before giving up. |
+| `--interval SECONDS`   | integer | no       | `2`       | Seconds between each probe attempt. |
+| `--style STYLE`        | string  | no       | `spinner` | Loading indicator style. |
+| `--dry-run`            | flag    | no       | —         | Print system calls without executing them. |
+
+**Returns:** `0` when the port becomes reachable; `1` for invalid arguments; `2` on timeout.
+
+```bash
+# Start a service then wait for it to be ready
+systemctl start myapp
+wait_for_port --host 127.0.0.1 --port 8080 || exit 1
+
+# Allow more time for a database
+wait_for_port --host 10.0.0.5 --port 5432 --timeout 120 --interval 5 || exit 1
+```
+
+### `bridge`
+
+Manages Linux bridge interfaces using iproute2. Changes take effect immediately
+but are not persistent across reboots without additional network configuration.
+
+```
+bridge SUBCOMMAND [OPTIONS]
+```
+
+| Subcommand         | Description |
+|--------------------|-------------|
+| `create`           | Create a new bridge interface. |
+| `delete`           | Remove an existing bridge interface. |
+| `add-interface`    | Attach a physical interface to a bridge. |
+| `remove-interface` | Detach a physical interface from a bridge. |
+
+**create options:**
+
+| Option          | Type   | Required | Description |
+|-----------------|--------|----------|-------------|
+| `--name NAME`   | string | yes      | Name of the bridge to create. |
+| `--ip IP/PREFIX` | string | no      | IP address and prefix length to assign (e.g. `10.0.0.1/24`). |
+
+**delete / add-interface / remove-interface options:**
+
+| Option              | Type   | Required | Description |
+|---------------------|--------|----------|-------------|
+| `--name NAME`       | string | yes      | Name of the bridge. |
+| `--interface IFACE` | string | yes (add/remove) | Network interface to attach or detach. |
+
+**Returns:** `0` on success; `1` for invalid arguments or missing `ip` tool; `2` if the bridge/interface already or does not exist; `3` on operation failure.
+
+```bash
+bridge create --name lxcbr0 --ip 10.0.0.1/24
+bridge add-interface --name lxcbr0 --interface eth0
+bridge remove-interface --name lxcbr0 --interface eth0
+bridge delete --name lxcbr0
+```
+
+### `forward`
+
+Manages iptables DNAT rules for host-to-container port forwarding and ensures
+IP forwarding is enabled in the kernel. Rules are not persistent across reboots
+without `iptables-persistent` or an equivalent tool.
+
+```
+forward SUBCOMMAND [OPTIONS]
+```
+
+| Subcommand | Description |
+|------------|-------------|
+| `add`      | Add a DNAT forwarding rule. |
+| `remove`   | Remove an existing forwarding rule. |
+| `list`     | Display all current NAT PREROUTING rules. |
+
+**add options:**
+
+| Option                | Type    | Required | Default              | Description |
+|-----------------------|---------|----------|----------------------|-------------|
+| `--from-port PORT`    | integer | yes      | —                    | Host port to forward from. |
+| `--to-host HOST`      | string  | yes      | —                    | Destination IP (e.g. container IP). |
+| `--to-port PORT`      | integer | no       | Same as `--from-port` | Destination port. |
+| `--protocol PROTO`    | string  | no       | `tcp`                | Protocol (`tcp` or `udp`). |
+
+**remove options:**
+
+| Option             | Type    | Required | Default | Description |
+|--------------------|---------|----------|---------|-------------|
+| `--from-port PORT` | integer | yes      | —       | Host port of the rule to remove. |
+| `--protocol PROTO` | string  | no       | `tcp`   | Protocol of the rule to remove. |
+
+**Returns:** `0` on success; `1` for invalid arguments or missing `iptables`; `2` if no matching rule is found (remove); `3` on operation failure.
+
+```bash
+# Forward host port 8080 to container port 80
+forward add --from-port 8080 --to-host 10.0.0.10 --to-port 80
+
+# Forward SSH port to container
+forward add --from-port 2222 --to-host 10.0.0.10 --to-port 22
+
+# Forward UDP port
+forward add --from-port 5353 --to-host 10.0.0.20 --protocol udp
+
+# Remove a rule and list all rules
+forward remove --from-port 8080
+forward list
+```
+
+### `network` (unified)
+
+Convenience dispatcher that routes subcommands to the appropriate networking
+function. All underlying functions are also callable directly.
+
+```
+network SUBCOMMAND [OPTIONS]
+```
+
+| Subcommand | Delegates to  | Description |
+|------------|---------------|-------------|
+| `download` | `download`    | Download a file from a URL. |
+| `check`    | `check_port`  | Check whether a port is free. |
+| `wait`     | `wait_for_port` | Wait until a port is reachable. |
+| `bridge`   | `bridge`      | Manage bridge interfaces. |
+| `forward`  | `forward`     | Manage iptables forwarding rules. |
+
+```bash
+network download --url https://example.com/file.zip --dir /tmp
+network check --port 8080
+network wait --host 127.0.0.1 --port 8080 --timeout 60
+network bridge create --name lxcbr0 --ip 10.0.0.1/24
+network forward add --from-port 8080 --to-host 10.0.0.10 --to-port 80
+network forward list
+```
+
+---
+
+## Containers
+
+Container functions automatically detect whether Proxmox `pct` or plain LXC is
+present and delegate to the appropriate backend. The unified `container`
+function is the recommended entry point; backend-specific functions
+(`lxc_*`, `pct_*`) remain callable directly.
+
+### `container`
+
+Unified interface for creating and managing containers.
+
+```
+container SUBCOMMAND --name NAME [OPTIONS]
+```
+
+**Subcommands:**
+
+| Subcommand     | Description |
+|----------------|-------------|
+| `create`       | Create and start a new container. |
+| `config`       | Update resource settings on an existing container. |
+| `start`        | Start a stopped container. |
+| `exec`         | Run a command inside the container non-interactively. |
+| `enter`        | Open an interactive shell session inside the container. |
+| `push`         | Copy a file from the host into the container. |
+| `pull`         | Copy a file out of the container to the host. |
+| `delete`       | Destroy a container. |
+| `network`      | Configure a container's network interface. |
+| `shell-script` | Write an executable shell script into the container. |
+| `prompt`       | Interactively collect all creation options, then create. |
+
+**`create` options:**
+
+| Option                  | Type    | Required | Description |
+|-------------------------|---------|----------|-------------|
+| `--name NAME`           | string  | yes      | Container name / hostname. |
+| `--hostname HOSTNAME`   | string  | no       | Hostname inside the container. |
+| `--memory MB`           | integer | no       | Memory limit in megabytes. |
+| `--cores N`             | integer | no       | Number of CPU cores. |
+| `--storage STORAGE`     | string  | no       | Storage pool (PCT) or backing store type (LXC: `dir`, `btrfs`, `zfs`, `overlayfs`). |
+| `--disk-size GB`        | integer | no       | Rootfs size in gigabytes. |
+| `--password PASSWORD`   | string  | no       | Root password for the container. |
+| `--template PATH`       | string  | no       | Template path (PCT) or template name (LXC). |
+
+**`exec` options:**
+
+```bash
+# Everything after -- is the command run inside the container
+container exec --name mycontainer -- bash -c "apt-get update"
+```
+
+**`config` options:**
+
+| Option               | Type    | Description |
+|----------------------|---------|-------------|
+| `--hostname NAME`    | string  | New hostname. |
+| `--memory MB`        | integer | New memory limit. |
+| `--cores N`          | integer | New CPU core count. |
+| `--set KEY=VALUE`    | string  | Set an arbitrary `lxc.*` config key (LXC only, repeatable). |
+
+**`delete` options:**
+
+| Option    | Type | Description |
+|-----------|------|-------------|
+| `--force` | flag | Stop the container before destroying if it is running. |
+| `--purge` | flag | Remove from related configurations and jobs (PCT only). |
+
+**`network` options:**
+
+| Option               | Type   | Default                   | Description |
+|----------------------|--------|---------------------------|-------------|
+| `--bridge BRIDGE`    | string | `lxcbr0` (LXC) / `vmbr0` (PCT) | Host bridge interface to attach to. |
+| `--ip IP/PREFIX`     | string | —                         | Static IP with prefix, e.g. `10.0.0.10/24`. Use `dhcp` on PCT for dynamic assignment. |
+| `--gateway GW`       | string | —                         | Default gateway IP. |
+| `--dns NAMESERVERS`  | string | —                         | Space-separated DNS IPs (PCT only). |
+| `--index N`          | integer | `0`                      | Network interface index. |
+| `--type TYPE`        | string | `veth`                    | Interface type: `veth`, `macvlan`, `ipvlan`, `none` (LXC only). |
+
+**`shell-script` options:**
+
+| Option              | Type   | Required | Description |
+|---------------------|--------|----------|-------------|
+| `--name NAME`       | string | yes      | Container name or VMID. |
+| `--path PATH`       | string | yes      | Absolute destination path inside the container. |
+| `--content CONTENT` | string | no       | Script text. Defaults to `$script` when omitted (see `CONTAINER_SCRIPT`). |
+| `--style STYLE`     | string | no       | Loading indicator style. |
+| `--dry-run`         | flag   | no       | Print system calls without executing them. |
+
+**`prompt` globals** (pre-fill values to skip individual prompts):
+
+```bash
+CONTAINER_NAME=myapp CONTAINER_MEMORY=1024 container prompt
+```
+
+**Returns:** `0` on success; `1` for unknown subcommand or missing `--name`; propagates backend exit codes otherwise.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+# Create a Debian container
+container create --name myapp --memory 1024 --cores 2
+
+# Run a command inside the container
+container exec --name myapp -- bash -c "apt-get update && apt-get install -y curl"
+
+# Open an interactive shell
+container enter --name myapp
+
+# Configure a static IP on the container
+container network --name myapp --bridge lxcbr0 --ip 10.0.0.10/24 --gateway 10.0.0.1
+
+# Copy files in and out
+container push /etc/app.conf /etc/app.conf --name myapp
+container pull /var/log/app.log /tmp/app.log --name myapp
+
+# Reconfigure resources
+container config --name myapp --memory 2048 --cores 4
+
+# Write a script into the container and make it executable
+container shell-script --name myapp \
+    --content '#!/bin/bash\necho hello' \
+    --path /usr/local/bin/hello.sh
+
+# Delete the container
+container delete --name myapp --force
+```
+
+### `CONTAINER_SCRIPT` / `CONTAINER_SCRIPT_EOD`
+
+An alias pair that captures an inline multi-line shell script into the global
+variable `$script`. The captured text can then be passed to
+`container shell-script` (or `lxc_shell_script` / `pct_shell_script` directly)
+to deploy the script into a container.
+
+**Requires `shopt -s expand_aliases`** at the top of the script, because bash
+disables alias expansion in non-interactive scripts by default.
+
+```
+CONTAINER_SCRIPT
+<script content>
+CONTAINER_SCRIPT_EOD
+```
+
+After `CONTAINER_SCRIPT_EOD`, `$script` holds the full text of the inline block.
+Omit `--content` from `container shell-script` to use `$script` implicitly.
+
+```bash
+#!/bin/bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+shopt -s expand_aliases
+
+CONTAINER_SCRIPT
+#!/bin/bash
+apt-get update -y
+apt-get install -y curl git
+echo "Setup complete"
+CONTAINER_SCRIPT_EOD
+
+# Deploy the captured script into the container
+container shell-script --name myapp --path /opt/setup.sh
+
+# Execute it
+container exec --name myapp -- /opt/setup.sh
+```
+
+> **How it works:** `CONTAINER_SCRIPT` expands to a command-group redirect
+> `{ IFS= read -r -d "" script || true; } <<CONTAINER_SCRIPT_EOD`. The
+> closing `}` is already inside the alias, so `CONTAINER_SCRIPT_EOD` on its own
+> line is the sole closing marker — matched literally by the heredoc parser
+> (alias expansion never occurs inside a heredoc body).
+
+---
+
+## Writing Scripts with shtuff
+
+This section shows the recommended structure for installer and updater scripts
+that use shtuff as the underlying framework.
+
+### Installer script structure
+
+```bash
+#!/usr/bin/env bash
+# Purpose: Install <app> on a supported Linux system.
+# Usage:   ./install.sh [--port PORT] [--dir DIR]
+# Requirements: bash 4+, root or sudo
+
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+# ── Constants (never change at runtime) ───────────────────────────────────────
+readonly REPO="https://github.com/example/myapp/releases/latest/download/myapp.zip"
+readonly SERVICE_NAME="myapp"
+
+# ── Overridable config (can be set via environment or flags) ──────────────────
+INSTALL_DIR="${INSTALL_DIR:-/opt/myapp}"
+PORT="${PORT:-3000}"
+
+# ── Argument parsing ──────────────────────────────────────────────────────────
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -p|--port) PORT="$2";        shift 2 ;;
+        -d|--dir)  INSTALL_DIR="$2"; shift 2 ;;
+        -h|--help) echo "Usage: $0 [--port PORT] [--dir DIR]"; exit 0 ;;
+        *)         error "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+# ── Root check ────────────────────────────────────────────────────────────────
+[[ $EUID -eq 0 ]] || { error "This script must be run as root"; exit 1; }
+
+# ── Step 1: Update system packages ───────────────────────────────────────────
+update &
+monitor $! \
+    --style "$SPINNER_LOADING_STYLE" \
+    --message "Updating system packages" \
+    --success_msg "Packages updated" \
+    --error_msg "Update failed" || exit 1
+
+# ── Step 2: Install dependencies ─────────────────────────────────────────────
+install curl unzip nodejs &
+monitor $! \
+    --style "$DOTS_LOADING_STYLE" \
+    --message "Installing dependencies" \
+    --success_msg "Dependencies installed" \
+    --error_msg "Dependency install failed" || exit 1
+
+# ── Step 3: Download and extract the release ─────────────────────────────────
+download --url "$REPO" --dir /tmp --output myapp.zip
+
+mkdir -p /tmp/myapp_extract
+unzip -qo /tmp/myapp.zip -d /tmp/myapp_extract &
+monitor $! --message "Extracting release" || exit 1
+
+DIST_DIR=$(find /tmp/myapp_extract -type d -name "dist" -maxdepth 4 | head -1)
+CONTENT_DIR=$(dirname "${DIST_DIR}")
+
+mkdir -p "${INSTALL_DIR}"
+copy "${CONTENT_DIR}/." "${INSTALL_DIR}/" --message "Installing files" || exit 1
+
+delete /tmp/myapp_extract --message "Removing temp files" || exit 1
+delete /tmp/myapp.zip || exit 1
+
+# ── Step 4: Create and start the service ─────────────────────────────────────
+service \
+    --name "$SERVICE_NAME" \
+    --description "My Application" \
+    --working-directory "$INSTALL_DIR" \
+    --exec-start "$(command -v node) $INSTALL_DIR/server.js" \
+    --user "www-data" \
+    --restart "always" \
+    --environment "PORT=$PORT NODE_ENV=production" || exit 1
+
+info "Installation complete. Access the app at http://localhost:${PORT}"
+info "Manage the service: systemctl {start|stop|restart|status} ${SERVICE_NAME}"
+```
+
+### Updater script structure
+
+```bash
+#!/usr/bin/env bash
+# Purpose: Update <app> to the latest release.
+# Usage:   ./update.sh [--dir DIR]
+
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+readonly REPO="https://api.github.com/repos/example/myapp/releases/latest"
+readonly SERVICE_NAME="myapp"
+INSTALL_DIR="${INSTALL_DIR:-/opt/myapp}"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -d|--dir) INSTALL_DIR="$2"; shift 2 ;;
+        *)        error "Unknown option: $1"; exit 1 ;;
+    esac
+done
+
+[[ $EUID -eq 0 ]] || { error "This script must be run as root"; exit 1; }
+
+# Fail early if not installed yet
+[[ -d "$INSTALL_DIR" ]] || { error "Install directory not found: $INSTALL_DIR"; exit 1; }
+
+# Resolve latest release URL from GitHub API
+RELEASE_URL=$(curl -sL "$REPO" | grep '"browser_download_url"' | grep '\.zip' | head -1 | cut -d'"' -f4)
+[[ -n "$RELEASE_URL" ]] || { error "Could not resolve release URL"; exit 1; }
+
+download --url "$RELEASE_URL" --dir /tmp --output myapp.zip
+
+mkdir -p /tmp/myapp_extract
+unzip -qo /tmp/myapp.zip -d /tmp/myapp_extract &
+monitor $! --message "Extracting release" || exit 1
+
+DIST_DIR=$(find /tmp/myapp_extract -type d -name "dist" -maxdepth 4 | head -1)
+CONTENT_DIR=$(dirname "${DIST_DIR}")
+
+# Replace existing files in-place (rm -rf contents, then copy; do not use delete
+# here — it removes the directory itself, not just its contents)
+rm -rf "${INSTALL_DIR:?}"/*
+copy "${CONTENT_DIR}/." "${INSTALL_DIR}/" --message "Replacing files" || exit 1
+
+delete /tmp/myapp_extract || exit 1
+delete /tmp/myapp.zip || exit 1
+
+systemctl restart "$SERVICE_NAME"
+info "Update complete."
+```
+
+### Dry-run mode
+
+Set `IS_DRY_RUN=true` before sourcing (or after) to make `check_port`,
+`wait_for_port`, `bridge`, `forward`, `container shell-script`, and other
+system-mutating functions print the commands they would run without executing
+them. Useful for testing scripts in a safe environment.
+
+```bash
+IS_DRY_RUN=true
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+check_port --port 8080     # prints: [DRY RUN] ss -tlnp ...
+forward add --from-port 8080 --to-host 10.0.0.10 --to-port 80  # prints commands only
+```
+
+### Conventions
+
+| Practice | Why |
+|----------|-----|
+| Always `\|\| exit 1` after `monitor` | Propagate failures; a silent background crash is hard to debug. |
+| Use `readonly` for constants | Prevents accidental reassignment mid-script. |
+| Use `${VAR:-default}` for config | Lets callers override via environment without editing the script. |
+| Download to `/tmp/`, always clean up | Avoids leaving large files behind if the script exits early. |
+| Use `rm -rf "${DIR:?}"/*` to clear a directory's contents | The `:?` guard prevents `rm -rf /*` if the variable is empty. Use `delete` for paths that should be fully removed. |
+| Full binary paths in `--exec-start` | Systemd does not use `$PATH`; use `$(command -v node)` instead of `node`. |
+| Never hard-code a package manager | Always use `install`/`update`/`uninstall` so scripts work across distros. |
+| Never call `_` prefixed functions | Private helpers; their signatures may change without notice. |

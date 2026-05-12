@@ -22,6 +22,11 @@
 #   --disk-size GB (integer, optional): Rootfs size in gigabytes. For LXC, only
 #       effective when --storage is btrfs or zfs.
 #   --password PASSWORD (string, optional): Root password for the container.
+#   --gpu PCI_ADDR (string, optional): PCI address of the GPU to pass through to the
+#       container (e.g. 01:00.0). Applied after the container is created via
+#       _gpu_apply_passthrough. Use gpu_list to discover available addresses.
+#   --pcie (flag, optional): Enable PCIe passthrough mode (pcie=1) when configuring
+#       GPU passthrough on PCT backends. Has no effect on LXC backends.
 #
 #   exec subcommand — run a command inside the container without an interactive session:
 #   -- COMMAND... (required): Everything after -- is the command to run inside the container.
@@ -70,6 +75,9 @@
 #   container create --name mycontainer --memory 1024 --cores 2 --hostname myapp
 #   container create --name myapp --template "local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst" \
 #       --memory 1024 --cores 2 --disk-size 16
+#   container create --name mycontainer --dist debian --release trixie --gpu 01:00.0
+#   container create --name mycontainer --template "local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst" \
+#       --gpu 01:00.0 --pcie
 #   container start --name mycontainer
 #   container exec --name mycontainer -- bash -c "apt-get update && apt-get install -y curl"
 #   container enter --name mycontainer
@@ -240,10 +248,14 @@ _container_config() {
 }
 
 # _container_create
-# Extracts --name NAME from args. For PCT, auto-generates the VMID via pct_next_vmid
-# and uses --name as the hostname. For LXC, forwards --name unchanged.
+# Extracts --name NAME, --gpu PCI_ADDR, and --pcie from args. For PCT, auto-generates
+# the VMID via pct_next_vmid and uses --name as the hostname. For LXC, forwards --name
+# unchanged. When --gpu is provided, GPU passthrough is applied after the container is
+# created using _gpu_apply_passthrough.
 _container_create() {
     local name=""
+    local gpu_addr=""
+    local pcie_mode="false"
     local passthrough=()
 
     while [[ $# -gt 0 ]]; do
@@ -251,6 +263,14 @@ _container_create() {
             -n|--name)
                 name="$2"
                 shift 2
+                ;;
+            --gpu)
+                gpu_addr="$2"
+                shift 2
+                ;;
+            --pcie)
+                pcie_mode="true"
+                shift
                 ;;
             *)
                 passthrough+=("$1")
@@ -268,14 +288,27 @@ _container_create() {
     backend=$(_container_backend)
     debug "container create: backend='$backend' name='$name'"
 
+    local container_id
     if [[ "$backend" == "pct" ]]; then
         local vmid
         vmid=$(pct_next_vmid) || return 1
         debug "container create: auto-assigned vmid='$vmid' hostname='$name'"
-        pct_create --vmid "$vmid" --hostname "$name" "${passthrough[@]}"
+        pct_create --vmid "$vmid" --hostname "$name" "${passthrough[@]}" || return 1
+        container_id="$vmid"
     else
-        lxc_create --name "$name" "${passthrough[@]}"
+        lxc_create --name "$name" "${passthrough[@]}" || return 1
+        container_id="$name"
     fi
+
+    if [[ -n "$gpu_addr" ]]; then
+        debug "container create: applying GPU passthrough pci='$gpu_addr' pcie='$pcie_mode'"
+        _gpu_apply_passthrough \
+            --container "$container_id" \
+            --pci-addr  "$gpu_addr"    \
+            --pcie      "$pcie_mode"   || return 1
+    fi
+
+    return 0
 }
 
 # _container_enter

@@ -1020,6 +1020,9 @@ container SUBCOMMAND --name NAME [OPTIONS]
 
 **`create` options:**
 
+When `--gpu` is provided, GPU passthrough is configured immediately after the
+container is created (see [GPU Passthrough](#gpu-passthrough)).
+
 | Option                  | Type    | Required | Description |
 |-------------------------|---------|----------|-------------|
 | `--name NAME`           | string  | yes      | Container name / hostname. |
@@ -1030,6 +1033,8 @@ container SUBCOMMAND --name NAME [OPTIONS]
 | `--disk-size GB`        | integer | no       | Rootfs size in gigabytes. |
 | `--password PASSWORD`   | string  | no       | Root password for the container. |
 | `--template PATH`       | string  | no       | Template path (PCT) or template name (LXC). |
+| `--gpu PCI_ADDR`        | string  | no       | PCI address of a GPU to pass through (e.g. `01:00.0`). Use `gpu_list` to discover addresses. |
+| `--pcie`                | flag    | no       | Enable PCIe passthrough mode (`pcie=1`) when using `--gpu` on PCT backends. |
 
 **`exec` options:**
 
@@ -1081,13 +1086,60 @@ container exec --name mycontainer -- bash -c "apt-get update"
 CONTAINER_NAME=myapp CONTAINER_MEMORY=1024 container prompt
 ```
 
+| Environment Variable   | Description |
+|------------------------|-------------|
+| `CONTAINER_NAME`       | Container name. Skips name prompt if set. |
+| `CONTAINER_TEMPLATE`   | Template path (PCT) or template name (LXC). |
+| `CONTAINER_DIST`       | Distribution name (LXC only). |
+| `CONTAINER_RELEASE`    | Distribution release (LXC only). |
+| `CONTAINER_ARCH`       | Architecture (LXC only). |
+| `CONTAINER_HOSTNAME`   | Hostname inside the container. |
+| `CONTAINER_MEMORY`     | Memory limit in megabytes. |
+| `CONTAINER_CORES`      | Number of CPU cores. |
+| `CONTAINER_STORAGE`    | Storage pool (PCT) or backing store (LXC). |
+| `CONTAINER_DISK_SIZE`  | Root disk size in gigabytes. |
+| `CONTAINER_PASSWORD`   | Root password. |
+| `CONTAINER_GPU`        | PCI address of GPU to pass through. Skips GPU prompt if set. Use `gpu_list` to find addresses. |
+| `CONTAINER_GPU_PCIE`   | Set to `"true"` to enable PCIe passthrough mode on PCT backends. |
+
 **Returns:** `0` on success; `1` for unknown subcommand or missing `--name`; propagates backend exit codes otherwise.
 
 ```bash
 source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
 
-# Create a Debian container
-container create --name myapp --memory 1024 --cores 2
+# Create a Debian container (LXC)
+container create \
+    --name myapp \
+    --dist debian \
+    --release trixie \
+    --memory 2048 \
+    --cores 4 || exit 1
+
+# Create a PCT container from a downloaded template
+container create \
+    --name myapp \
+    --template "local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst" \
+    --memory 2048 \
+    --cores 4 \
+    --disk-size 16 || exit 1
+
+# Create an LXC container with GPU passthrough applied automatically after creation
+container create \
+    --name gpu-workload \
+    --dist debian \
+    --release trixie \
+    --memory 8192 \
+    --cores 8 \
+    --gpu 01:00.0 || exit 1
+
+# Create a PCT container with PCIe GPU passthrough
+container create \
+    --name gpu-workload \
+    --template "local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst" \
+    --memory 8192 \
+    --cores 8 \
+    --gpu 01:00.0 \
+    --pcie || exit 1
 
 # Run a command inside the container
 container exec --name myapp -- bash -c "apt-get update && apt-get install -y curl"
@@ -1319,3 +1371,202 @@ forward add --from-port 8080 --to-host 10.0.0.10 --to-port 80  # prints commands
 | Full binary paths in `--exec-start` | Systemd does not use `$PATH`; use `$(command -v node)` instead of `node`. |
 | Never hard-code a package manager | Always use `install`/`update`/`uninstall` so scripts work across distros. |
 | Never call `_` prefixed functions | Private helpers; their signatures may change without notice. |
+
+---
+
+## GPU Passthrough
+
+Functions for discovering host GPUs, interactively selecting one, and installing
+hardware-acceleration libraries — on the host or inside a container. GPU passthrough
+is also integrated directly into `container create` and `container prompt` via the
+`--gpu` flag and `CONTAINER_GPU` environment variable (see [Containers](#containers)).
+
+Requires `pciutils` (`lspci`) on the host for GPU discovery.
+
+### `gpu_list`
+
+Lists all PCI GPU devices detected on the host. Prints each GPU's PCI address,
+vendor (NVIDIA / AMD / Intel / Unknown), and full description from `lspci`. Use
+this to find the PCI address to pass to `gpu_select`, `container create --gpu`,
+or `CONTAINER_GPU`.
+
+```
+gpu_list
+```
+
+**Returns:** `0` if one or more GPUs were found and listed; `1` if `lspci` is not available; `2` if no GPUs were detected.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+gpu_list
+```
+
+**Example output:**
+
+```
+Detected GPU devices:
+  [1] 01:00.0  NVIDIA    VGA compatible controller: NVIDIA Corporation GA102 [GeForce RTX 3090] (rev a1)
+  [2] 02:00.0  AMD       Display controller: Advanced Micro Devices, Inc. [AMD/ATI] Navi 23 [Radeon RX 6600 XT]
+```
+
+### `gpu_select`
+
+Interactively prompts the user to choose a GPU from the host's detected PCI GPU
+devices. Uses `whiptail` when available; falls back to a plain numbered terminal
+menu. When `--container` is provided, GPU passthrough is automatically configured
+on the container after the user makes a selection.
+
+The selected GPU descriptor (`"PCI_ADDR description"`) is always stored in
+`$answer` regardless of whether `--container` is given.
+
+```
+gpu_select [OPTIONS]
+```
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `--container NAME` | string | no | — | Container name or VMID. When set, applies GPU passthrough to the container after selection (PCT: `pct set --hostpciN`; LXC: appends cgroup/mount-entry lines to the config file). |
+| `--index N` | integer | no | `0` | hostpci slot index to use on PCT backends (`--hostpci0`, `--hostpci1`, …). Ignored for LXC. |
+| `--pcie` | flag | no | off | Enable PCIe passthrough mode (`pcie=1`) on PCT backends. |
+| `--dry-run` | flag | no | `$IS_DRY_RUN` | Print the passthrough commands that would be executed without applying them. |
+
+**Globals written:** `answer` — the full GPU descriptor string of the selected GPU, e.g. `"01:00.0 NVIDIA Corporation GA102 [GeForce RTX 3090] (rev a1)"`.
+
+**Returns:** `0` on success; `1` if `lspci` is unavailable, no GPUs are found, or arguments are invalid; `2` if the container is not found or passthrough configuration fails.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+# Select a GPU — result stored in $answer
+gpu_select
+echo "Selected: $answer"
+
+# Select a GPU and immediately configure passthrough on an LXC container
+gpu_select --container mycontainer
+# Container must be restarted to apply changes
+
+# Select and configure passthrough on a PCT container with PCIe mode
+gpu_select --container 100 --pcie
+
+# Assign a second GPU to a container (PCT slot 1)
+gpu_select --container 100 --index 1 --pcie
+
+# Preview what would be applied without making changes
+gpu_select --container mycontainer --dry-run
+```
+
+**Example interactive menu (plain terminal):**
+
+```
+Select a GPU for container 'mycontainer'
+  1) 01:00.0  [NVIDIA]  VGA compatible controller: NVIDIA Corporation GA102 [GeForce RTX 3090] (rev a1)
+  2) 00:02.0  [Intel]   Display controller: Intel Corporation UHD Graphics 630
+Enter number [1-2]:
+```
+
+### `gpu_install`
+
+Installs hardware-acceleration libraries on the host or inside a container.
+Auto-detects the GPU vendor via `lspci` when `--vendor` is omitted. When
+`--container` is provided, package manager detection is performed inside the
+container so that host and container distros need not match.
+
+```
+gpu_install [OPTIONS]
+```
+
+| Option | Type | Required | Default | Description |
+|--------|------|----------|---------|-------------|
+| `--vendor VENDOR` | string | no | auto-detected | GPU vendor. One of `nvidia`, `amd`, `intel`, `generic`. When omitted, detected from `lspci`. |
+| `--container NAME` | string | no | — | Container name or VMID to install libraries inside. When omitted, installs on the host. |
+| `--style STYLE` | string | no | `$SPINNER_LOADING_STYLE` | Loading indicator style. |
+| `--dry-run` | flag | no | `$IS_DRY_RUN` | Print what would be installed without running it. |
+
+**Packages installed by vendor:**
+
+| Vendor | Packages |
+|--------|----------|
+| `nvidia` | `nvidia-cuda-toolkit`, `nvidia-container-toolkit` |
+| `amd` | `rocm-opencl-runtime`, `rocm-hip-runtime` |
+| `intel` | `intel-opencl-icd`, `intel-media-va-driver`, `vainfo` |
+| `generic` | `ocl-icd-opencl-dev`, `clinfo` |
+
+**Returns:** `0` on success; `1` if arguments are invalid or the vendor is unsupported; `2` if host installation fails; `3` if the container is not found or installation inside the container fails.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+# Auto-detect vendor and install on the host
+gpu_install
+
+# Install NVIDIA libraries on the host
+gpu_install --vendor nvidia
+
+# Install AMD libraries inside a container (package manager detected inside the container)
+gpu_install --vendor amd --container mycontainer
+
+# Auto-detect vendor and install inside a PCT container
+gpu_install --container 100
+
+# Preview what would be installed
+gpu_install --vendor intel --dry-run
+```
+
+### GPU + Container Workflow
+
+Complete example: discover GPUs, create a container with passthrough pre-configured,
+then install the matching acceleration libraries inside it.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+# 1. See what GPUs are available
+gpu_list
+
+# 2. Create the container with passthrough in one step (LXC)
+container create \
+    --name gpu-workload \
+    --dist debian \
+    --release trixie \
+    --memory 8192 \
+    --cores 8 \
+    --gpu 01:00.0 || exit 1
+
+# 3. Start the container
+container start --name gpu-workload || exit 1
+
+# 4. Install acceleration libraries inside the container
+gpu_install --vendor nvidia --container gpu-workload || exit 1
+```
+
+Using `container prompt` for a fully interactive setup:
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+# Interactive: prompts for all fields; asks "Enable GPU passthrough?" mid-flow
+container prompt
+
+# Semi-automated: GPU and name pre-set, everything else prompted
+CONTAINER_NAME=gpu-workload \
+CONTAINER_GPU=01:00.0 \
+    container prompt
+```
+
+Scripted multi-GPU passthrough (PCT, two GPUs on separate hostpci slots):
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+container create \
+    --name multi-gpu \
+    --template "local:vztmpl/debian-13-standard_13.x-1_amd64.tar.zst" \
+    --memory 16384 \
+    --cores 16 \
+    --gpu 01:00.0 \
+    --pcie || exit 1
+
+# Add a second GPU to slot 1 after creation
+gpu_select --container multi-gpu --index 1 --pcie
+```

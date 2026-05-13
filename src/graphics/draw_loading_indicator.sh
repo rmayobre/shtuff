@@ -39,11 +39,12 @@ function draw_loading_indicator {
 
     local -a frames=("$@")
 
-    # Loop while PID is still running.
+    # Loop while PID is still running; always show at least one frame.
     local i=0
-    while kill -0 "$pid" 2>/dev/null; do
-        printf "\r${color}${frames[$i]} ${message}${RESET_COLOR}"
+    while true; do
+        printf "\r\033[K${color}${frames[$i]} ${message}${RESET_COLOR}"
         i=$(( (i + 1) % ${#frames[@]} ))
+        kill -0 "$pid" 2>/dev/null || break
         sleep 0.1
     done
 }

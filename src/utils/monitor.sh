@@ -90,10 +90,9 @@ function monitor {
         return 0
     fi
 
-    # Check if process exists
+    # Process may have already exited; wait will return its cached exit code.
     if ! kill -0 "$pid" 2>/dev/null; then
-        echo "Error: Process $pid does not exist"
-        return 1
+        debug "monitor: process $pid has already exited"
     fi
 
     # Dislay loading indicator
@@ -130,7 +129,7 @@ function monitor {
             ;;
         *)
             echo "Unknown loading style: $style"
-            exit 1
+            return 1
             ;;
     esac
 

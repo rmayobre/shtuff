@@ -42,10 +42,6 @@ source <(curl -sL "${BASE_URL}/src/utils/monitor.sh")
 source <(curl -sL "${BASE_URL}/src/utils/move.sh")
 source <(curl -sL "${BASE_URL}/src/utils/progress.sh")
 source <(curl -sL "${BASE_URL}/src/utils/stop.sh")
-source <(curl -sL "${BASE_URL}/src/utils/copy.sh")
-source <(curl -sL "${BASE_URL}/src/utils/move.sh")
-source <(curl -sL "${BASE_URL}/src/utils/delete.sh")
-
 # Forms
 source <(curl -sL "${BASE_URL}/src/forms/question.sh")
 source <(curl -sL "${BASE_URL}/src/forms/options.sh")

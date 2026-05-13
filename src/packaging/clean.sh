@@ -29,9 +29,9 @@ clean() {
     elif command -v apk &> /dev/null; then
         clean_apk
     else
-        echo "Error: Could not determine the primary package manager."
-        echo "Cannot proceed with cleaning process."
-        exit 1
+        error "Could not determine the primary package manager."
+        error "Cannot proceed with cleaning process."
+        return 1
     fi
 }
 
@@ -51,9 +51,9 @@ clean() {
 # Examples:
 #   clean_apt
 clean_apt() {
-    echo "--- Running APT cleanup (autoremove and autoclean) ---"
-    sudo apt autoremove -y
-    sudo apt autoclean -y
+    info "Running APT cleanup (autoremove and autoclean)"
+    sudo apt autoremove -y || return 1
+    sudo apt autoclean -y || return 1
 }
 
 # Function: clean_dnf
@@ -72,9 +72,9 @@ clean_apt() {
 # Examples:
 #   clean_dnf
 clean_dnf() {
-    echo "--- Running DNF cleanup (autoremove and clean all) ---"
-    sudo dnf autoremove -y
-    sudo dnf clean all
+    info "Running DNF cleanup (autoremove and clean all)"
+    sudo dnf autoremove -y || return 1
+    sudo dnf clean all || return 1
 }
 
 # Function: clean_yum
@@ -93,13 +93,13 @@ clean_dnf() {
 # Examples:
 #   clean_yum
 clean_yum() {
-    echo "--- Running YUM cleanup (clean all) ---"
-    sudo yum clean all
+    info "Running YUM cleanup (clean all)"
+    sudo yum clean all || return 1
     if command -v package-cleanup &> /dev/null; then
-        echo "--- Running package-cleanup --orphans (might require yum-utils) ---"
-        sudo package-cleanup --orphans -y
+        info "Running package-cleanup --orphans"
+        sudo package-cleanup --orphans -y || return 1
     else
-        echo "Note: 'package-cleanup' not found. Install 'yum-utils' for more thorough dependency cleanup."
+        warn "'package-cleanup' not found. Install 'yum-utils' for more thorough dependency cleanup."
     fi
 }
 
@@ -119,10 +119,10 @@ clean_yum() {
 # Examples:
 #   clean_zypper
 clean_zypper() {
-    echo "--- Running Zypper cleanup (autoremove and clean) ---"
-    echo "zypper automically removes unused dependencies."
-    echo "clearing cache..."
-    sudo zypper clean --all
+    info "Running Zypper cleanup (autoremove and clean)"
+    info "Zypper automatically removes unused dependencies."
+    info "Clearing cache..."
+    sudo zypper clean --all || return 1
 }
 
 # Function: clean_pacman
@@ -141,15 +141,15 @@ clean_zypper() {
 # Examples:
 #   clean_pacman
 clean_pacman() {
-    echo "--- Running Pacman cleanup (orphan removal and cache cleaning) ---"
+    info "Running Pacman cleanup (orphan removal and cache cleaning)"
     if pacman -Qtdq &> /dev/null; then
-        echo "Removing orphaned packages with Pacman..."
-        sudo pacman -Rns --noconfirm "$(pacman -Qtdq)"
+        info "Removing orphaned packages with Pacman..."
+        sudo pacman -Rns --noconfirm "$(pacman -Qtdq)" || return 1
     else
-        echo "No orphaned packages found or nothing to remove."
+        info "No orphaned packages found or nothing to remove."
     fi
-    echo "Cleaning Pacman package cache..."
-    sudo pacman -Sc --noconfirm
+    info "Cleaning Pacman package cache..."
+    sudo pacman -Sc --noconfirm || return 1
 }
 
 # Function: clean_apk
@@ -168,6 +168,6 @@ clean_pacman() {
 # Examples:
 #   clean_apk
 clean_apk() {
-    echo "--- Running APK cleanup (cache clean) ---"
-    sudo apk cache clean
+    info "Running APK cleanup (cache clean)"
+    sudo apk cache clean || return 1
 }

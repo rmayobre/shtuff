@@ -22,14 +22,12 @@ function stop {
     local pid="$1"
 
     if [[ -z "$pid" ]]; then
-        echo "Error: No PID provided"
-        exit 1
+        error "No PID provided"
+        return 1
     fi
 
-    if [[ -n "$pid" ]]; then
-        kill "$pid" 2>/dev/null || return $?
-        wait "$pid" 2>/dev/null || return $?
-    fi
+    kill "$pid" 2>/dev/null || return $?
+    wait "$pid" 2>/dev/null || return $?
 
     return 0
 }

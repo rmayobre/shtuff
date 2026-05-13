@@ -162,6 +162,11 @@ timer() {
         return 1
     fi
 
+    if [[ "$has_schedule" != "true" ]]; then
+        error "At least one scheduling option is required (--on-calendar, --on-boot-sec, --on-unit-active-sec, or --on-unit-inactive-sec)."
+        return 1
+    fi
+
     local content=""
 
     # [Unit] section

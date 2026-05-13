@@ -6,7 +6,7 @@ declare -r BARS_LOADING_STYLE="bars"
 declare -r ARROWS_LOADING_STYLE="arrows"
 declare -r CLOCK_LOADING_STYLE="clock"
 
-# The default loading style picked if not defined in the "monitor functionn.
+# The default loading style picked if not defined in the "monitor function.
 DEFAULT_LOADING_STYLE=$SPINNER_LOADING_STYLE
 
 # Function: monitor
@@ -48,7 +48,7 @@ function monitor {
     shift
 
     if [[ -z "$pid" ]]; then
-        echo "Error: No PID provided"
+        error "No PID provided"
         return 1
     fi
 
@@ -92,11 +92,11 @@ function monitor {
 
     # Check if process exists
     if ! kill -0 "$pid" 2>/dev/null; then
-        echo "Error: Process $pid does not exist"
+        error "Process $pid does not exist"
         return 1
     fi
 
-    # Dislay loading indicator
+    # Display loading indicator
     case "$style" in
         "$SPINNER_LOADING_STYLE")
             # Hide cursor
@@ -129,8 +129,8 @@ function monitor {
             draw_loading_clock "$pid" "$message"
             ;;
         *)
-            echo "Unknown loading style: $style"
-            exit 1
+            error "Unknown loading style: $style"
+            return 1
             ;;
     esac
 

@@ -22,6 +22,11 @@
 #   CONTAINER_DIST (read, LXC only): Distribution name. Skips dist prompt if set.
 #   CONTAINER_RELEASE (read, LXC only): Distribution release. Skips release prompt if set.
 #   CONTAINER_ARCH (read, LXC only): Architecture. Skips arch prompt if set.
+#   CONTAINER_GPU (read): PCI address of GPU to pass through (e.g. 01:00.0). When set,
+#       skips the GPU passthrough prompt and applies passthrough automatically. Leave
+#       empty to be prompted. Use gpu_list to discover available addresses.
+#   CONTAINER_GPU_PCIE (read): Set to "true" to enable PCIe passthrough mode on PCT
+#       backends. Has no effect on LXC backends. Defaults to "false".
 #   answer (write): Overwritten by each internal form call.
 #
 # Returns:
@@ -32,6 +37,7 @@
 # Examples:
 #   container prompt
 #   CONTAINER_NAME=myapp CONTAINER_MEMORY=1024 container prompt
+#   CONTAINER_GPU=01:00.0 CONTAINER_GPU_PCIE=true container prompt
 function _container_prompt {
     local backend
     backend=$(_container_backend)
@@ -48,6 +54,8 @@ function _container_prompt {
     local dist="${CONTAINER_DIST:-}"
     local release="${CONTAINER_RELEASE:-}"
     local arch="${CONTAINER_ARCH:-}"
+    local gpu_addr="${CONTAINER_GPU:-}"
+    local pcie_mode="${CONTAINER_GPU_PCIE:-false}"
 
     # --- name ---
     if [[ -n "$name" ]]; then
@@ -183,6 +191,16 @@ function _container_prompt {
         password="${answer:-}"
     fi
 
+    # --- gpu ---
+    if [[ -n "$gpu_addr" ]]; then
+        info "Using CONTAINER_GPU='$gpu_addr'"
+    else
+        if confirm "Enable GPU passthrough for this container?"; then
+            gpu_select || return 1
+            gpu_addr="${answer%% *}"
+        fi
+    fi
+
     # --- confirmation summary ---
     info "Container configuration summary:"
     info "  Backend:  $backend"
@@ -199,6 +217,11 @@ function _container_prompt {
     [[ -n "$storage"   ]] && info "  Storage:  $storage"
     [[ -n "$disk_size" ]] && info "  Disk:     ${disk_size}GB"
     [[ -n "$password"  ]] && info "  Password: (set)"
+    if [[ -n "$gpu_addr" ]]; then
+        local gpu_summary="  GPU:      $gpu_addr"
+        [[ "$pcie_mode" == "true" ]] && gpu_summary+=" (PCIe)"
+        info "$gpu_summary"
+    fi
 
     if ! confirm "Create this container?"; then
         info "container prompt: cancelled."
@@ -214,6 +237,8 @@ function _container_prompt {
     [[ -n "$storage"   ]] && create_args+=(--storage "$storage")
     [[ -n "$disk_size" ]] && create_args+=(--disk-size "$disk_size")
     [[ -n "$password"  ]] && create_args+=(--password "$password")
+    [[ -n "$gpu_addr"  ]] && create_args+=(--gpu "$gpu_addr")
+    [[ "$pcie_mode" == "true" ]] && create_args+=(--pcie)
 
     # LXC download-template specific args
     if [[ "$backend" == "lxc" && "$template" == "download" ]]; then

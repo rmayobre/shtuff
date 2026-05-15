@@ -1173,9 +1173,6 @@ variable `$script`. The captured text can then be passed to
 `container shell-script` (or `lxc_shell_script` / `pct_shell_script` directly)
 to deploy the script into a container.
 
-**Requires `shopt -s expand_aliases`** at the top of the script, because bash
-disables alias expansion in non-interactive scripts by default.
-
 ```
 CONTAINER_SCRIPT
 <script content>
@@ -1188,7 +1185,6 @@ Omit `--content` from `container shell-script` to use `$script` implicitly.
 ```bash
 #!/bin/bash
 source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
-shopt -s expand_aliases
 
 CONTAINER_SCRIPT
 #!/bin/bash

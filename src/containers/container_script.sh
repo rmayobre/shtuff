@@ -29,6 +29,7 @@
 #   CONTAINER_SCRIPT_EOD
 #
 #   container shell-script --name mycontainer --path /opt/hello.sh
+shopt -s expand_aliases
 # shellcheck disable=SC2142
 alias CONTAINER_SCRIPT='{ IFS= read -r -d "" script || true; } <<CONTAINER_SCRIPT_EOD'
 

@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Version of this shtuff release. Replaced by the release workflow for tagged builds.
+SHTUFF_VERSION="dev"
+
 # Current directory path of this project.
 SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

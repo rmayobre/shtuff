@@ -47,15 +47,21 @@ function pct_next_vmid {
     fi
 
     # Prefer the cluster API — it covers both LXC containers and QEMU VMs atomically.
+    # pvesh /cluster/nextid always scans from 100; if that result falls below --start
+    # we fall through to the scan so the start constraint is honoured.
     if command -v pvesh &>/dev/null; then
         local next_id
         next_id=$(pvesh get /cluster/nextid 2>/dev/null | tr -d '[:space:]"')
-        if [[ "$next_id" =~ ^[0-9]+$ ]]; then
+        if [[ "$next_id" =~ ^[0-9]+$ && "$next_id" -ge "$start" ]]; then
             debug "pct_next_vmid: pvesh /cluster/nextid -> '$next_id'"
             echo "$next_id"
             return 0
         fi
-        debug "pct_next_vmid: pvesh /cluster/nextid returned unexpected output, falling back to list scan"
+        if [[ "$next_id" =~ ^[0-9]+$ ]]; then
+            debug "pct_next_vmid: pvesh returned '$next_id' which is below start='$start', falling back to list scan"
+        else
+            debug "pct_next_vmid: pvesh /cluster/nextid returned unexpected output, falling back to list scan"
+        fi
     fi
 
     # Fallback: merge pct list and qm list to cover all allocated VMIDs on this node.

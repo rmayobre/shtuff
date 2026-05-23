@@ -293,9 +293,23 @@ _container_create() {
     local container_id
     if [[ "$backend" == "pct" ]]; then
         local vmid
-        vmid=$(pct_next_vmid) || return 1
-        debug "container create: auto-assigned vmid='$vmid' hostname='$name'"
-        pct_create --vmid "$vmid" --hostname "$name" "${passthrough[@]}" || return 1
+        local vmid_start=100
+        local attempt=0
+        local max_attempts=3
+        while (( attempt < max_attempts )); do
+            vmid=$(pct_next_vmid --start "$vmid_start") || return 1
+            debug "container create: attempt $((attempt + 1)) using vmid='$vmid' hostname='$name'"
+            if pct_create --vmid "$vmid" --hostname "$name" "${passthrough[@]}"; then
+                break
+            fi
+            (( attempt++ ))
+            if (( attempt >= max_attempts )); then
+                error "container create: failed to create container after $max_attempts attempts"
+                return 1
+            fi
+            warn "container create: vmid=$vmid creation failed, trying next available vmid"
+            vmid_start=$(( vmid + 1 ))
+        done
         container_id="$vmid"
     else
         lxc_create --name "$name" "${passthrough[@]}" || return 1

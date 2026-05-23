@@ -159,7 +159,9 @@ _container_start() {
     debug "container start: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_start --vmid "$name" "${passthrough[@]}"
+        local vmid
+        vmid=$(pct_find_vmid --name "$name") || return $?
+        pct_start --vmid "$vmid" "${passthrough[@]}"
     else
         lxc_start --name "$name" "${passthrough[@]}"
     fi
@@ -205,7 +207,9 @@ _container_exec() {
     debug "container exec: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_exec --vmid "$name" -- "${cmd[@]}"
+        local vmid
+        vmid=$(pct_find_vmid --name "$name") || return $?
+        pct_exec --vmid "$vmid" -- "${cmd[@]}"
     else
         lxc_exec --name "$name" -- "${cmd[@]}"
     fi
@@ -241,7 +245,9 @@ _container_config() {
     debug "container config: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_config --vmid "$name" "${passthrough[@]}"
+        local vmid
+        vmid=$(pct_find_vmid --name "$name") || return $?
+        pct_config --vmid "$vmid" "${passthrough[@]}"
     else
         lxc_config --name "$name" "${passthrough[@]}"
     fi
@@ -357,7 +363,9 @@ _container_enter() {
     debug "container enter: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_enter --vmid "$name" "${passthrough[@]}"
+        local vmid
+        vmid=$(pct_find_vmid --name "$name") || return $?
+        pct_enter --vmid "$vmid" "${passthrough[@]}"
     else
         lxc_enter --name "$name" "${passthrough[@]}"
     fi
@@ -406,7 +414,9 @@ _container_push() {
     debug "container push: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_push "$source_path" "$dest_path" --vmid "$name" "${passthrough[@]}"
+        local vmid
+        vmid=$(pct_find_vmid --name "$name") || return $?
+        pct_push "$source_path" "$dest_path" --vmid "$vmid" "${passthrough[@]}"
     else
         lxc_push "$source_path" "$dest_path" --name "$name" "${passthrough[@]}"
     fi
@@ -455,7 +465,9 @@ _container_pull() {
     debug "container pull: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_pull "$source_path" "$dest_path" --vmid "$name" "${passthrough[@]}"
+        local vmid
+        vmid=$(pct_find_vmid --name "$name") || return $?
+        pct_pull "$source_path" "$dest_path" --vmid "$vmid" "${passthrough[@]}"
     else
         lxc_pull "$source_path" "$dest_path" --name "$name" "${passthrough[@]}"
     fi
@@ -491,7 +503,9 @@ _container_network() {
     debug "container network: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_network --vmid "$name" "${passthrough[@]}"
+        local vmid
+        vmid=$(pct_find_vmid --name "$name") || return $?
+        pct_network --vmid "$vmid" "${passthrough[@]}"
     else
         lxc_network --name "$name" "${passthrough[@]}"
     fi
@@ -527,7 +541,9 @@ _container_shell_script() {
     debug "container shell-script: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_shell_script --vmid "$name" "${passthrough[@]}"
+        local vmid
+        vmid=$(pct_find_vmid --name "$name") || return $?
+        pct_shell_script --vmid "$vmid" "${passthrough[@]}"
     else
         lxc_shell_script --name "$name" "${passthrough[@]}"
     fi
@@ -563,7 +579,9 @@ _container_delete() {
     debug "container delete: backend='$backend' name='$name'"
 
     if [[ "$backend" == "pct" ]]; then
-        pct_delete --vmid "$name" "${passthrough[@]}"
+        local vmid
+        vmid=$(pct_find_vmid --name "$name") || return $?
+        pct_delete --vmid "$vmid" "${passthrough[@]}"
     else
         lxc_delete --name "$name" "${passthrough[@]}"
     fi

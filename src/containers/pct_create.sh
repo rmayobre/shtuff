@@ -15,7 +15,9 @@
 #   --dist DIST (string, optional, default: "debian"): Distribution name used to
 #       auto-resolve a template via pveam when --template is not provided.
 #   --release RELEASE (string, optional, default: "bookworm"): Distribution release used
-#       with --dist to auto-resolve a template via pveam.
+#       with --dist to auto-resolve a template via pveam. Accepts either a version number
+#       (e.g. "12") or a Debian/Ubuntu codename (e.g. "bookworm", "jammy"); codenames are
+#       automatically mapped to their version number before searching pveam.
 #   --arch ARCH (string, optional, default: "amd64"): Architecture used to filter
 #       templates when auto-resolving via pveam.
 #   --hostname HOSTNAME (string, optional): Hostname to assign inside the container.
@@ -136,9 +138,9 @@ function pct_create {
     if [[ "$dry_run" == "true" ]]; then
         if [[ -z "$template" ]]; then
             echo "[DRY RUN] pveam update"
-            echo "[DRY RUN] pveam available  # search for ${dist}-${release} ${arch}"
+            echo "[DRY RUN] pveam available  # search for ${dist}-<version-of-${release}> ${arch}"
             echo "[DRY RUN] pveam download local <matched-template>"
-            template="local:vztmpl/<${dist}-${release}-*-${arch}.tar.*>"
+            template="local:vztmpl/<${dist}-*-${arch}.tar.*>"
         fi
         local dry_pct_args="$vmid \"$template\" --memory $memory --cores $cores --storage $storage --rootfs ${storage}:${disk_size}"
         [[ -n "$hostname" ]] && dry_pct_args+=" --hostname \"$hostname\""
@@ -158,8 +160,33 @@ function pct_create {
 
     # Auto-resolve template via pveam when --dist is provided without --template
     if [[ -z "$template" ]]; then
-        local pattern="${dist}-${release}"
-        debug "pct_create: resolving template for dist='$dist' release='$release' arch='$arch'"
+        # Map Debian/Ubuntu release codenames to the version numbers used in pveam template names.
+        # Users may supply either form; pveam always uses version numbers (e.g. debian-12-*).
+        local release_ver="$release"
+        case "$release" in
+            woody)    release_ver="3"     ;;
+            sarge)    release_ver="4"     ;;
+            etch)     release_ver="4"     ;;
+            lenny)    release_ver="5"     ;;
+            squeeze)  release_ver="6"     ;;
+            wheezy)   release_ver="7"     ;;
+            jessie)   release_ver="8"     ;;
+            stretch)  release_ver="9"     ;;
+            buster)   release_ver="10"    ;;
+            bullseye) release_ver="11"    ;;
+            bookworm) release_ver="12"    ;;
+            trixie)   release_ver="13"    ;;
+            forky)    release_ver="14"    ;;
+            focal)    release_ver="20.04" ;;
+            jammy)    release_ver="22.04" ;;
+            noble)    release_ver="24.04" ;;
+            oracular) release_ver="24.10" ;;
+            plucky)   release_ver="25.04" ;;
+        esac
+        [[ "$release_ver" != "$release" ]] && debug "pct_create: mapped release codename '$release' -> '$release_ver'"
+
+        local pattern="${dist}-${release_ver}"
+        debug "pct_create: resolving template for dist='$dist' release='$release_ver' arch='$arch'"
 
         # Search locally cached templates first
         local matched

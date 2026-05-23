@@ -248,18 +248,16 @@ _container_config() {
 }
 
 # _container_create
-# Extracts --name NAME, --gpu PCI_ADDR, --pcie, and LXC-only flags (--dist, --release,
-# --arch) from args. For PCT, auto-generates the VMID via pct_next_vmid and uses --name
-# as the hostname; LXC-only flags are dropped. For LXC, forwards --name unchanged and
-# re-injects LXC-only flags into the passthrough. When --gpu is provided, GPU passthrough
-# is applied after the container is created using _gpu_apply_passthrough.
+# Extracts --name NAME, --gpu PCI_ADDR, and --pcie from args. All other flags are
+# forwarded unchanged to the appropriate backend. Both pct_create and lxc_create accept
+# --dist, --release, and --arch for download-template selection; pct_create resolves them
+# via pveam while lxc_create uses the lxc-create download template. When --gpu is
+# provided, GPU passthrough is applied after the container is created using
+# _gpu_apply_passthrough.
 _container_create() {
     local name=""
     local gpu_addr=""
     local pcie_mode="false"
-    local dist=""
-    local release=""
-    local arch=""
     local passthrough=()
 
     while [[ $# -gt 0 ]]; do
@@ -275,18 +273,6 @@ _container_create() {
             --pcie)
                 pcie_mode="true"
                 shift
-                ;;
-            -d|--dist)
-                dist="$2"
-                shift 2
-                ;;
-            -r|--release)
-                release="$2"
-                shift 2
-                ;;
-            -a|--arch)
-                arch="$2"
-                shift 2
                 ;;
             *)
                 passthrough+=("$1")
@@ -312,11 +298,7 @@ _container_create() {
         pct_create --vmid "$vmid" --hostname "$name" "${passthrough[@]}" || return 1
         container_id="$vmid"
     else
-        local lxc_args=()
-        [[ -n "$dist"    ]] && lxc_args+=(--dist    "$dist")
-        [[ -n "$release" ]] && lxc_args+=(--release "$release")
-        [[ -n "$arch"    ]] && lxc_args+=(--arch    "$arch")
-        lxc_create --name "$name" "${lxc_args[@]}" "${passthrough[@]}" || return 1
+        lxc_create --name "$name" "${passthrough[@]}" || return 1
         container_id="$name"
     fi
 

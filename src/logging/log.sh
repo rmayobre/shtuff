@@ -118,11 +118,11 @@ log() {
         fi
         echo "$formatted_message" >> "$LOG_FILE"
     else
-        # Output to console with colors (only if outputting to terminal)
-        if [[ -t 1 ]]; then
-            echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET"
+        # Output to stderr so log messages never pollute stdout return values
+        if [[ -t 2 ]]; then
+            echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET" >&2
         else
-            echo "$formatted_message"
+            echo "$formatted_message" >&2
         fi
     fi
 }

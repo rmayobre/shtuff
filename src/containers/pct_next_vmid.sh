@@ -2,11 +2,13 @@
 
 # Function: pct_next_vmid
 # Description: Finds and prints the next available VMID for a new PCT container.
-#              Scans currently allocated VMIDs via pct list and returns the lowest
-#              unused integer greater than or equal to the start value.
+#              Queries the Proxmox cluster API via pvesh to obtain the next free VMID
+#              (shared across both LXC containers and QEMU VMs). Falls back to scanning
+#              pct list and qm list directly when pvesh is unavailable.
 #
 # Arguments:
-#   --start N (integer, optional, default: 100): Lowest VMID to consider.
+#   --start N (integer, optional, default: 100): Lowest VMID to consider. Only used
+#       in fallback mode; pvesh /cluster/nextid always returns the cluster-wide next ID.
 #
 # Globals:
 #   None
@@ -44,20 +46,35 @@ function pct_next_vmid {
         return 1
     fi
 
-    # Collect all existing VMIDs into a sorted array
-    local -a used_vmids
-    mapfile -t used_vmids < <(pct list 2>/dev/null | awk 'NR>1 {print $1}' | sort -n)
+    # Prefer the cluster API — it covers both LXC containers and QEMU VMs atomically.
+    # pvesh /cluster/nextid always scans from 100; if that result falls below --start
+    # we fall through to the scan so the start constraint is honoured.
+    if command -v pvesh &>/dev/null; then
+        local next_id
+        next_id=$(pvesh get /cluster/nextid 2>/dev/null | tr -d '[:space:]"')
+        if [[ "$next_id" =~ ^[0-9]+$ && "$next_id" -ge "$start" ]]; then
+            debug "pct_next_vmid: pvesh /cluster/nextid -> '$next_id'"
+            echo "$next_id"
+            return 0
+        fi
+        if [[ "$next_id" =~ ^[0-9]+$ ]]; then
+            debug "pct_next_vmid: pvesh returned '$next_id' which is below start='$start', falling back to list scan"
+        else
+            debug "pct_next_vmid: pvesh /cluster/nextid returned unexpected output, falling back to list scan"
+        fi
+    fi
 
-    debug "pct_next_vmid: used_vmids='${used_vmids[*]}' start='$start'"
-
-    # Build a lookup set for O(1) existence checks
+    # Fallback: merge pct list and qm list to cover all allocated VMIDs on this node.
     local -A vmid_set
     local id
-    for id in "${used_vmids[@]}"; do
-        vmid_set["$id"]=1
-    done
+    while IFS= read -r id; do
+        [[ "$id" =~ ^[0-9]+$ ]] && vmid_set["$id"]=1
+    done < <(
+        { pct list 2>/dev/null; qm list 2>/dev/null; } | awk 'NR>1 {print $1}'
+    )
 
-    # Find the lowest unused VMID >= start
+    debug "pct_next_vmid: fallback scan used_vmids='${!vmid_set[*]}' start='$start'"
+
     local candidate="$start"
     while [[ -n "${vmid_set[$candidate]+_}" ]]; do
         (( candidate++ ))

@@ -48,7 +48,13 @@
 #   --force (flag, optional): Stop the container before destroying if it is running.
 #   --purge (flag, optional, PCT only): Remove from related configurations and jobs.
 #
-#   network subcommand — configure a container's network interface:
+#   network subcommand — manage a container's network interface. Accepts an
+#   optional subcommand keyword as the first argument after 'network':
+#       (no keyword) — configure the interface (default behaviour).
+#       show          — display the current network configuration.
+#       prompt        — interactive form to configure the interface.
+#
+#   Configure / show flags:
 #   --bridge BRIDGE (string, optional): Host bridge interface to attach to.
 #       Default: lxcbr0 (LXC) or vmbr0 (PCT).
 #   --ip IP/PREFIX (string, optional): Static IP with prefix (e.g. 10.0.0.10/24).
@@ -92,6 +98,10 @@
 #   container network --name mycontainer --bridge lxcbr0 --ip 10.0.0.10/24 --gateway 10.0.0.1
 #   container network --name 100 --ip 192.168.1.100/24 --gateway 192.168.1.1
 #   container network --name 100 --ip dhcp --dns "8.8.8.8 8.8.4.4"
+#   container network show --name mycontainer
+#   container network show --name 100 --index 1
+#   container network prompt --name mycontainer
+#   container network prompt --name mycontainer --index 1
 #   container shell-script --name mycontainer --content '#!/bin/bash\necho hello' --path /usr/local/bin/hello.sh
 #   container shell-script --name 100 --content "$(cat setup.sh)" --path /opt/setup.sh
 #   container prompt
@@ -474,9 +484,16 @@ _container_pull() {
 }
 
 # _container_network
-# Extracts --name NAME from args, maps it to --vmid (PCT) or --name (LXC),
-# and forwards all remaining flags to pct_network or lxc_network.
+# Dispatches 'container network' subcommands: show, prompt, or configure (default).
+# Extracts --name NAME and an optional leading subcommand keyword, then delegates
+# to pct_network_show / lxc_network_show, _container_network_prompt, or
+# pct_network / lxc_network as appropriate.
 _container_network() {
+    local subcommand=""
+    case "${1:-}" in
+        show|prompt) subcommand="$1"; shift ;;
+    esac
+
     local name=""
     local passthrough=()
 
@@ -500,14 +517,26 @@ _container_network() {
 
     local backend
     backend=$(_container_backend)
-    debug "container network: backend='$backend' name='$name'"
+    debug "container network: backend='$backend' name='$name' subcommand='${subcommand:-configure}'"
 
-    if [[ "$backend" == "pct" ]]; then
-        local vmid
-        vmid=$(pct_find_vmid --name "$name") || return $?
-        pct_network --vmid "$vmid" "${passthrough[@]}"
+    if [[ "$subcommand" == "show" ]]; then
+        if [[ "$backend" == "pct" ]]; then
+            local vmid
+            vmid=$(pct_find_vmid --name "$name") || return $?
+            pct_network_show --vmid "$vmid" "${passthrough[@]}"
+        else
+            lxc_network_show --name "$name" "${passthrough[@]}"
+        fi
+    elif [[ "$subcommand" == "prompt" ]]; then
+        _container_network_prompt --name "$name" "${passthrough[@]}"
     else
-        lxc_network --name "$name" "${passthrough[@]}"
+        if [[ "$backend" == "pct" ]]; then
+            local vmid
+            vmid=$(pct_find_vmid --name "$name") || return $?
+            pct_network --vmid "$vmid" "${passthrough[@]}"
+        else
+            lxc_network --name "$name" "${passthrough[@]}"
+        fi
     fi
 }
 

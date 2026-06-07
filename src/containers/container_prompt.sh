@@ -248,5 +248,11 @@ function _container_prompt {
     fi
 
     debug "_container_prompt: delegating to container create ${create_args[*]}"
-    container create "${create_args[@]}"
+    container create "${create_args[@]}" || return $?
+
+    if confirm "Configure network interface for '$name'?"; then
+        _container_network_prompt --name "$name"
+        return $?
+    fi
+    return 0
 }

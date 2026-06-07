@@ -5,7 +5,7 @@
 **shtuff** (Shell Stuff) is a Bash utility library providing reusable functions for
 cross-platform package management, structured logging, background process monitoring,
 file operations (copy, move, delete), and systemd service/timer creation. Scripts
-source it locally or via `curl`.
+source it locally or via `curl` (or `wget` on systems without curl).
 
 The `examples/` directory contains install and update scripts for [BentoPDF](https://github.com/alam00000/bentopdf)
 that serve as reference implementations.
@@ -20,12 +20,20 @@ source ./shtuff.sh
 ```
 
 **Remotely** (production scripts):
+
+Using `curl`:
 ```bash
 source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
 ```
 
-All example scripts use the remote form. When writing new scripts, always use the
-remote form unless the script is explicitly for local development use.
+Using `wget` (alternative for systems without curl):
+```bash
+source <(wget -qO- https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+```
+
+All example scripts use the curl remote form. When writing new scripts, always use the
+remote form unless the script is explicitly for local development use. Use `wget` when
+the target system may not have `curl` installed.
 
 ---
 

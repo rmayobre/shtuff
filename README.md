@@ -35,6 +35,8 @@ Custom shell scripts can reference this repo on it's main branch by sourcing the
 
 ## Remote Source
 
+**Using curl:**
+
 ```bash
 #!/bin/bash
 
@@ -48,11 +50,28 @@ uninstall htop curl nano # Remove package(s)
 clean                    # Cleanup unused packages and cache
 ```
 
+**Using wget** (alternative for systems without curl):
+
+```bash
+#!/bin/bash
+
+source <(wget -qO- https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+# Now you have access to all my shtuff
+
+install htop wget nano   # Install package(s)
+update                   # Update packages and cache
+uninstall htop wget nano # Remove package(s)
+clean                    # Cleanup unused packages and cache
+```
+
 ## Release Source
 
 Source a pinned, stable version by downloading a specific release tarball from GitHub
 Releases. This avoids pulling from `main` and gives you reproducible, version-locked
 behaviour.
+
+**Using curl:**
 
 ```bash
 #!/bin/bash
@@ -71,6 +90,28 @@ source "${SHTUFF_TMP}/shtuff.sh"
 install htop curl nano   # Install package(s)
 update                   # Update packages and cache
 uninstall htop curl nano # Remove package(s)
+clean                    # Cleanup unused packages and cache
+```
+
+**Using wget** (alternative for systems without curl):
+
+```bash
+#!/bin/bash
+
+VERSION="v1.0.0"  # pin to the release tag you want
+SHTUFF_TMP="/tmp/shtuff-${VERSION}"
+
+mkdir -p "${SHTUFF_TMP}"
+wget -qO- "https://github.com/rmayobre/shtuff/releases/download/${VERSION}/shtuff-${VERSION}.tar.gz" \
+    | tar -xz -C "${SHTUFF_TMP}"
+
+source "${SHTUFF_TMP}/shtuff.sh"
+
+# Now you have access to all my shtuff (pinned to the chosen version)
+
+install htop wget nano   # Install package(s)
+update                   # Update packages and cache
+uninstall htop wget nano # Remove package(s)
 clean                    # Cleanup unused packages and cache
 ```
 

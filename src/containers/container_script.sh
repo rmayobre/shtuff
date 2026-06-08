@@ -7,11 +7,13 @@
 #
 # How it works:
 #   Expands to a command-group redirect:
-#     { IFS= read -r -d "" script || true; } <<CONTAINER_SCRIPT_EOD
-#   The closing } is embedded in the alias expansion, so no extra token is
-#   needed after the delimiter. Bash's heredoc parser matches the literal string
-#   CONTAINER_SCRIPT_EOD to close the block — alias expansion never occurs
-#   inside a heredoc body, so the closing marker must be the literal delimiter.
+#     { IFS= read -r -d "" script || true; } <<'CONTAINER_SCRIPT_EOD'
+#   The heredoc delimiter is quoted (<<'CONTAINER_SCRIPT_EOD'), so the outer
+#   shell performs NO variable or parameter expansion inside the body. This is
+#   intentional: the body is a script that runs inside a container, and its
+#   variables ($!, $VAR, etc.) must be expanded by the container's shell, not
+#   the outer shell. To embed outer-shell values explicitly, use the --env flag
+#   on 'container shell-script'.
 #   IFS= read -r -d "" reads all heredoc content (preserving every newline and
 #   leading whitespace) into $script; read returns 1 on EOF instead of the null
 #   byte delimiter, and || true suppresses that non-zero exit status.
@@ -31,7 +33,7 @@
 #   container shell-script --name mycontainer --path /opt/hello.sh
 shopt -s expand_aliases
 # shellcheck disable=SC2142
-alias CONTAINER_SCRIPT='{ IFS= read -r -d "" script || true; } <<CONTAINER_SCRIPT_EOD'
+alias CONTAINER_SCRIPT='{ IFS= read -r -d "" script || true; } <<'"'"'CONTAINER_SCRIPT_EOD'"'"
 
 # Alias: CONTAINER_SCRIPT_EOD
 # Description: Marks the end of a CONTAINER_SCRIPT block.

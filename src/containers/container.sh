@@ -104,6 +104,7 @@
 #   container network prompt --name mycontainer --index 1
 #   container shell-script --name mycontainer --content '#!/bin/bash\necho hello' --path /usr/local/bin/hello.sh
 #   container shell-script --name 100 --content "$(cat setup.sh)" --path /opt/setup.sh
+#   container shell-script --name mycontainer --path /opt/setup.sh --env PORT="$PORT" --env DIR="$INSTALL_DIR"
 #   container prompt
 #   CONTAINER_NAME=myapp CONTAINER_MEMORY=1024 container prompt
 function container {

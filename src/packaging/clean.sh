@@ -16,6 +16,14 @@
 # Examples:
 #   clean
 clean() {
+    if [[ $EUID -ne 0 ]]; then
+        if command -v sudo &>/dev/null; then
+            warn "Not running as root. Package cleanup may fail without elevated privileges."
+        else
+            warn "Not running as root and 'sudo' is not available. Package cleanup may fail."
+        fi
+    fi
+
     if command -v apt &> /dev/null; then
         clean_apt
     elif command -v dnf &> /dev/null; then
@@ -52,8 +60,8 @@ clean() {
 #   clean_apt
 clean_apt() {
     info "Running APT cleanup (autoremove and autoclean)"
-    sudo apt autoremove -y || return 1
-    sudo apt autoclean -y || return 1
+    apt autoremove -y || return 1
+    apt autoclean -y || return 1
 }
 
 # Function: clean_dnf
@@ -73,8 +81,8 @@ clean_apt() {
 #   clean_dnf
 clean_dnf() {
     info "Running DNF cleanup (autoremove and clean all)"
-    sudo dnf autoremove -y || return 1
-    sudo dnf clean all || return 1
+    dnf autoremove -y || return 1
+    dnf clean all || return 1
 }
 
 # Function: clean_yum
@@ -94,10 +102,10 @@ clean_dnf() {
 #   clean_yum
 clean_yum() {
     info "Running YUM cleanup (clean all)"
-    sudo yum clean all || return 1
+    yum clean all || return 1
     if command -v package-cleanup &> /dev/null; then
         info "Running package-cleanup --orphans"
-        sudo package-cleanup --orphans -y || return 1
+        package-cleanup --orphans -y || return 1
     else
         warn "'package-cleanup' not found. Install 'yum-utils' for more thorough dependency cleanup."
     fi
@@ -122,7 +130,7 @@ clean_zypper() {
     info "Running Zypper cleanup (autoremove and clean)"
     info "Zypper automatically removes unused dependencies."
     info "Clearing cache..."
-    sudo zypper clean --all || return 1
+    zypper clean --all || return 1
 }
 
 # Function: clean_pacman
@@ -144,12 +152,12 @@ clean_pacman() {
     info "Running Pacman cleanup (orphan removal and cache cleaning)"
     if pacman -Qtdq &> /dev/null; then
         info "Removing orphaned packages with Pacman..."
-        sudo pacman -Rns --noconfirm "$(pacman -Qtdq)" || return 1
+        pacman -Rns --noconfirm "$(pacman -Qtdq)" || return 1
     else
         info "No orphaned packages found or nothing to remove."
     fi
     info "Cleaning Pacman package cache..."
-    sudo pacman -Sc --noconfirm || return 1
+    pacman -Sc --noconfirm || return 1
 }
 
 # Function: clean_apk
@@ -169,5 +177,5 @@ clean_pacman() {
 #   clean_apk
 clean_apk() {
     info "Running APK cleanup (cache clean)"
-    sudo apk cache clean || return 1
+    apk cache clean || return 1
 }

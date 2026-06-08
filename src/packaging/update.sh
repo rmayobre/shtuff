@@ -16,6 +16,14 @@
 # Examples:
 #   update
 update() {
+    if [[ $EUID -ne 0 ]]; then
+        if command -v sudo &>/dev/null; then
+            warn "Not running as root. Package updates may fail without elevated privileges."
+        else
+            warn "Not running as root and 'sudo' is not available. Package updates may fail."
+        fi
+    fi
+
     if command -v apt &> /dev/null; then
         update_apt
     elif command -v dnf &> /dev/null; then
@@ -29,9 +37,9 @@ update() {
     elif command -v apk &> /dev/null; then
         update_apk
     else
-        echo "Error: Could not determine the primary package manager."
-        echo "Cannot proceed with system update."
-        exit 1
+        error "Could not determine the primary package manager."
+        error "Cannot proceed with system update."
+        return 1
     fi
 }
 
@@ -51,10 +59,10 @@ update() {
 # Examples:
 #   update_apt
 update_apt() {
-    echo "--- Running APT update (update package lists and upgrade packages) ---"
-    sudo apt update
-    sudo apt upgrade -y
-    echo "APT update completed successfully."
+    info "Running APT update (update package lists and upgrade packages)"
+    apt update
+    apt upgrade -y
+    info "APT update completed successfully."
 }
 
 # Function: update_dnf
@@ -73,9 +81,9 @@ update_apt() {
 # Examples:
 #   update_dnf
 update_dnf() {
-    echo "--- Running DNF update (upgrade all packages) ---"
-    sudo dnf upgrade -y
-    echo "DNF update completed successfully."
+    info "Running DNF update (upgrade all packages)"
+    dnf upgrade -y
+    info "DNF update completed successfully."
 }
 
 # Function: update_yum
@@ -94,9 +102,9 @@ update_dnf() {
 # Examples:
 #   update_yum
 update_yum() {
-    echo "--- Running YUM update (update all packages) ---"
-    sudo yum update -y
-    echo "YUM update completed successfully."
+    info "Running YUM update (update all packages)"
+    yum update -y
+    info "YUM update completed successfully."
 }
 
 # Function: update_zypper
@@ -115,10 +123,10 @@ update_yum() {
 # Examples:
 #   update_zypper
 update_zypper() {
-    echo "--- Running Zypper update (refresh repositories and update packages) ---"
-    sudo zypper refresh
-    sudo zypper --non-interactive update
-    echo "Zypper update completed successfully."
+    info "Running Zypper update (refresh repositories and update packages)"
+    zypper refresh
+    zypper --non-interactive update
+    info "Zypper update completed successfully."
 }
 
 # Function: update_pacman
@@ -137,9 +145,9 @@ update_zypper() {
 # Examples:
 #   update_pacman
 update_pacman() {
-    echo "--- Running Pacman update (sync databases and upgrade packages) ---"
-    sudo pacman -Syu --noconfirm
-    echo "Pacman update completed successfully."
+    info "Running Pacman update (sync databases and upgrade packages)"
+    pacman -Syu --noconfirm
+    info "Pacman update completed successfully."
 }
 
 # Function: update_apk
@@ -158,8 +166,8 @@ update_pacman() {
 # Examples:
 #   update_apk
 update_apk() {
-    echo "--- Running APK update (update package index and upgrade packages) ---"
-    sudo apk update
-    sudo apk upgrade
-    echo "APK update completed successfully."
+    info "Running APK update (update package index and upgrade packages)"
+    apk update
+    apk upgrade
+    info "APK update completed successfully."
 }

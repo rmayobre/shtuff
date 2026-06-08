@@ -18,8 +18,16 @@
 #   install nodejs npm unzip
 install() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: install <package1> [package2...]"
+        error "Usage: install <package1> [package2...]"
         return 1
+    fi
+
+    if [[ $EUID -ne 0 ]]; then
+        if command -v sudo &>/dev/null; then
+            warn "Not running as root. Package installation may fail without elevated privileges."
+        else
+            warn "Not running as root and 'sudo' is not available. Package installation may fail."
+        fi
     fi
 
     local dependencies=("$@")
@@ -37,9 +45,9 @@ install() {
     elif command -v apk &> /dev/null; then
         install_apk "${dependencies[@]}"
     else
-        echo "Error: Could not determine the primary package manager."
-        echo "Cannot proceed with installation."
-        exit 1
+        error "Could not determine the primary package manager."
+        error "Cannot proceed with installation."
+        return 1
     fi
 }
 
@@ -60,12 +68,12 @@ install() {
 #   install_apt curl git
 install_apt() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: install_apt <package1> [package2...]"
+        error "Usage: install_apt <package1> [package2...]"
         return 1
     fi
-    echo "Installing packages with APT: $*"
-    sudo apt update
-    sudo apt install -y "$@"
+    info "Installing packages with APT: $*"
+    apt update
+    apt install -y "$@"
 }
 
 # Function: install_dnf
@@ -85,11 +93,11 @@ install_apt() {
 #   install_dnf curl git
 install_dnf() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: install_dnf <package1> [package2...]"
+        error "Usage: install_dnf <package1> [package2...]"
         return 1
     fi
-    echo "Installing packages with DNF: $*"
-    sudo dnf install -y "$@"
+    info "Installing packages with DNF: $*"
+    dnf install -y "$@"
 }
 
 # Function: install_yum
@@ -109,11 +117,11 @@ install_dnf() {
 #   install_yum curl git
 install_yum() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: install_yum <package1> [package2...]"
+        error "Usage: install_yum <package1> [package2...]"
         return 1
     fi
-    echo "Installing packages with YUM: $*"
-    sudo yum install -y "$@"
+    info "Installing packages with YUM: $*"
+    yum install -y "$@"
 }
 
 # Function: install_zypper
@@ -133,11 +141,11 @@ install_yum() {
 #   install_zypper curl git
 install_zypper() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: install_zypper <package1> [package2...]"
+        error "Usage: install_zypper <package1> [package2...]"
         return 1
     fi
-    echo "Installing packages with Zypper: $*"
-    sudo zypper --non-interactive install "$@"
+    info "Installing packages with Zypper: $*"
+    zypper --non-interactive install "$@"
 }
 
 # Function: install_pacman
@@ -157,11 +165,11 @@ install_zypper() {
 #   install_pacman curl git
 install_pacman() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: install_pacman <package1> [package2...]"
+        error "Usage: install_pacman <package1> [package2...]"
         return 1
     fi
-    echo "Installing packages with Pacman: $*"
-    sudo pacman -Sy --noconfirm "$@"
+    info "Installing packages with Pacman: $*"
+    pacman -Sy --noconfirm "$@"
 }
 
 # Function: install_apk
@@ -181,9 +189,9 @@ install_pacman() {
 #   install_apk curl git
 install_apk() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: install_apk <package1> [package2...]"
+        error "Usage: install_apk <package1> [package2...]"
         return 1
     fi
-    echo "Installing packages with APK: $*"
-    sudo apk add "$@"
+    info "Installing packages with APK: $*"
+    apk add "$@"
 }

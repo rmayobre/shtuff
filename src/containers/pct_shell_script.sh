@@ -12,6 +12,9 @@
 #                     Defaults to the value of the $script variable when omitted.
 #   --path PATH       (string, required): Absolute destination path inside the container
 #                     (e.g. /usr/local/bin/myscript.sh).
+#   --env KEY=VALUE   (string, optional, repeatable): Prepend an 'export KEY=VALUE' line
+#                     to the script. Use to inject outer-shell values into the container
+#                     script without relying on heredoc variable expansion.
 #   --style STYLE     (string, optional, default: spinner): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
 #   --dry-run         (flag, optional): Print the system calls that would be executed
@@ -31,12 +34,14 @@
 # Examples:
 #   pct_shell_script --vmid 100 --content '#!/bin/bash\necho hello' --path /usr/local/bin/hello.sh
 #   pct_shell_script --vmid 101 --content "$(cat setup.sh)" --path /opt/setup.sh --style dots
+#   pct_shell_script --vmid 100 --path /opt/setup.sh --env PORT="$PORT" --env DIR="$INSTALL_DIR"
 function pct_shell_script {
     local vmid=""
     local content=""
     local dest_path=""
     local style="${SPINNER_LOADING_STYLE}"
     local dry_run="${IS_DRY_RUN:-false}"
+    local env_vars=()
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -50,6 +55,10 @@ function pct_shell_script {
                 ;;
             -p|--path)
                 dest_path="$2"
+                shift 2
+                ;;
+            -e|--env)
+                env_vars+=("$2")
                 shift 2
                 ;;
             -s|--style)
@@ -84,6 +93,15 @@ function pct_shell_script {
     if [[ -z "$dest_path" ]]; then
         error "pct_shell_script: --path is required"
         return 1
+    fi
+
+    if [[ ${#env_vars[@]} -gt 0 ]]; then
+        local env_header=""
+        local pair
+        for pair in "${env_vars[@]}"; do
+            env_header+="export $(printf '%q=%q' "${pair%%=*}" "${pair#*=}")"$'\n'
+        done
+        content="${env_header}${content}"
     fi
 
     local tmp_file="/tmp/shtuff_shell_script_$$.sh"

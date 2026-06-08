@@ -4,8 +4,8 @@
 # Description: Configures network interface settings for an LXC container by
 #              writing lxc.net.N.* keys to /var/lib/lxc/NAME/config. If a key
 #              already exists it is replaced in-place; otherwise it is appended.
-#              Changes take effect the next time the container is started —
-#              restart if currently running.
+#              If the container is currently running it is stopped and restarted
+#              automatically so the new settings take effect immediately.
 #
 # Arguments:
 #   --name NAME (string, required): Name of the container to configure.
@@ -22,16 +22,19 @@
 #       (e.g. 00:16:3e:ab:cd:ef). Omit to let LXC auto-generate one.
 #   --index N (integer, optional, default: 0): Network interface index.
 #       Controls which lxc.net.N.* block is configured.
+#   --style STYLE (string, optional, default: spinner): Loading indicator style.
+#       Valid values: spinner, dots, bars, arrows, clock.
 #   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
 #   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
+#   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #
 # Returns:
 #   0 - Network configuration updated successfully.
 #   1 - Invalid or missing arguments, or LXC not installed.
 #   2 - Container does not exist or config file not found.
-#   3 - Configuration write failed.
+#   3 - Configuration write or restart failed.
 #
 # Examples:
 #   lxc_network --name mycontainer --bridge lxcbr0 --ip 10.0.0.10/24 --gateway 10.0.0.1
@@ -47,6 +50,7 @@ function lxc_network {
     local gateway=""
     local hwaddr=""
     local index=0
+    local style="${SPINNER_LOADING_STYLE}"
     local dry_run="${IS_DRY_RUN:-false}"
 
     while [[ $# -gt 0 ]]; do
@@ -77,6 +81,10 @@ function lxc_network {
                 ;;
             --index)
                 index="$2"
+                shift 2
+                ;;
+            -s|--style)
+                style="$2"
                 shift 2
                 ;;
             --dry-run)
@@ -117,6 +125,7 @@ function lxc_network {
         [[ -n "$ip"      ]] && echo "[DRY RUN] set ${prefix}.ipv4.address = $ip in $config_file"
         [[ -n "$ip" && -n "$gateway" ]] && echo "[DRY RUN] set ${prefix}.ipv4.gateway = $gateway in $config_file"
         [[ -n "$hwaddr"  ]] && echo "[DRY RUN] set ${prefix}.hwaddr = $hwaddr in $config_file"
+        echo "[DRY RUN] lxc-info -n \"$name\" -s  # check if RUNNING, then stop and start"
         return 0
     fi
 
@@ -196,6 +205,23 @@ function lxc_network {
     info "Container '$name' network interface $index configured."
     if [[ -z "$ip" && "$type" != "none" ]]; then
         info "No static IP set — configure a DHCP client inside the container for dynamic IP assignment."
+    fi
+
+    local state
+    state=$(lxc-info -n "$name" -s 2>/dev/null | awk '{print $2}')
+    if [[ "$state" == "RUNNING" ]]; then
+        lxc-stop -n "$name" > >(log_output) 2>&1 &
+        monitor $! \
+            --style "$style" \
+            --message "Stopping container '$name' to apply network config" \
+            --success_msg "Container '$name' stopped." \
+            --error_msg "Failed to stop container '$name'." || return 3
+        lxc-start -n "$name" > >(log_output) 2>&1 &
+        monitor $! \
+            --style "$style" \
+            --message "Restarting container '$name'" \
+            --success_msg "Container '$name' restarted with new network config." \
+            --error_msg "Failed to start container '$name'." || return 3
     fi
 
     return 0

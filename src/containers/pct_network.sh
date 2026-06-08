@@ -3,7 +3,9 @@
 # Function: pct_network
 # Description: Configures network interface settings for a Proxmox CT container
 #              using 'pct set'. Builds the --netN key=value string from individual
-#              flags and applies it, optionally also setting a nameserver.
+#              flags and applies it, optionally also setting a nameserver. If the
+#              container is currently running it is rebooted automatically so the
+#              new settings take effect immediately.
 #
 # Arguments:
 #   --vmid VMID (integer, required): Numeric ID of the container to configure.
@@ -102,6 +104,7 @@ function pct_network {
         [[ -n "$ip" && "$ip" != "dhcp" && -n "$gateway" ]] && dry_net_string+=",gw=${gateway}"
         echo "[DRY RUN] pct set $vmid --net${index} \"${dry_net_string}\""
         [[ -n "$dns" ]] && echo "[DRY RUN] pct set $vmid --nameserver \"$dns\""
+        echo "[DRY RUN] pct status $vmid  # check if running, then pct reboot $vmid"
         return 0
     fi
 
@@ -146,6 +149,17 @@ function pct_network {
             --message "Setting DNS on container $vmid" \
             --success_msg "Container $vmid DNS set to: $dns" \
             --error_msg "Failed to set DNS on container $vmid." || return 3
+    fi
+
+    local state
+    state=$(pct status "$vmid" 2>/dev/null | awk '{print $2}')
+    if [[ "$state" == "running" ]]; then
+        pct reboot "$vmid" > >(log_output) 2>&1 &
+        monitor $! \
+            --style "$style" \
+            --message "Rebooting container $vmid to apply network config" \
+            --success_msg "Container $vmid rebooted with new network config." \
+            --error_msg "Failed to reboot container $vmid." || return 3
     fi
 
     return 0

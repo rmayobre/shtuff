@@ -18,8 +18,16 @@
 #   uninstall nodejs npm
 uninstall() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: uninstall <package1> [package2...]"
+        error "Usage: uninstall <package1> [package2...]"
         return 1
+    fi
+
+    if [[ $EUID -ne 0 ]]; then
+        if command -v sudo &>/dev/null; then
+            warn "Not running as root. Package removal may fail without elevated privileges."
+        else
+            warn "Not running as root and 'sudo' is not available. Package removal may fail."
+        fi
     fi
 
     local dependencies=("$@")
@@ -37,9 +45,9 @@ uninstall() {
     elif command -v apk &> /dev/null; then
         uninstall_apk "${dependencies[@]}"
     else
-        echo "Error: Could not determine the primary package manager."
-        echo "Cannot proceed with dependency removal."
-        exit 1
+        error "Could not determine the primary package manager."
+        error "Cannot proceed with dependency removal."
+        return 1
     fi
 }
 
@@ -60,12 +68,11 @@ uninstall() {
 #   uninstall_apt nginx
 uninstall_apt() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: uninstall_apt <package1> [package2...]"
+        error "Usage: uninstall_apt <package1> [package2...]"
         return 1
     fi
-    echo "Uninstalling packages with APT: $*"
-    sudo apt remove -y "$@"
-    # Consider `sudo apt autoremove -y` after removal for orphaned dependencies
+    info "Uninstalling packages with APT: $*"
+    apt remove -y "$@"
 }
 
 # Function: uninstall_dnf
@@ -85,12 +92,11 @@ uninstall_apt() {
 #   uninstall_dnf nginx
 uninstall_dnf() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: uninstall_dnf <package1> [package2...]"
+        error "Usage: uninstall_dnf <package1> [package2...]"
         return 1
     fi
-    echo "Uninstalling packages with DNF: $*"
-    sudo dnf remove -y "$@"
-    # Consider `sudo dnf autoremove -y` after removal for orphaned dependencies
+    info "Uninstalling packages with DNF: $*"
+    dnf remove -y "$@"
 }
 
 # Function: uninstall_yum
@@ -110,13 +116,11 @@ uninstall_dnf() {
 #   uninstall_yum nginx
 uninstall_yum() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: uninstall_yum <package1> [package2...]"
+        error "Usage: uninstall_yum <package1> [package2...]"
         return 1
     fi
-    echo "Uninstalling packages with YUM: $*"
-    sudo yum remove -y "$@"
-    # Note: Yum doesn't have a direct `autoremove` equivalent like apt/dnf,
-    # but `package-cleanup --orphans` can help with cleanup.
+    info "Uninstalling packages with YUM: $*"
+    yum remove -y "$@"
 }
 
 # Function: uninstall_zypper
@@ -136,12 +140,11 @@ uninstall_yum() {
 #   uninstall_zypper nginx
 uninstall_zypper() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: uninstall_zypper <package1> [package2...]"
+        error "Usage: uninstall_zypper <package1> [package2...]"
         return 1
     fi
-    echo "Uninstalling packages with Zypper: $*"
-    sudo zypper --non-interactive remove "$@"
-    # Note: Zypper automatically handles orphaned dependencies on remove.
+    info "Uninstalling packages with Zypper: $*"
+    zypper --non-interactive remove "$@"
 }
 
 # Function: uninstall_pacman
@@ -161,12 +164,11 @@ uninstall_zypper() {
 #   uninstall_pacman nginx
 uninstall_pacman() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: uninstall_pacman <package1> [package2...]"
+        error "Usage: uninstall_pacman <package1> [package2...]"
         return 1
     fi
-    echo "Uninstalling packages with Pacman: $*"
-    # -Rs: Removes package and its dependencies that are not required by other packages.
-    sudo pacman -Rs --noconfirm "$@"
+    info "Uninstalling packages with Pacman: $*"
+    pacman -Rs --noconfirm "$@"
 }
 
 # Function: uninstall_apk
@@ -186,9 +188,9 @@ uninstall_pacman() {
 #   uninstall_apk nginx
 uninstall_apk() {
     if [ "$#" -eq 0 ]; then
-        echo "Usage: uninstall_apk <package1> [package2...]"
+        error "Usage: uninstall_apk <package1> [package2...]"
         return 1
     fi
-    echo "Uninstalling packages with APK: $*"
-    sudo apk del "$@"
+    info "Uninstalling packages with APK: $*"
+    apk del "$@"
 }

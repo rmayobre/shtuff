@@ -101,7 +101,13 @@ function pct_shell_script {
         for pair in "${env_vars[@]}"; do
             env_header+="export $(printf '%q=%q' "${pair%%=*}" "${pair#*=}")"$'\n'
         done
-        content="${env_header}${content}"
+        if [[ "$content" == '#!'* ]]; then
+            local first_line="${content%%$'\n'*}"
+            local rest="${content#*$'\n'}"
+            content="${first_line}"$'\n'"${env_header}${rest}"
+        else
+            content="${env_header}${content}"
+        fi
     fi
 
     local tmp_file="/tmp/shtuff_shell_script_$$.sh"

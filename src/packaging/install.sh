@@ -58,7 +58,8 @@ install() {
 #   $@ - packages (string, required): One or more package names to install.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw apt output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages installed successfully.
@@ -72,8 +73,8 @@ install_apt() {
         return 1
     fi
     info "Installing packages with APT: $*"
-    apt update
-    apt install -y "$@"
+    apt update > >(log_output) 2>&1
+    apt install -y "$@" > >(log_output) 2>&1
 }
 
 # Function: install_dnf
@@ -83,7 +84,8 @@ install_apt() {
 #   $@ - packages (string, required): One or more package names to install.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw dnf output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages installed successfully.
@@ -97,7 +99,7 @@ install_dnf() {
         return 1
     fi
     info "Installing packages with DNF: $*"
-    dnf install -y "$@"
+    dnf install -y "$@" > >(log_output) 2>&1
 }
 
 # Function: install_yum
@@ -107,7 +109,8 @@ install_dnf() {
 #   $@ - packages (string, required): One or more package names to install.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw yum output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages installed successfully.
@@ -121,7 +124,7 @@ install_yum() {
         return 1
     fi
     info "Installing packages with YUM: $*"
-    yum install -y "$@"
+    yum install -y "$@" > >(log_output) 2>&1
 }
 
 # Function: install_zypper
@@ -131,7 +134,8 @@ install_yum() {
 #   $@ - packages (string, required): One or more package names to install.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw zypper output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages installed successfully.
@@ -145,7 +149,7 @@ install_zypper() {
         return 1
     fi
     info "Installing packages with Zypper: $*"
-    zypper --non-interactive install "$@"
+    zypper --non-interactive install "$@" > >(log_output) 2>&1
 }
 
 # Function: install_pacman
@@ -155,7 +159,8 @@ install_zypper() {
 #   $@ - packages (string, required): One or more package names to install.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw pacman output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages installed successfully.
@@ -169,7 +174,7 @@ install_pacman() {
         return 1
     fi
     info "Installing packages with Pacman: $*"
-    pacman -Sy --noconfirm "$@"
+    pacman -Sy --noconfirm "$@" > >(log_output) 2>&1
 }
 
 # Function: install_apk
@@ -179,7 +184,8 @@ install_pacman() {
 #   $@ - packages (string, required): One or more package names to install.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw apk output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages installed successfully.
@@ -193,5 +199,5 @@ install_apk() {
         return 1
     fi
     info "Installing packages with APK: $*"
-    apk add "$@"
+    apk add "$@" > >(log_output) 2>&1
 }

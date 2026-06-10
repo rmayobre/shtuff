@@ -50,7 +50,8 @@ update() {
 #   None
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw apt output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - Update completed successfully.
@@ -60,8 +61,8 @@ update() {
 #   update_apt
 update_apt() {
     info "Running APT update (update package lists and upgrade packages)"
-    apt update
-    apt upgrade -y
+    apt update > >(log_output) 2>&1
+    apt upgrade -y > >(log_output) 2>&1
     info "APT update completed successfully."
 }
 
@@ -72,7 +73,8 @@ update_apt() {
 #   None
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw dnf output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - Update completed successfully.
@@ -82,7 +84,7 @@ update_apt() {
 #   update_dnf
 update_dnf() {
     info "Running DNF update (upgrade all packages)"
-    dnf upgrade -y
+    dnf upgrade -y > >(log_output) 2>&1
     info "DNF update completed successfully."
 }
 
@@ -93,7 +95,8 @@ update_dnf() {
 #   None
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw yum output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - Update completed successfully.
@@ -103,7 +106,7 @@ update_dnf() {
 #   update_yum
 update_yum() {
     info "Running YUM update (update all packages)"
-    yum update -y
+    yum update -y > >(log_output) 2>&1
     info "YUM update completed successfully."
 }
 
@@ -114,7 +117,8 @@ update_yum() {
 #   None
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw zypper output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - Update completed successfully.
@@ -124,8 +128,8 @@ update_yum() {
 #   update_zypper
 update_zypper() {
     info "Running Zypper update (refresh repositories and update packages)"
-    zypper refresh
-    zypper --non-interactive update
+    zypper refresh > >(log_output) 2>&1
+    zypper --non-interactive update > >(log_output) 2>&1
     info "Zypper update completed successfully."
 }
 
@@ -136,7 +140,8 @@ update_zypper() {
 #   None
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw pacman output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - Update completed successfully.
@@ -146,7 +151,7 @@ update_zypper() {
 #   update_pacman
 update_pacman() {
     info "Running Pacman update (sync databases and upgrade packages)"
-    pacman -Syu --noconfirm
+    pacman -Syu --noconfirm > >(log_output) 2>&1
     info "Pacman update completed successfully."
 }
 
@@ -157,7 +162,8 @@ update_pacman() {
 #   None
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw apk output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - Update completed successfully.
@@ -167,7 +173,7 @@ update_pacman() {
 #   update_apk
 update_apk() {
     info "Running APK update (update package index and upgrade packages)"
-    apk update
-    apk upgrade
+    apk update > >(log_output) 2>&1
+    apk upgrade > >(log_output) 2>&1
     info "APK update completed successfully."
 }

@@ -12,6 +12,8 @@ DEFAULT_LOADING_STYLE=$SPINNER_LOADING_STYLE
 # Function: monitor
 # Description: Monitors a background process by PID, displaying a loading indicator until it exits,
 #              then prints a success or error message based on its exit code.
+#              When LOG_LEVEL=verbose the loading indicator is suppressed so that streaming command
+#              output written to the console is not garbled by the spinner.
 #
 # Arguments:
 #   $1 - pid (integer, required): Process ID of the background process to monitor.
@@ -29,6 +31,8 @@ DEFAULT_LOADING_STYLE=$SPINNER_LOADING_STYLE
 #   ARROWS_LOADING_STYLE (read): Constant identifying the arrows style.
 #   CLOCK_LOADING_STYLE (read): Constant identifying the clock style.
 #   RESET_COLOR (read): ANSI reset sequence used to restore terminal color after the completion message.
+#   LOG_LEVEL (read): When set to "verbose", the loading indicator is skipped.
+#   VERBOSE_LEVEL (read): Constant identifying the verbose log level.
 #
 # Returns:
 #   0 - The monitored process exited successfully.
@@ -94,6 +98,18 @@ function monitor {
     if ! kill -0 "$pid" 2>/dev/null; then
         error "Process $pid does not exist"
         return 1
+    fi
+
+    # When LOG_LEVEL=verbose, skip the animated indicator — streaming output would garble it
+    if [[ "$LOG_LEVEL" == "$VERBOSE_LEVEL" ]]; then
+        local exit_code=0
+        wait "$pid" 2>/dev/null || exit_code=$?
+        if [[ $exit_code -eq 0 && -n "$success_msg" ]]; then
+            echo -e "\033[32m✓ $success_msg${RESET_COLOR}"
+        elif [[ $exit_code -ne 0 && -n "$error_msg" ]]; then
+            echo -e "\033[31m✗ $error_msg${RESET_COLOR}"
+        fi
+        return $exit_code
     fi
 
     # Display loading indicator

@@ -10,19 +10,26 @@
 #   log_info "Your message here"
 #
 # Environment Variables:
-#   LOG_LEVEL     - Set logging threshold (ERROR, WARN, INFO, DEBUG)
+#   LOG_LEVEL     - Set logging threshold (ERROR, WARN, INFO, DEBUG, VERBOSE)
 #   LOG_FILE      - Redirect all log output to this file path (suppresses terminal output)
 #   LOG_TIMESTAMP - Set to "false" to disable timestamps
+#   VERBOSE_FILE  - Override the path for the verbose temp file (default: /tmp/shtuff_verbose_$$.log)
 
 readonly ERROR_LEVEL="error"
 readonly WARN_LEVEL="warn"
 readonly INFO_LEVEL="info"
 readonly DEBUG_LEVEL="debug"
+readonly VERBOSE_LEVEL="verbose"
 
 # Logging configuration
 LOG_LEVEL=${LOG_LEVEL:-"$INFO_LEVEL"}  # Default log level
 LOG_FILE=${LOG_FILE:-""}        # Optional log file path
 LOG_TIMESTAMP=${LOG_TIMESTAMP:-true}  # Include timestamps
+
+# Verbose output file — always written when verbose() / log_output() is called.
+# Overridable via environment; defaults to a per-process temp file.
+VERBOSE_FILE="${VERBOSE_FILE:-/tmp/shtuff_verbose_$$.log}"
+VERBOSE_LOGS="$VERBOSE_FILE"
 
 # Log level hierarchy (lower number = higher priority)
 readonly -A LOG_LEVELS=(
@@ -30,6 +37,7 @@ readonly -A LOG_LEVELS=(
     ["$WARN_LEVEL"]=2
     ["$INFO_LEVEL"]=3
     ["$DEBUG_LEVEL"]=4
+    ["$VERBOSE_LEVEL"]=5
 )
 
 # Color codes for console output
@@ -38,22 +46,27 @@ readonly -A LOG_COLORS=(
     ["$WARN_LEVEL"]="$YELLOW"
     ["$INFO_LEVEL"]="$GREEN"
     ["$DEBUG_LEVEL"]="$CYAN"
+    ["$VERBOSE_LEVEL"]="$MAGENTA"
 )
 
 # Function: log
 # Description: Logs a message at the given level if it falls within the current threshold.
+#              Messages at verbose level are always written to VERBOSE_FILE; they are also
+#              printed to the console only when LOG_LEVEL=verbose.
 #
 # Arguments:
-#   $1 - level (string, required): Log level for this message (error, warn, info, debug).
+#   $1 - level (string, required): Log level for this message (error, warn, info, debug, verbose).
 #   $@ - message (string, required): Message to log; all remaining arguments are joined with spaces.
 #
 # Globals:
 #   LOG_LEVELS (read): Associative array mapping level names to numeric priorities.
 #   LOG_LEVEL (read): Current logging threshold; messages above this priority are suppressed.
 #   LOG_COLORS (read): Associative array mapping level names to ANSI color codes.
-#   LOG_FILE (read): Optional file path; when set, messages are written only to this file (terminal output is suppressed).
+#   LOG_FILE (read): Optional file path; when set, non-verbose messages are written only to this file.
 #   LOG_TIMESTAMP (read): When "true", a timestamp prefix is prepended to each message.
 #   RESET (read): ANSI reset sequence applied after the colored message on TTY output.
+#   VERBOSE_FILE (read): Path to the verbose temp file; verbose messages are always appended here.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - Message logged successfully, or suppressed by the current log level threshold.
@@ -63,6 +76,7 @@ readonly -A LOG_COLORS=(
 #   log "info" "Application started successfully"
 #   log "error" "Failed to connect to database"
 #   log "debug" "Resolved path:" "$resolved"
+#   log "verbose" "Raw command output line"
 log() {
     # Check if minimum arguments provided
     if [[ $# -lt 2 ]]; then
@@ -97,7 +111,10 @@ log() {
     fi
 
     if [[ $num_level -gt $global_level ]]; then
-        return 0  # Don't log if message level is below current threshold
+        # Verbose messages bypass the threshold check — always write to file
+        if [[ "$level" != "$VERBOSE_LEVEL" ]]; then
+            return 0
+        fi
     fi
 
     # Format timestamp
@@ -109,8 +126,19 @@ log() {
     # Format the log message
     local formatted_message="${timestamp}[$level] $message"
 
+    # Verbose messages always go to VERBOSE_FILE; only mirror to console when LOG_LEVEL=verbose
+    if [[ "$level" == "$VERBOSE_LEVEL" ]]; then
+        mkdir -p "$(dirname "$VERBOSE_FILE")" 2>/dev/null
+        echo "$formatted_message" >> "$VERBOSE_FILE"
+        if [[ "$LOG_LEVEL" == "$VERBOSE_LEVEL" ]]; then
+            if [[ -t 2 ]]; then
+                echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET" >&2
+            else
+                echo "$formatted_message" >&2
+            fi
+        fi
     # Output to log file if specified; suppress terminal output when LOG_FILE is set
-    if [[ -n "$LOG_FILE" ]]; then
+    elif [[ -n "$LOG_FILE" ]]; then
         # Create log file and directory if they don't exist
         if [[ ! -f "$LOG_FILE" ]]; then
             mkdir -p "$(dirname "$LOG_FILE")"
@@ -207,26 +235,52 @@ debug() {
     log $DEBUG_LEVEL "$@"
 }
 
+# Function: verbose
+# Description: Logs a message at verbose level. Always written to VERBOSE_FILE regardless of
+#              LOG_LEVEL. Also printed to the console when LOG_LEVEL=verbose.
+#
+# Arguments:
+#   $@ - message (string, required): Message to log; all arguments are joined with spaces.
+#
+# Globals:
+#   VERBOSE_LEVEL (read): Constant string identifying the verbose log level.
+#   VERBOSE_FILE (write): Path to the verbose temp file; message is appended here.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#
+# Returns:
+#   0 - Message written to VERBOSE_FILE (and optionally to console).
+#   1 - Empty message provided.
+#
+# Examples:
+#   verbose "Detailed diagnostic info"
+#   verbose "Raw output line:" "$line"
+verbose() {
+    log "$VERBOSE_LEVEL" "$@"
+}
+
 # Function: log_output
-# Description: Reads lines from stdin and logs each at debug level; only emitted when
-#              LOG_LEVEL=debug. Use as a pipe target instead of redirecting to /dev/null
-#              to suppress output in normal runs while preserving it for debugging.
+# Description: Reads lines from stdin and logs each at verbose level. Each line is always
+#              appended to VERBOSE_FILE; lines are also mirrored to the console when
+#              LOG_LEVEL=verbose. Use as a pipe target to capture raw command output instead
+#              of discarding it with /dev/null.
 #
 # Arguments:
 #   None — reads from stdin.
 #
 # Globals:
-#   DEBUG_LEVEL (read): Constant string identifying the debug log level.
+#   VERBOSE_LEVEL (read): Constant string identifying the verbose log level.
+#   VERBOSE_FILE (write): Path to the verbose temp file; each line is appended here.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
-#   0 - All lines consumed; each non-empty line logged or suppressed by log level threshold.
+#   0 - All lines consumed; each non-empty line written to VERBOSE_FILE.
 #
 # Examples:
-#   apt-get install -y curl 2>&1 | log_output
-#   some_command 2>&1 | log_output
+#   apt-get install -y curl > >(log_output) 2>&1
+#   some_command > >(log_output) 2>&1
 log_output() {
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
-        log "$DEBUG_LEVEL" "$line"
+        log "$VERBOSE_LEVEL" "$line"
     done
 }

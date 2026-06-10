@@ -58,7 +58,8 @@ uninstall() {
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw apt output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages removed successfully.
@@ -72,7 +73,7 @@ uninstall_apt() {
         return 1
     fi
     info "Uninstalling packages with APT: $*"
-    apt remove -y "$@"
+    apt remove -y "$@" > >(log_output) 2>&1
 }
 
 # Function: uninstall_dnf
@@ -82,7 +83,8 @@ uninstall_apt() {
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw dnf output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages removed successfully.
@@ -96,7 +98,7 @@ uninstall_dnf() {
         return 1
     fi
     info "Uninstalling packages with DNF: $*"
-    dnf remove -y "$@"
+    dnf remove -y "$@" > >(log_output) 2>&1
 }
 
 # Function: uninstall_yum
@@ -106,7 +108,8 @@ uninstall_dnf() {
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw yum output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages removed successfully.
@@ -120,7 +123,7 @@ uninstall_yum() {
         return 1
     fi
     info "Uninstalling packages with YUM: $*"
-    yum remove -y "$@"
+    yum remove -y "$@" > >(log_output) 2>&1
 }
 
 # Function: uninstall_zypper
@@ -130,7 +133,8 @@ uninstall_yum() {
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw zypper output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages removed successfully.
@@ -144,7 +148,7 @@ uninstall_zypper() {
         return 1
     fi
     info "Uninstalling packages with Zypper: $*"
-    zypper --non-interactive remove "$@"
+    zypper --non-interactive remove "$@" > >(log_output) 2>&1
 }
 
 # Function: uninstall_pacman
@@ -154,7 +158,8 @@ uninstall_zypper() {
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw pacman output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages removed successfully.
@@ -168,7 +173,7 @@ uninstall_pacman() {
         return 1
     fi
     info "Uninstalling packages with Pacman: $*"
-    pacman -Rs --noconfirm "$@"
+    pacman -Rs --noconfirm "$@" > >(log_output) 2>&1
 }
 
 # Function: uninstall_apk
@@ -178,7 +183,8 @@ uninstall_pacman() {
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   None
+#   VERBOSE_FILE (write): Raw apk output is appended here via log_output.
+#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
 #
 # Returns:
 #   0 - All packages removed successfully.
@@ -192,5 +198,5 @@ uninstall_apk() {
         return 1
     fi
     info "Uninstalling packages with APK: $*"
-    apk del "$@"
+    apk del "$@" > >(log_output) 2>&1
 }

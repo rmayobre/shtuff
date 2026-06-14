@@ -13,7 +13,7 @@
 #   LOG_LEVEL     - Set logging threshold (ERROR, WARN, INFO, DEBUG, VERBOSE)
 #   LOG_FILE      - Redirect all log output to this file path (suppresses terminal output)
 #   LOG_TIMESTAMP - Set to "false" to disable timestamps
-#   VERBOSE_FILE  - Override the path for the verbose temp file (default: /tmp/shtuff_verbose_$$.log)
+#   VERBOSE_FILE  - Override the path for the verbose temp file (default: /tmp/script_$$.log)
 
 readonly ERROR_LEVEL="error"
 readonly WARN_LEVEL="warn"
@@ -28,7 +28,7 @@ LOG_TIMESTAMP=${LOG_TIMESTAMP:-true}  # Include timestamps
 
 # Verbose output file — always written when verbose() / log_output() is called.
 # Overridable via environment; defaults to a per-process temp file.
-VERBOSE_FILE="${VERBOSE_FILE:-/tmp/shtuff_verbose_$$.log}"
+VERBOSE_FILE="${VERBOSE_FILE:-/tmp/script_$$.log}"
 VERBOSE_LOGS="$VERBOSE_FILE"
 
 # Log level hierarchy (lower number = higher priority)

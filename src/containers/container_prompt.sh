@@ -93,31 +93,14 @@ function _container_prompt {
         if [[ "$template" == "download" ]]; then
             if [[ -n "$dist" ]]; then
                 info "Using CONTAINER_DIST='$dist'"
-            else
-                options "Distribution:" \
-                    --choice "debian" \
-                    --choice "ubuntu"
-                dist="$answer"
             fi
 
             if [[ -n "$release" ]]; then
                 info "Using CONTAINER_RELEASE='$release'"
-            else
-                case "$dist" in
-                    ubuntu)
-                        options "Release:" \
-                            --choice "noble" \
-                            --choice "jammy" \
-                            --choice "focal"
-                        ;;
-                    *)
-                        options "Release:" \
-                            --choice "trixie" \
-                            --choice "bookworm" \
-                            --choice "bullseye"
-                        ;;
-                esac
-                release="$answer"
+            fi
+
+            if [[ -z "$dist" || -z "$release" ]]; then
+                _container_dist_release_prompt
             fi
 
             if [[ -n "$arch" ]]; then

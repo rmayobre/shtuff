@@ -133,14 +133,8 @@ function lxc_create {
         fi
 
         if [[ "$template" == "download" ]]; then
-            if [[ -z "$dist" ]]; then
-                question "Distribution (leave blank for 'debian'):"
-                dist="${answer:-debian}"
-            fi
-
-            if [[ -z "$release" ]]; then
-                question "Release (leave blank for 'trixie'):"
-                release="${answer:-trixie}"
+            if [[ -z "$dist" || -z "$release" ]]; then
+                _container_dist_release_prompt
             fi
 
             if [[ -z "$arch" ]]; then

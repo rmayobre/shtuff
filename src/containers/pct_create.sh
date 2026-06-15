@@ -141,8 +141,7 @@ function pct_create {
         fi
 
         if [[ -z "$template" && -z "$dist" ]]; then
-            question "Distribution (leave blank for 'debian'):"
-            dist="${answer:-debian}"
+            _container_dist_release_prompt
         fi
 
         if [[ -z "$release" ]]; then

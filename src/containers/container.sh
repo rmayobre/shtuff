@@ -275,6 +275,9 @@ _container_create() {
     local name=""
     local gpu_addr=""
     local pcie_mode="false"
+    local template="" dist="" release="" arch=""
+    local hostname="" memory="" cores="" storage="" disk_size="" password=""
+    local dry_run="${IS_DRY_RUN:-false}"
     local passthrough=()
 
     while [[ $# -gt 0 ]]; do
@@ -289,6 +292,50 @@ _container_create() {
                 ;;
             --pcie)
                 pcie_mode="true"
+                shift
+                ;;
+            -t|--template)
+                template="$2"
+                shift 2
+                ;;
+            -d|--dist)
+                dist="$2"
+                shift 2
+                ;;
+            -r|--release)
+                release="$2"
+                shift 2
+                ;;
+            -a|--arch)
+                arch="$2"
+                shift 2
+                ;;
+            -h|--hostname)
+                hostname="$2"
+                shift 2
+                ;;
+            -m|--memory)
+                memory="$2"
+                shift 2
+                ;;
+            -c|--cores)
+                cores="$2"
+                shift 2
+                ;;
+            --storage)
+                storage="$2"
+                shift 2
+                ;;
+            --disk-size)
+                disk_size="$2"
+                shift 2
+                ;;
+            -p|--password)
+                password="$2"
+                shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
                 shift
                 ;;
             *)
@@ -306,6 +353,94 @@ _container_create() {
     local backend
     backend=$(_container_backend)
     debug "container create: backend='$backend' name='$name'"
+
+    # Prompt for any missing common create options so both PCT and LXC
+    # backends inherit the same interactive experience.
+    if [[ "$dry_run" != "true" ]]; then
+        if [[ -z "$template" ]]; then
+            if [[ "$backend" == "pct" ]]; then
+                question "Template path (leave blank to auto-resolve via distribution/release):"
+                template="$answer"
+            else
+                question "Template name (leave blank for 'download'):"
+                template="${answer:-download}"
+            fi
+        fi
+
+        local needs_dist_release="false"
+        if [[ "$backend" == "pct" ]]; then
+            [[ -z "$template" ]] && needs_dist_release="true"
+        elif [[ "$template" == "download" ]]; then
+            needs_dist_release="true"
+        fi
+
+        if [[ "$needs_dist_release" == "true" ]]; then
+            if [[ -z "$dist" || -z "$release" ]]; then
+                _container_dist_release_prompt
+            fi
+
+            if [[ "$backend" == "lxc" && -z "$arch" ]]; then
+                options "Architecture:" \
+                    --choice "amd64" \
+                    --choice "arm64" \
+                    --choice "armhf" \
+                    --choice "i386"
+                arch="$answer"
+            fi
+        fi
+
+        if [[ -z "$hostname" ]]; then
+            question "Hostname inside container (leave blank to use container name):"
+            hostname="$answer"
+        fi
+
+        if [[ -z "$memory" ]]; then
+            question "Memory limit in MB (leave blank for default):"
+            memory="$answer"
+        fi
+
+        if [[ -z "$cores" ]]; then
+            question "Number of CPU cores (leave blank for default):"
+            cores="$answer"
+        fi
+
+        if [[ -z "$storage" ]]; then
+            if [[ "$backend" == "pct" ]]; then
+                question "Storage pool (leave blank for 'local-lvm'):"
+                storage="$answer"
+            else
+                options "Storage backing store:" \
+                    --choice "dir" \
+                    --choice "btrfs" \
+                    --choice "zfs" \
+                    --choice "overlayfs" \
+                    --choice "best"
+                storage="$answer"
+            fi
+        fi
+
+        if [[ -z "$disk_size" ]]; then
+            question "Root disk size in GB (leave blank for default):"
+            disk_size="$answer"
+        fi
+
+        if [[ -z "$password" ]]; then
+            question "Root password (leave blank to skip):"
+            password="$answer"
+        fi
+    fi
+
+    [[ -n "$template"  ]] && passthrough+=(--template "$template")
+    [[ -n "$dist"      ]] && passthrough+=(--dist "$dist")
+    [[ -n "$release"   ]] && passthrough+=(--release "$release")
+    [[ -n "$arch"      ]] && passthrough+=(--arch "$arch")
+    [[ -n "$hostname"  ]] && passthrough+=(--hostname "$hostname")
+    [[ -n "$memory"    ]] && passthrough+=(--memory "$memory")
+    [[ -n "$cores"     ]] && passthrough+=(--cores "$cores")
+    [[ -n "$storage"   ]] && passthrough+=(--storage "$storage")
+    [[ -n "$disk_size" ]] && passthrough+=(--disk-size "$disk_size")
+    [[ -n "$password"  ]] && passthrough+=(--password "$password")
+    [[ "$dry_run" == "true" ]] && passthrough+=(--dry-run)
 
     local container_id
     if [[ "$backend" == "pct" ]]; then

@@ -25,13 +25,9 @@
 #       Valid values: spinner, dots, bars, arrows, clock.
 #   --dry-run (flag, optional): Print the system calls that would be executed without running them. Defaults to IS_DRY_RUN if not specified.
 #
-# Any argument left null, empty, or unset (except --style and --dry-run) is
-# interactively prompted for via 'question', unless --dry-run is set.
-#
 # Globals:
 #   SPINNER_LOADING_STYLE (read): Default loading style constant.
 #   IS_DRY_RUN (read): When "true", enables dry-run mode by default.
-#   answer (write): Overwritten by each internal 'question' call.
 #
 # Returns:
 #   0 - Container created successfully.
@@ -120,59 +116,6 @@ function lxc_create {
                 ;;
         esac
     done
-
-    if [[ "$dry_run" != "true" ]]; then
-        if [[ -z "$name" ]]; then
-            question "Container name:"
-            name="$answer"
-        fi
-
-        if [[ -z "$template" ]]; then
-            question "Template name (leave blank for 'download'):"
-            template="${answer:-download}"
-        fi
-
-        if [[ "$template" == "download" ]]; then
-            if [[ -z "$dist" || -z "$release" ]]; then
-                _container_dist_release_prompt
-            fi
-
-            if [[ -z "$arch" ]]; then
-                question "Architecture (leave blank for 'amd64'):"
-                arch="${answer:-amd64}"
-            fi
-        fi
-
-        if [[ -z "$hostname" ]]; then
-            question "Hostname inside container (leave blank to skip):"
-            hostname="$answer"
-        fi
-
-        if [[ -z "$memory" ]]; then
-            question "Memory limit in MB (leave blank to skip):"
-            memory="$answer"
-        fi
-
-        if [[ -z "$cores" ]]; then
-            question "Number of CPU cores (leave blank to skip):"
-            cores="$answer"
-        fi
-
-        if [[ -z "$storage" ]]; then
-            question "Storage backing store (leave blank for 'dir'):"
-            storage="${answer:-dir}"
-        fi
-
-        if [[ -z "$disk_size" ]]; then
-            question "Rootfs size in GB (leave blank to skip, requires btrfs/zfs storage):"
-            disk_size="$answer"
-        fi
-
-        if [[ -z "$password" ]]; then
-            question "Root password (leave blank to skip):"
-            password="$answer"
-        fi
-    fi
 
     if [[ -z "$name" ]]; then
         error "lxc_create: --name is required"

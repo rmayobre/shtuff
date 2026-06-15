@@ -4,24 +4,29 @@
 # Description: Interactively prompts the user for all container network
 #              configuration options, then delegates to 'container network'.
 #              Displays the current network config before prompting, and lists
-#              available host bridge interfaces for selection. Each option is
-#              first checked against a corresponding environment variable; if
-#              the variable is already set the prompt for that field is skipped.
+#              available host bridge interfaces for multi-selection. One
+#              network interface is configured per selected bridge, starting
+#              at --index/CONTAINER_NETWORK_INDEX and incrementing by 1 for
+#              each additional bridge. Each option is first checked against a
+#              corresponding environment variable; if the variable is already
+#              set the prompt for that field is skipped.
 #
 # Arguments:
 #   --name NAME (string, required): Container name / hostname (or VMID for PCT).
-#   --index N (integer, optional): Network interface index. Skips the index
-#       prompt when provided.
+#   --index N (integer, optional): Starting network interface index. Skips the
+#       index prompt when provided.
 #
 # Globals:
-#   CONTAINER_NETWORK_INDEX (read): Interface index. Skips index prompt if set.
-#   CONTAINER_NETWORK_BRIDGE (read): Bridge interface name. Skips bridge prompt if set.
+#   CONTAINER_NETWORK_INDEX (read): Starting interface index. Skips index prompt if set.
+#   CONTAINER_NETWORK_BRIDGE (read): Space-separated list of bridge interface name(s).
+#       Skips bridge prompt if set; one interface is configured per bridge.
 #   CONTAINER_NETWORK_IP (read): IP address with prefix, or 'dhcp'. Skips IP prompt if set.
 #   CONTAINER_NETWORK_GATEWAY (read): Default gateway IP. Skips gateway prompt if set.
 #   CONTAINER_NETWORK_DNS (read, PCT only): Space-separated DNS nameservers. Skips DNS prompt if set.
 #   CONTAINER_NETWORK_TYPE (read, LXC only): Interface type (veth, macvlan, ipvlan, none). Skips type prompt if set.
 #   CONTAINER_NETWORK_HWADDR (read, LXC only): MAC address. Skips MAC prompt if set.
 #   answer (write): Overwritten by each internal form call.
+#   answers (write): Overwritten by the bridge multi-selection.
 #
 # Returns:
 #   0 - Network configured successfully, or the user cancelled at the confirmation prompt.
@@ -32,6 +37,7 @@
 #   container network prompt --name mycontainer
 #   container network prompt --name mycontainer --index 1
 #   CONTAINER_NETWORK_BRIDGE=vmbr0 container network prompt --name 100
+#   CONTAINER_NETWORK_BRIDGE="vmbr0 vmbr1" container network prompt --name 100 --index 0
 function _container_network_prompt {
     local name=""
     local index="${CONTAINER_NETWORK_INDEX:-}"
@@ -85,10 +91,11 @@ function _container_network_prompt {
         return 1
     fi
 
-    # --- bridge ---
-    local bridge="${CONTAINER_NETWORK_BRIDGE:-}"
-    if [[ -n "$bridge" ]]; then
-        info "Using CONTAINER_NETWORK_BRIDGE='$bridge'"
+    # --- bridges ---
+    local -a bridges=()
+    if [[ -n "${CONTAINER_NETWORK_BRIDGE:-}" ]]; then
+        info "Using CONTAINER_NETWORK_BRIDGE='$CONTAINER_NETWORK_BRIDGE'"
+        read -ra bridges <<< "$CONTAINER_NETWORK_BRIDGE"
     else
         local -a bridge_names=()
         while IFS= read -r br; do
@@ -101,133 +108,157 @@ function _container_network_prompt {
                 bridge_choices+=(--choice "$br")
             done
             bridge_choices+=(--choice "other (enter manually)")
-            options "Select a bridge interface:" "${bridge_choices[@]}"
-            if [[ "$answer" == "other (enter manually)" ]]; then
-                question "Bridge interface name:"
-                bridge="$answer"
-            else
-                bridge="$answer"
-            fi
+            selections "Select bridge interface(s) (one network interface will be configured per bridge selected):" "${bridge_choices[@]}"
+            for br in "${answers[@]}"; do
+                if [[ "$br" == "other (enter manually)" ]]; then
+                    question "Bridge interface name:"
+                    [[ -n "$answer" ]] && bridges+=("$answer")
+                else
+                    bridges+=("$br")
+                fi
+            done
         else
             local bridge_default
             [[ "$backend" == "pct" ]] && bridge_default="vmbr0" || bridge_default="lxcbr0"
             question "Bridge interface name (leave blank for '${bridge_default}'):"
-            bridge="${answer:-}"
+            bridges+=("${answer:-}")
         fi
     fi
 
-    # --- IP configuration ---
-    local ip="${CONTAINER_NETWORK_IP:-}"
-    local gateway="${CONTAINER_NETWORK_GATEWAY:-}"
-
-    if [[ -n "$ip" ]]; then
-        info "Using CONTAINER_NETWORK_IP='$ip'"
-    else
-        local ip_mode
-        if [[ "$backend" == "pct" ]]; then
-            options "IP configuration:" \
-                --choice "static" \
-                --choice "dhcp" \
-                --choice "none (configure later)"
-        else
-            options "IP configuration:" \
-                --choice "static" \
-                --choice "none (use DHCP client inside container)"
-        fi
-        ip_mode="$answer"
-
-        if [[ "$ip_mode" == "static" ]]; then
-            question "IP address with prefix (e.g. 10.0.0.10/24):"
-            ip="$answer"
-            if [[ -z "$ip" ]]; then
-                error "_container_network_prompt: IP address is required for static configuration"
-                return 1
-            fi
-        elif [[ "$ip_mode" == "dhcp" ]]; then
-            ip="dhcp"
-        fi
-        # ip="" for "none" — leave address unconfigured
-    fi
-
-    if [[ -n "$gateway" ]]; then
-        info "Using CONTAINER_NETWORK_GATEWAY='$gateway'"
-    elif [[ -n "$ip" && "$ip" != "dhcp" ]]; then
-        question "Default gateway (leave blank to skip):"
-        gateway="${answer:-}"
-    fi
-
-    # --- DNS (PCT only) ---
-    local dns="${CONTAINER_NETWORK_DNS:-}"
-    if [[ "$backend" == "pct" ]]; then
-        if [[ -n "$dns" ]]; then
-            info "Using CONTAINER_NETWORK_DNS='$dns'"
-        else
-            question "DNS nameservers (leave blank to skip, e.g. 8.8.8.8 8.8.4.4):"
-            dns="${answer:-}"
-        fi
-    fi
-
-    # --- interface type (LXC only) ---
-    local iface_type="${CONTAINER_NETWORK_TYPE:-}"
-    if [[ "$backend" == "lxc" ]]; then
-        if [[ -n "$iface_type" ]]; then
-            info "Using CONTAINER_NETWORK_TYPE='$iface_type'"
-        else
-            options "Interface type:" \
-                --choice "veth" \
-                --choice "macvlan" \
-                --choice "ipvlan" \
-                --choice "none"
-            iface_type="$answer"
-        fi
-    fi
-
-    # --- MAC address (LXC only) ---
-    local hwaddr="${CONTAINER_NETWORK_HWADDR:-}"
-    if [[ "$backend" == "lxc" ]]; then
-        if [[ -n "$hwaddr" ]]; then
-            info "Using CONTAINER_NETWORK_HWADDR='$hwaddr'"
-        else
-            question "MAC address (leave blank to auto-generate):"
-            hwaddr="${answer:-}"
-        fi
-    fi
-
-    # --- confirmation summary ---
-    info "Network configuration summary:"
-    info "  Container: $name"
-    info "  Backend:   $backend"
-    info "  Interface: $index"
-    [[ -n "$bridge" ]] && info "  Bridge:    $bridge"
-    if [[ -n "$ip" ]]; then
-        info "  IP:        $ip"
-        [[ -n "$gateway" ]] && info "  Gateway:   $gateway"
-    else
-        info "  IP:        (not configured)"
-    fi
-    [[ "$backend" == "pct" && -n "$dns"        ]] && info "  DNS:       $dns"
-    [[ "$backend" == "lxc" && -n "$iface_type" ]] && info "  Type:      $iface_type"
-    [[ "$backend" == "lxc" && -n "$hwaddr"     ]] && info "  MAC:       $hwaddr"
-
-    if ! confirm "Apply this network configuration?"; then
-        info "_container_network_prompt: cancelled."
+    if [[ ${#bridges[@]} -eq 0 ]]; then
+        info "_container_network_prompt: no bridges selected, nothing to configure."
         return 0
     fi
 
-    # Build args and delegate to container network
-    local -a net_args=(--name "$name" --index "$index")
-    [[ -n "$bridge"  ]] && net_args+=(--bridge "$bridge")
-    [[ -n "$ip"      ]] && net_args+=(--ip "$ip")
-    [[ -n "$gateway" ]] && net_args+=(--gateway "$gateway")
-    if [[ "$backend" == "pct" ]]; then
-        [[ -n "$dns" ]] && net_args+=(--dns "$dns")
-    else
-        [[ -n "$iface_type" ]] && net_args+=(--type "$iface_type")
-        [[ -n "$hwaddr"     ]] && net_args+=(--hwaddr "$hwaddr")
-    fi
+    # --- configure one interface per selected bridge ---
+    local current_index="$index"
+    local applied_count=0
+    local bridge
 
-    debug "_container_network_prompt: delegating to container network ${net_args[*]}"
-    container network "${net_args[@]}"
+    for bridge in "${bridges[@]}"; do
+        info "Configuring interface at index $current_index (bridge: ${bridge:-<default>})"
+
+        # --- IP configuration ---
+        local ip="${CONTAINER_NETWORK_IP:-}"
+        local gateway="${CONTAINER_NETWORK_GATEWAY:-}"
+
+        if [[ -n "$ip" ]]; then
+            info "Using CONTAINER_NETWORK_IP='$ip'"
+        else
+            local ip_mode
+            if [[ "$backend" == "pct" ]]; then
+                options "IP configuration:" \
+                    --choice "static" \
+                    --choice "dhcp" \
+                    --choice "none (configure later)"
+            else
+                options "IP configuration:" \
+                    --choice "static" \
+                    --choice "none (use DHCP client inside container)"
+            fi
+            ip_mode="$answer"
+
+            if [[ "$ip_mode" == "static" ]]; then
+                question "IP address with prefix (e.g. 10.0.0.10/24):"
+                ip="$answer"
+                if [[ -z "$ip" ]]; then
+                    error "_container_network_prompt: IP address is required for static configuration"
+                    return 1
+                fi
+            elif [[ "$ip_mode" == "dhcp" ]]; then
+                ip="dhcp"
+            fi
+            # ip="" for "none" — leave address unconfigured
+        fi
+
+        if [[ -n "$gateway" ]]; then
+            info "Using CONTAINER_NETWORK_GATEWAY='$gateway'"
+        elif [[ -n "$ip" && "$ip" != "dhcp" ]]; then
+            question "Default gateway (leave blank to skip):"
+            gateway="${answer:-}"
+        fi
+
+        # --- DNS (PCT only) ---
+        local dns="${CONTAINER_NETWORK_DNS:-}"
+        if [[ "$backend" == "pct" ]]; then
+            if [[ -n "$dns" ]]; then
+                info "Using CONTAINER_NETWORK_DNS='$dns'"
+            else
+                question "DNS nameservers (leave blank to skip, e.g. 8.8.8.8 8.8.4.4):"
+                dns="${answer:-}"
+            fi
+        fi
+
+        # --- interface type (LXC only) ---
+        local iface_type="${CONTAINER_NETWORK_TYPE:-}"
+        if [[ "$backend" == "lxc" ]]; then
+            if [[ -n "$iface_type" ]]; then
+                info "Using CONTAINER_NETWORK_TYPE='$iface_type'"
+            else
+                options "Interface type:" \
+                    --choice "veth" \
+                    --choice "macvlan" \
+                    --choice "ipvlan" \
+                    --choice "none"
+                iface_type="$answer"
+            fi
+        fi
+
+        # --- MAC address (LXC only) ---
+        local hwaddr="${CONTAINER_NETWORK_HWADDR:-}"
+        if [[ "$backend" == "lxc" ]]; then
+            if [[ -n "$hwaddr" ]]; then
+                info "Using CONTAINER_NETWORK_HWADDR='$hwaddr'"
+            else
+                question "MAC address (leave blank to auto-generate):"
+                hwaddr="${answer:-}"
+            fi
+        fi
+
+        # --- confirmation summary ---
+        info "Network configuration summary:"
+        info "  Container: $name"
+        info "  Backend:   $backend"
+        info "  Interface: $current_index"
+        [[ -n "$bridge" ]] && info "  Bridge:    $bridge"
+        if [[ -n "$ip" ]]; then
+            info "  IP:        $ip"
+            [[ -n "$gateway" ]] && info "  Gateway:   $gateway"
+        else
+            info "  IP:        (not configured)"
+        fi
+        [[ "$backend" == "pct" && -n "$dns"        ]] && info "  DNS:       $dns"
+        [[ "$backend" == "lxc" && -n "$iface_type" ]] && info "  Type:      $iface_type"
+        [[ "$backend" == "lxc" && -n "$hwaddr"     ]] && info "  MAC:       $hwaddr"
+
+        if ! confirm "Apply this network configuration for interface $current_index?"; then
+            info "_container_network_prompt: skipped interface $current_index."
+            current_index=$((current_index + 1))
+            continue
+        fi
+
+        # Build args and delegate to container network
+        local -a net_args=(--name "$name" --index "$current_index")
+        [[ -n "$bridge"  ]] && net_args+=(--bridge "$bridge")
+        [[ -n "$ip"      ]] && net_args+=(--ip "$ip")
+        [[ -n "$gateway" ]] && net_args+=(--gateway "$gateway")
+        if [[ "$backend" == "pct" ]]; then
+            [[ -n "$dns" ]] && net_args+=(--dns "$dns")
+        else
+            [[ -n "$iface_type" ]] && net_args+=(--type "$iface_type")
+            [[ -n "$hwaddr"     ]] && net_args+=(--hwaddr "$hwaddr")
+        fi
+
+        debug "_container_network_prompt: delegating to container network ${net_args[*]}"
+        container network "${net_args[@]}" || return $?
+        applied_count=$((applied_count + 1))
+
+        current_index=$((current_index + 1))
+    done
+
+    if [[ "$applied_count" -eq 0 ]]; then
+        info "_container_network_prompt: cancelled (no interfaces configured)."
+    fi
 }
 
 # _network_list_bridges

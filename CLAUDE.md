@@ -112,6 +112,14 @@ options "Select an environment:" \      # Numbered list; selected text in $answe
     --choice "production"
 DEPLOY_ENV="$answer"
 
+selections "Select packages to install:" \   # Numbered list, multi-select; result in $answers (array)
+    --choice "nodejs" \
+    --choice "curl" \
+    --choice "unzip"
+for pkg in "${answers[@]}"; do
+    install "$pkg" || exit 1
+done
+
 if confirm "Overwrite existing files?"; then   # Yes/No; returns 0=yes 1=no
     copy src/ dest/ || exit 1
 fi
@@ -209,7 +217,7 @@ as `delete` removes the path itself. Use `delete` for temp files and directories
   behavior may change without notice. Only call the documented public functions
   (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`,
   `monitor`, `stop`, `copy`, `move`, `delete`, `service`, `timer`,
-  `question`, `options`, `confirm`).
+  `question`, `options`, `selections`, `confirm`).
 
 ---
 
@@ -296,7 +304,7 @@ shtuff/
 │   ├── graphics/          # ANSI colors, loading indicators
 │   ├── logging/           # log(), info(), warn(), error(), debug()
 │   ├── packaging/         # install(), update(), uninstall(), clean()
-│   ├── forms/             # question(), options(), confirm()
+│   ├── forms/             # question(), options(), selections(), confirm()
 │   ├── systemd/           # service(), timer()
 │   └── utils/             # monitor(), stop(), copy(), move(), delete()
 └── examples/

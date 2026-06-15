@@ -46,6 +46,7 @@ source "${SHTUFF_DIR}/src/utils/stop.sh"
 # Forms
 source "${SHTUFF_DIR}/src/forms/question.sh"
 source "${SHTUFF_DIR}/src/forms/options.sh"
+source "${SHTUFF_DIR}/src/forms/selections.sh"
 source "${SHTUFF_DIR}/src/forms/confirm.sh"
 
 # GPU

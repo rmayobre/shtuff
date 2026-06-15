@@ -11,6 +11,8 @@
 #   --name NAME (string, required by all subcommands): Container name / hostname.
 #       For PCT backends, used as the container hostname and the VMID is automatically
 #       generated via pct_next_vmid. For LXC backends, used as the container name.
+#       For the create subcommand, if omitted or empty, the user is interactively
+#       prompted for a name via 'question'.
 #
 #   create subcommand — resource allocation flags (passed through to backend):
 #   --hostname HOSTNAME (string, optional): Hostname to assign inside the container.
@@ -265,8 +267,9 @@ _container_config() {
 }
 
 # _container_create
-# Extracts --name NAME, --gpu PCI_ADDR, and --pcie from args. All other flags are
-# forwarded unchanged to the appropriate backend. Both pct_create and lxc_create accept
+# Extracts --name NAME, --gpu PCI_ADDR, and --pcie from args. If --name is omitted
+# or empty, prompts the user interactively for a container name via 'question'.
+# All other flags are forwarded unchanged to the appropriate backend. Both pct_create and lxc_create accept
 # --dist, --release, and --arch for download-template selection; pct_create resolves them
 # via pveam while lxc_create uses the lxc-create download template. When --gpu is
 # provided, GPU passthrough is applied after the container is created using
@@ -299,8 +302,12 @@ _container_create() {
     done
 
     if [[ -z "$name" ]]; then
-        error "container create: --name is required"
-        return 1
+        question "Container name:"
+        name="$answer"
+        if [[ -z "$name" ]]; then
+            error "container create: --name is required"
+            return 1
+        fi
     fi
 
     local backend

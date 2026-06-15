@@ -94,15 +94,30 @@ function _container_prompt {
             if [[ -n "$dist" ]]; then
                 info "Using CONTAINER_DIST='$dist'"
             else
-                question "Distribution (leave blank for 'debian'):"
-                dist="${answer:-debian}"
+                options "Distribution:" \
+                    --choice "debian" \
+                    --choice "ubuntu"
+                dist="$answer"
             fi
 
             if [[ -n "$release" ]]; then
                 info "Using CONTAINER_RELEASE='$release'"
             else
-                question "Release (leave blank for 'trixie'):"
-                release="${answer:-trixie}"
+                case "$dist" in
+                    ubuntu)
+                        options "Release:" \
+                            --choice "noble" \
+                            --choice "jammy" \
+                            --choice "focal"
+                        ;;
+                    *)
+                        options "Release:" \
+                            --choice "trixie" \
+                            --choice "bookworm" \
+                            --choice "bullseye"
+                        ;;
+                esac
+                release="$answer"
             fi
 
             if [[ -n "$arch" ]]; then

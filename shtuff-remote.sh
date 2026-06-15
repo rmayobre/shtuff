@@ -56,6 +56,7 @@ source <(_fetch "${BASE_URL}/src/utils/stop.sh")
 # Forms
 source <(_fetch "${BASE_URL}/src/forms/question.sh")
 source <(_fetch "${BASE_URL}/src/forms/options.sh")
+source <(_fetch "${BASE_URL}/src/forms/selections.sh")
 source <(_fetch "${BASE_URL}/src/forms/confirm.sh")
 
 # GPU

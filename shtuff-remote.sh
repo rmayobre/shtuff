@@ -32,6 +32,7 @@ source <(_fetch "${BASE_URL}/src/packaging/clean.sh")
 source <(_fetch "${BASE_URL}/src/packaging/install.sh")
 source <(_fetch "${BASE_URL}/src/packaging/uninstall.sh")
 source <(_fetch "${BASE_URL}/src/packaging/update.sh")
+source <(_fetch "${BASE_URL}/src/packaging/dependencies.sh")
 
 # Systemd
 source <(_fetch "${BASE_URL}/src/systemd/service.sh")

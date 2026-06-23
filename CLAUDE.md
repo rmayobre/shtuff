@@ -53,6 +53,7 @@ update                          # Update all system packages (no args)
 install nodejs npm curl unzip   # Install one or more packages
 uninstall nginx                 # Remove one or more packages
 clean                           # Remove orphans and clean package cache
+dependencies curl nodejs npm    # Update system, install packages one-by-one, skip failures
 ```
 All commands auto-detect the package manager (apt, dnf, yum, zypper, pacman, apk).
 
@@ -215,7 +216,7 @@ as `delete` removes the path itself. Use `delete` for temp files and directories
 - **Never call functions prefixed with `_`** — they are private internal helpers
   used by shtuff itself and are not part of the public API. Their signatures and
   behavior may change without notice. Only call the documented public functions
-  (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`,
+  (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`, `dependencies`,
   `monitor`, `stop`, `copy`, `move`, `delete`, `service`, `timer`,
   `question`, `options`, `selections`, `confirm`).
 

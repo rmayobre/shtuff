@@ -131,7 +131,9 @@ log() {
         mkdir -p "$(dirname "$VERBOSE_FILE")" 2>/dev/null
         echo "$formatted_message" >> "$VERBOSE_FILE"
         if [[ "$LOG_LEVEL" == "$VERBOSE_LEVEL" ]]; then
-            if [[ -t 2 ]]; then
+            if _zones_active; then
+                _write_to_log_zone "${LOG_COLORS[$level]}${formatted_message}$RESET"
+            elif [[ -t 2 ]]; then
                 echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET" >&2
             else
                 echo "$formatted_message" >&2
@@ -146,8 +148,9 @@ log() {
         fi
         echo "$formatted_message" >> "$LOG_FILE"
     else
-        # Output to stderr so log messages never pollute stdout return values
-        if [[ -t 2 ]]; then
+        if _zones_active; then
+            _write_to_log_zone "${LOG_COLORS[$level]}${formatted_message}$RESET"
+        elif [[ -t 2 ]]; then
             echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET" >&2
         else
             echo "$formatted_message" >&2

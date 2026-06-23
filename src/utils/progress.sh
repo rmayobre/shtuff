@@ -13,6 +13,10 @@
 #              block of scrolling output (e.g. per-item monitor messages) without
 #              the caller needing to manage cursor movement itself.
 #
+#              When terminal zones are active (init_display was called), the bar
+#              renders in the status zone instead. Each unique --id gets its own
+#              status zone slot, enabling multiple simultaneous progress bars.
+#
 # Visual Output:
 #   In-progress (current = 4, total = 10, message = "Downloading", width = 40):
 #
@@ -33,15 +37,20 @@
 #   --total N        (integer, required): Total steps/value representing 100%.
 #   --message MSG    (string, optional, default: "Progress"): Label printed before the bar.
 #   --width N        (integer, optional, default: 40): Number of fill characters in the bar.
+#   --id NAME        (string, optional, default: "_default"): Identifier for this progress
+#                    bar. When zones are active, each unique ID gets its own status zone
+#                    slot, enabling multiple simultaneous progress bars.
 #   --lines-above N  (integer, optional, default: 0): Lines between the current cursor
 #                    position and the bar line. When non-zero, the cursor is moved up N
 #                    lines before drawing and restored to its original position afterward.
+#                    Ignored when terminal zones are active.
 #   --done           (flag, optional): Force a trailing newline, finalizing the bar output.
 #                    Automatically implied when --current equals --total.
 #
 # Globals:
 #   GREEN       (read): ANSI color applied to the filled portion of the bar.
 #   RESET_COLOR (read): ANSI reset sequence used to restore terminal color.
+#   _SHTUFF_PROGRESS_SLOTS (read/write): Maps progress IDs to status zone slot indices.
 #
 # Returns:
 #   0 - Success.
@@ -67,6 +76,11 @@
 #       progress --current $(( i + 1 )) --total "$total" --message "Copying" \
 #           --lines-above $(( i + 2 ))
 #   done
+#
+#   # Multiple simultaneous progress bars with zones
+#   init_display --status-lines 4
+#   progress --id "images" --current 3 --total 10 --message "Images"
+#   progress --id "configs" --current 1 --total 5 --message "Configs"
 function progress {
     local current=""
     local total=""
@@ -74,6 +88,7 @@ function progress {
     local width=40
     local lines_above=0
     local done_flag=false
+    local progress_id="_default"
 
     while (( "$#" )); do
         case "$1" in
@@ -100,6 +115,10 @@ function progress {
             -d|--done)
                 done_flag=true
                 shift
+                ;;
+            --id)
+                progress_id="$2"
+                shift 2
                 ;;
             *)
                 error "progress: unknown option: $1"
@@ -143,11 +162,6 @@ function progress {
         return 1
     fi
 
-    # Move cursor up to the bar line when it was drawn above the current position.
-    if (( lines_above > 0 )); then
-        printf "\033[%dA\r" "$lines_above"
-    fi
-
     # Calculate how many characters to fill vs leave empty.
     local percent=$(( current * 100 / total ))
     local filled=$(( current * width / total ))
@@ -170,12 +184,46 @@ function progress {
     printf -v pct_str "%3d%%" "$percent"
     printf -v count_str "(%${count_width}d/%d)" "$current" "$total"
 
-    # Overwrite the current terminal line with the updated bar.
-    printf "\r%s [%b%s%b%s] %s %s" \
+    local bar_line
+    printf -v bar_line "%s [%b%s%b%s] %s %s" \
         "$message" \
         "$GREEN" "$bar_filled" \
         "$RESET_COLOR" "$bar_empty" \
         "$pct_str" "$count_str"
+
+    # Zone-aware rendering: render in the status zone when zones are active
+    if _zones_active; then
+        # Acquire a slot for this progress ID if we don't have one yet
+        if [[ -z "${_SHTUFF_PROGRESS_SLOTS[$progress_id]:-}" ]]; then
+            local slot
+            slot=$(_acquire_status_slot) || {
+                error "progress: no free status zone slots"
+                return 1
+            }
+            _SHTUFF_PROGRESS_SLOTS[$progress_id]="$slot"
+        fi
+
+        local slot="${_SHTUFF_PROGRESS_SLOTS[$progress_id]}"
+        _write_to_status_zone --slot "$slot" --message "$bar_line"
+
+        # On completion, move final bar to log zone and release the slot
+        if [[ "$done_flag" == true ]] || (( current == total )); then
+            _write_to_log_zone "$bar_line"
+            _release_status_slot "$slot"
+            unset '_SHTUFF_PROGRESS_SLOTS[$progress_id]'
+        fi
+        return 0
+    fi
+
+    # Non-zone rendering: original behavior
+
+    # Move cursor up to the bar line when it was drawn above the current position.
+    if (( lines_above > 0 )); then
+        printf "\033[%dA\r" "$lines_above"
+    fi
+
+    # Overwrite the current terminal line with the updated bar.
+    printf "\r%s" "$bar_line"
 
     # Print a newline to finalize the bar when complete or explicitly requested.
     local printed_newline=false

@@ -14,6 +14,9 @@ source "${SHTUFF_DIR}/src/graphics/colors.sh"
 # Logging
 source "${SHTUFF_DIR}/src/logging/log.sh"
 
+# Terminal
+source "${SHTUFF_DIR}/src/terminal/zones.sh"
+
 # Graphical
 source "${SHTUFF_DIR}/src/graphics/draw_loading_indicator.sh"
 

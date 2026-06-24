@@ -49,7 +49,7 @@ readonly -A LOG_COLORS=(
     ["$VERBOSE_LEVEL"]="$MAGENTA"
 )
 
-# Function: log
+# Function: _log
 # Description: Logs a message at the given level if it falls within the current threshold.
 #              Messages at verbose level are always written to VERBOSE_FILE; they are also
 #              printed to the console only when LOG_LEVEL=verbose.
@@ -77,10 +77,10 @@ readonly -A LOG_COLORS=(
 #   log "error" "Failed to connect to database"
 #   log "debug" "Resolved path:" "$resolved"
 #   log "verbose" "Raw command output line"
-log() {
+_log() {
     # Check if minimum arguments provided
     if [[ $# -lt 2 ]]; then
-        echo "log: insufficient arguments. Usage: log LEVEL MESSAGE" >&2
+        echo "_log: insufficient arguments. Usage: _log LEVEL MESSAGE" >&2
         echo "Available levels: ${!LOG_LEVELS[*]}" >&2
         return 1
     fi
@@ -172,7 +172,7 @@ log() {
 #   error "Database connection failed"
 #   error "Required file not found:" "$path"
 error() {
-    log $ERROR_LEVEL "$@"
+    _log $ERROR_LEVEL "$@"
 }
 
 # Function: warn
@@ -192,7 +192,7 @@ error() {
 #   warn "Configuration file not found, using defaults"
 #   warn "Deprecated flag used:" "$flag"
 warn() {
-    log $WARN_LEVEL "$@"
+    _log $WARN_LEVEL "$@"
 }
 
 # Function: info
@@ -212,7 +212,7 @@ warn() {
 #   info "Application started successfully"
 #   info "Listening on port" "$port"
 info() {
-    log $INFO_LEVEL "$@"
+    _log $INFO_LEVEL "$@"
 }
 
 # Function: debug
@@ -232,7 +232,7 @@ info() {
 #   debug "Processing user ID: 12345"
 #   debug "Resolved path:" "$path"
 debug() {
-    log $DEBUG_LEVEL "$@"
+    _log $DEBUG_LEVEL "$@"
 }
 
 # Function: verbose
@@ -255,7 +255,7 @@ debug() {
 #   verbose "Detailed diagnostic info"
 #   verbose "Raw output line:" "$line"
 verbose() {
-    log "$VERBOSE_LEVEL" "$@"
+    _log "$VERBOSE_LEVEL" "$@"
 }
 
 # Function: log_output
@@ -281,6 +281,6 @@ verbose() {
 log_output() {
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
-        log "$VERBOSE_LEVEL" "$line"
+        _log "$VERBOSE_LEVEL" "$line"
     done
 }

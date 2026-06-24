@@ -68,18 +68,14 @@ info "Starting BentoPDF native installation (no Docker)..."
 info "BentoPDF will be served on port ${BENTODPF_PORT} from ${BENTODPF_DIR}."
 
 # --- Step 1: Update System ---
-info "Updating system packages..."
-update &
-monitor $! \
+update \
     --style "$SPINNER_LOADING_STYLE" \
     --message "Updating system packages" \
     --success_msg "System packages updated" \
     --error_msg "Failed to update system packages" || exit 1
 
 # --- Step 2: Install Dependencies ---
-info "Installing required packages (nodejs, npm, curl, unzip)..."
-install nodejs npm curl unzip &
-monitor $! \
+install nodejs npm curl unzip \
     --style "$SPINNER_LOADING_STYLE" \
     --message "Installing nodejs, npm, curl, unzip" \
     --success_msg "Dependencies installed" \

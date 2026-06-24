@@ -3,7 +3,7 @@
 # Function: network
 # Description: Unified interface for networking utilities. Dispatches subcommands
 #              to the appropriate networking function. Individual functions
-#              (download, check_port, wait_for_port, bridge, forward) remain
+#              (download, scan, poll, bridge, forward) remain
 #              callable directly; this is a convenience entry point.
 #
 # Arguments:
@@ -59,12 +59,12 @@ function network {
 
     case "$command" in
         download) download      "$@" ;;
-        check)    check_port    "$@" ;;
-        wait)     wait_for_port "$@" ;;
+        check|scan) scan          "$@" ;;
+        wait|poll)  poll         "$@" ;;
         bridge)   bridge        "$@" ;;
         forward)  forward       "$@" ;;
         *)
-            error "network: unknown command: '$command'. Valid commands: download, check, wait, bridge, forward"
+            error "network: unknown command: '$command'. Valid commands: download, check (scan), wait (poll), bridge, forward"
             return 1
             ;;
     esac

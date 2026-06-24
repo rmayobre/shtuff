@@ -49,13 +49,15 @@ debug "Debug message"           # Cyan (only when LOG_LEVEL=DEBUG)
 
 ### Package Management
 ```bash
-update                          # Update all system packages (no args)
-install nodejs npm curl unzip   # Install one or more packages
-uninstall nginx                 # Remove one or more packages
-clean                           # Remove orphans and clean package cache
+update                          # Update all system packages (shows spinner)
+install nodejs npm curl unzip   # Install one or more packages (shows spinner)
+uninstall nginx                 # Remove one or more packages (shows spinner)
+clean                           # Remove orphans and clean package cache (shows spinner)
 dependencies curl nodejs npm    # Update system, install packages one-by-one, skip failures
 ```
 All commands auto-detect the package manager (apt, dnf, yum, zypper, pacman, apk).
+Each command runs in the background and displays a loading indicator via `monitor`.
+Optional flags: `--message MSG`, `--style STYLE`, `--success_msg MSG`, `--error_msg MSG`.
 
 ### Background Process Monitoring
 Always run the command in the background with `&`, then pass `$!` to `monitor`:
@@ -99,7 +101,7 @@ service \
 `systemctl start` after writing the unit file. Pass `--lazy` to write the file only
 and skip those steps.
 
-### Forms
+### Prompts
 
 Result is stored in the global variable `$answer` after each call.
 
@@ -147,8 +149,8 @@ Follow the structure from `examples/install-bentodpf-native.sh` and
 3. **Define constants** — `readonly` for fixed values, plain vars for overridable config
 4. **Parse `--flag VALUE` arguments** — support both short (`-p`) and long (`--port`) forms
 5. **Root check** — exit early if `$EUID -ne 0`
-6. **Step 1:** `update` system packages (run in background, monitor)
-7. **Step 2:** `install` dependencies (run in background, monitor)
+6. **Step 1:** `update` system packages (includes built-in monitor)
+7. **Step 2:** `install` dependencies (includes built-in monitor)
 8. **Step 3+:** Download / extract / configure the application
 9. **Service step:** Call `service` to create, enable, and start the systemd unit
 10. **Final `info`** messages showing access URL and management commands
@@ -206,7 +208,7 @@ as `delete` removes the path itself. Use `delete` for temp files and directories
 
 ## Conventions
 
-- Always `|| exit 1` after `monitor` calls — propagate failures
+- Always `|| exit 1` after packaging and `monitor` calls — propagate failures
 - Use `readonly` for constants that must not change (`REPO`, `SERVICE` name)
 - Allow config vars to be overridden via environment: `PORT="${PORT:-3000}"`
 - Download files to `/tmp/`, always clean up temp files afterward
@@ -217,8 +219,9 @@ as `delete` removes the path itself. Use `delete` for temp files and directories
   used by shtuff itself and are not part of the public API. Their signatures and
   behavior may change without notice. Only call the documented public functions
   (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`, `dependencies`,
-  `monitor`, `stop`, `copy`, `move`, `delete`, `service`, `timer`,
-  `question`, `options`, `selections`, `confirm`).
+  `monitor`, `stop`, `copy`, `move`, `delete`, `download`, `service`, `timer`,
+  `question`, `options`, `selections`, `confirm`, `scan`, `poll`,
+  `bridge`, `forward`, `network`).
 
 ---
 
@@ -302,13 +305,18 @@ shtuff/
 ├── shtuff.sh              # Local sourcing entry point
 ├── shtuff-remote.sh       # Remote sourcing entry point
 ├── src/
+│   ├── containers/        # Container management
+│   │   ├── lxc/           # LXC container functions
+│   │   └── pct/           # Proxmox CT functions
 │   ├── graphics/          # ANSI colors, loading indicators
-│   ├── logging/           # log(), info(), warn(), error(), debug()
+│   ├── logging/           # _log(), info(), warn(), error(), debug()
+│   ├── networking/        # scan(), poll(), bridge(), forward(), network()
 │   ├── packaging/         # install(), update(), uninstall(), clean()
-│   ├── forms/             # question(), options(), selections(), confirm()
+│   ├── prompts/           # question(), options(), selections(), confirm()
 │   ├── systemd/           # service(), timer()
-│   └── utils/             # monitor(), stop(), copy(), move(), delete()
+│   └── utils/             # monitor(), stop(), copy(), move(), delete(), download()
 └── examples/
+    ├── install-bentodpf-container.sh
     ├── install-bentodpf-docker.sh
     ├── install-bentodpf-native.sh
     ├── update-bentodpf-docker.sh

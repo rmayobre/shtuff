@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Function: wait_for_port
+# Function: poll
 # Description: Polls a TCP host:port until it accepts connections or a timeout
 #              is reached. Displays a loading indicator while waiting. Useful
 #              for scripts that start a service and must wait for it to be ready
@@ -28,10 +28,10 @@
 #   2 - Timed out waiting for the port to become reachable.
 #
 # Examples:
-#   wait_for_port --host 127.0.0.1 --port 8080
-#   wait_for_port --host 10.0.0.10 --port 80 --timeout 60
-#   wait_for_port --host 10.0.0.10 --port 5432 --timeout 120 --interval 5 || exit 1
-function wait_for_port {
+#   poll --host 127.0.0.1 --port 8080
+#   poll --host 10.0.0.10 --port 80 --timeout 60
+#   poll --host 10.0.0.10 --port 5432 --timeout 120 --interval 5 || exit 1
+function poll {
     local host=""
     local port=""
     local timeout=30
@@ -66,34 +66,34 @@ function wait_for_port {
                 shift
                 ;;
             *)
-                error "wait_for_port: unknown option: $1"
+                error "poll: unknown option: $1"
                 return 1
                 ;;
         esac
     done
 
     if [[ -z "$host" ]]; then
-        error "wait_for_port: --host is required"
+        error "poll: --host is required"
         return 1
     fi
 
     if [[ -z "$port" ]]; then
-        error "wait_for_port: --port is required"
+        error "poll: --port is required"
         return 1
     fi
 
     if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
-        error "wait_for_port: invalid port number: '$port' (must be an integer between 1 and 65535)"
+        error "poll: invalid port number: '$port' (must be an integer between 1 and 65535)"
         return 1
     fi
 
     if ! [[ "$timeout" =~ ^[0-9]+$ ]] || (( timeout < 1 )); then
-        error "wait_for_port: --timeout must be a positive integer"
+        error "poll: --timeout must be a positive integer"
         return 1
     fi
 
     if ! [[ "$interval" =~ ^[0-9]+$ ]] || (( interval < 1 )); then
-        error "wait_for_port: --interval must be a positive integer"
+        error "poll: --interval must be a positive integer"
         return 1
     fi
 
@@ -102,10 +102,10 @@ function wait_for_port {
         return 0
     fi
 
-    debug "wait_for_port: host='$host' port='$port' timeout=${timeout}s interval=${interval}s"
+    debug "poll: host='$host' port='$port' timeout=${timeout}s interval=${interval}s"
 
     # Run the polling loop as a background job so monitor can display a spinner.
-    _wait_for_port_poll() {
+    _poll_connect() {
         local h="$1" p="$2" t="$3" iv="$4"
         local elapsed=0
         while (( elapsed < t )); do
@@ -118,7 +118,7 @@ function wait_for_port {
         return 1
     }
 
-    _wait_for_port_poll "$host" "$port" "$timeout" "$interval" &
+    _poll_connect "$host" "$port" "$timeout" "$interval" &
     monitor $! \
         --style "$style" \
         --message "Waiting for $host:$port" \

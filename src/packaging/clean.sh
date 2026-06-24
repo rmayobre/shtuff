@@ -1,21 +1,49 @@
 #!/usr/bin/env bash
 
 # Function: clean
-# Description: Detects the system's package manager and removes unused dependencies and package caches.
+# Description: Detects the system's package manager and removes unused dependencies and
+#              package caches. Runs the cleanup command in the background and displays a
+#              loading indicator via monitor while the cleanup is in progress.
 #
 # Arguments:
-#   None
+#   --message MSG (string, optional, default: "Cleaning packages"): Message shown
+#       during the loading indicator.
+#   --style STYLE (string, optional, default: DEFAULT_LOADING_STYLE): Loading indicator style.
+#   --success_msg MSG (string, optional, default: "Package cleanup complete"): Message shown
+#       on successful completion.
+#   --error_msg MSG (string, optional, default: "Package cleanup failed"): Message shown
+#       on failure.
 #
 # Globals:
-#   None
+#   DEFAULT_LOADING_STYLE (read): Fallback loading indicator style.
+#   VERBOSE_FILE (write): Raw package manager output is appended here.
 #
 # Returns:
 #   0 - Cleanup completed successfully.
-#   1 - No supported package manager found.
+#   1 - No supported package manager found or cleanup failed.
 #
 # Examples:
 #   clean
+#   clean --message "Removing unused packages" --success_msg "Cleanup done"
 clean() {
+    local message="Cleaning packages"
+    local style="$DEFAULT_LOADING_STYLE"
+    local success_msg="Package cleanup complete"
+    local error_msg="Package cleanup failed"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -m|--message)     message="$2";     shift 2 ;;
+            -s|--style)       style="$2";       shift 2 ;;
+            -sm|--success_msg) success_msg="$2"; shift 2 ;;
+            -e|--error_msg)   error_msg="$2";   shift 2 ;;
+            *)
+                error "clean: unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
     if [[ $EUID -ne 0 ]]; then
         if command -v sudo &>/dev/null; then
             warn "Not running as root. Package cleanup may fail without elevated privileges."
@@ -25,163 +53,148 @@ clean() {
     fi
 
     if command -v apt &> /dev/null; then
-        clean_apt
+        _clean_apt &
     elif command -v dnf &> /dev/null; then
-        clean_dnf
+        _clean_dnf &
     elif command -v yum &> /dev/null; then
-        clean_yum
+        _clean_yum &
     elif command -v zypper &> /dev/null; then
-        clean_zypper
+        _clean_zypper &
     elif command -v pacman &> /dev/null; then
-        clean_pacman
+        _clean_pacman &
     elif command -v apk &> /dev/null; then
-        clean_apk
+        _clean_apk &
     else
         error "Could not determine the primary package manager."
         error "Cannot proceed with cleaning process."
         return 1
     fi
+
+    monitor $! \
+        --style "$style" \
+        --message "$message" \
+        --success_msg "$success_msg" \
+        --error_msg "$error_msg"
 }
 
-# Function: clean_apt
+# Function: _clean_apt
 # Description: Removes unused APT dependencies and cleans the package cache.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw apt output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw apt output is appended here.
 #
 # Returns:
 #   0 - Cleanup completed successfully.
 #   1 - apt autoremove or autoclean failed.
 #
 # Examples:
-#   clean_apt
-clean_apt() {
-    info "Running APT cleanup (autoremove and autoclean)"
-    apt autoremove -y > >(log_output) 2>&1 || return 1
-    apt autoclean -y > >(log_output) 2>&1 || return 1
+#   _clean_apt
+_clean_apt() {
+    apt autoremove -y >> "$VERBOSE_FILE" 2>&1 || return 1
+    apt autoclean -y >> "$VERBOSE_FILE" 2>&1 || return 1
 }
 
-# Function: clean_dnf
+# Function: _clean_dnf
 # Description: Removes unused DNF dependencies and cleans all DNF caches.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw dnf output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw dnf output is appended here.
 #
 # Returns:
 #   0 - Cleanup completed successfully.
 #   1 - dnf autoremove or dnf clean failed.
 #
 # Examples:
-#   clean_dnf
-clean_dnf() {
-    info "Running DNF cleanup (autoremove and clean all)"
-    dnf autoremove -y > >(log_output) 2>&1 || return 1
-    dnf clean all > >(log_output) 2>&1 || return 1
+#   _clean_dnf
+_clean_dnf() {
+    dnf autoremove -y >> "$VERBOSE_FILE" 2>&1 || return 1
+    dnf clean all >> "$VERBOSE_FILE" 2>&1 || return 1
 }
 
-# Function: clean_yum
+# Function: _clean_yum
 # Description: Cleans all YUM caches and optionally removes orphaned packages via package-cleanup.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw yum and package-cleanup output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw yum and package-cleanup output is appended here.
 #
 # Returns:
 #   0 - Cleanup completed successfully.
 #   1 - yum clean failed.
 #
 # Examples:
-#   clean_yum
-clean_yum() {
-    info "Running YUM cleanup (clean all)"
-    yum clean all > >(log_output) 2>&1 || return 1
+#   _clean_yum
+_clean_yum() {
+    yum clean all >> "$VERBOSE_FILE" 2>&1 || return 1
     if command -v package-cleanup &> /dev/null; then
-        info "Running package-cleanup --orphans"
-        package-cleanup --orphans -y > >(log_output) 2>&1 || return 1
-    else
-        warn "'package-cleanup' not found. Install 'yum-utils' for more thorough dependency cleanup."
+        package-cleanup --orphans -y >> "$VERBOSE_FILE" 2>&1 || return 1
     fi
 }
 
-# Function: clean_zypper
-# Description: Cleans all Zypper package caches; orphaned dependencies are handled automatically by Zypper.
+# Function: _clean_zypper
+# Description: Cleans all Zypper package caches.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw zypper output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw zypper output is appended here.
 #
 # Returns:
 #   0 - Cleanup completed successfully.
 #   1 - zypper clean failed.
 #
 # Examples:
-#   clean_zypper
-clean_zypper() {
-    info "Running Zypper cleanup (autoremove and clean)"
-    info "Zypper automatically removes unused dependencies."
-    info "Clearing cache..."
-    zypper clean --all > >(log_output) 2>&1 || return 1
+#   _clean_zypper
+_clean_zypper() {
+    zypper clean --all >> "$VERBOSE_FILE" 2>&1 || return 1
 }
 
-# Function: clean_pacman
+# Function: _clean_pacman
 # Description: Removes orphaned Pacman packages and cleans the package cache.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw pacman output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw pacman output is appended here.
 #
 # Returns:
 #   0 - Cleanup completed successfully.
 #   1 - pacman orphan removal or cache clean failed.
 #
 # Examples:
-#   clean_pacman
-clean_pacman() {
-    info "Running Pacman cleanup (orphan removal and cache cleaning)"
+#   _clean_pacman
+_clean_pacman() {
     if pacman -Qtdq &> /dev/null; then
-        info "Removing orphaned packages with Pacman..."
-        pacman -Rns --noconfirm "$(pacman -Qtdq)" > >(log_output) 2>&1 || return 1
-    else
-        info "No orphaned packages found or nothing to remove."
+        pacman -Rns --noconfirm "$(pacman -Qtdq)" >> "$VERBOSE_FILE" 2>&1 || return 1
     fi
-    info "Cleaning Pacman package cache..."
-    pacman -Sc --noconfirm > >(log_output) 2>&1 || return 1
+    pacman -Sc --noconfirm >> "$VERBOSE_FILE" 2>&1 || return 1
 }
 
-# Function: clean_apk
+# Function: _clean_apk
 # Description: Cleans the APK package cache.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw apk output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw apk output is appended here.
 #
 # Returns:
 #   0 - Cleanup completed successfully.
 #   1 - apk cache clean failed.
 #
 # Examples:
-#   clean_apk
-clean_apk() {
-    info "Running APK cleanup (cache clean)"
-    apk cache clean > >(log_output) 2>&1 || return 1
+#   _clean_apk
+_clean_apk() {
+    apk cache clean >> "$VERBOSE_FILE" 2>&1 || return 1
 }

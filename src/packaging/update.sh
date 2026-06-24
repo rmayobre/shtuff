@@ -1,21 +1,49 @@
 #!/usr/bin/env bash
 
 # Function: update
-# Description: Detects the system's package manager and upgrades all installed packages to their latest versions.
+# Description: Detects the system's package manager and upgrades all installed packages
+#              to their latest versions. Runs the package manager command in the background
+#              and displays a loading indicator via monitor while the update is in progress.
 #
 # Arguments:
-#   None
+#   --message MSG (string, optional, default: "Updating system packages"): Message shown
+#       during the loading indicator.
+#   --style STYLE (string, optional, default: DEFAULT_LOADING_STYLE): Loading indicator style.
+#   --success_msg MSG (string, optional, default: "System packages updated"): Message shown
+#       on successful completion.
+#   --error_msg MSG (string, optional, default: "Failed to update system packages"): Message
+#       shown on failure.
 #
 # Globals:
-#   None
+#   DEFAULT_LOADING_STYLE (read): Fallback loading indicator style.
+#   VERBOSE_FILE (write): Raw package manager output is appended here.
 #
 # Returns:
 #   0 - System update completed successfully.
-#   1 - No supported package manager found.
+#   1 - No supported package manager found or update failed.
 #
 # Examples:
 #   update
+#   update --message "Updating packages" --success_msg "All packages updated"
 update() {
+    local message="Updating system packages"
+    local style="$DEFAULT_LOADING_STYLE"
+    local success_msg="System packages updated"
+    local error_msg="Failed to update system packages"
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -m|--message)     message="$2";     shift 2 ;;
+            -s|--style)       style="$2";       shift 2 ;;
+            -sm|--success_msg) success_msg="$2"; shift 2 ;;
+            -e|--error_msg)   error_msg="$2";   shift 2 ;;
+            *)
+                error "update: unknown option: $1"
+                return 1
+                ;;
+        esac
+    done
+
     if [[ $EUID -ne 0 ]]; then
         if command -v sudo &>/dev/null; then
             warn "Not running as root. Package updates may fail without elevated privileges."
@@ -25,155 +53,143 @@ update() {
     fi
 
     if command -v apt &> /dev/null; then
-        update_apt
+        _update_apt &
     elif command -v dnf &> /dev/null; then
-        update_dnf
+        _update_dnf &
     elif command -v yum &> /dev/null; then
-        update_yum
+        _update_yum &
     elif command -v zypper &> /dev/null; then
-        update_zypper
+        _update_zypper &
     elif command -v pacman &> /dev/null; then
-        update_pacman
+        _update_pacman &
     elif command -v apk &> /dev/null; then
-        update_apk
+        _update_apk &
     else
         error "Could not determine the primary package manager."
         error "Cannot proceed with system update."
         return 1
     fi
+
+    monitor $! \
+        --style "$style" \
+        --message "$message" \
+        --success_msg "$success_msg" \
+        --error_msg "$error_msg"
 }
 
-# Function: update_apt
+# Function: _update_apt
 # Description: Refreshes APT package lists and upgrades all installed packages.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw apt output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw apt output is appended here.
 #
 # Returns:
 #   0 - Update completed successfully.
 #   1 - apt update or apt upgrade failed.
 #
 # Examples:
-#   update_apt
-update_apt() {
-    info "Running APT update (update package lists and upgrade packages)"
-    apt update > >(log_output) 2>&1
-    apt upgrade -y > >(log_output) 2>&1
-    info "APT update completed successfully."
+#   _update_apt
+_update_apt() {
+    apt update >> "$VERBOSE_FILE" 2>&1
+    apt upgrade -y >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: update_dnf
+# Function: _update_dnf
 # Description: Upgrades all installed packages using DNF.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw dnf output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw dnf output is appended here.
 #
 # Returns:
 #   0 - Update completed successfully.
 #   1 - dnf upgrade failed.
 #
 # Examples:
-#   update_dnf
-update_dnf() {
-    info "Running DNF update (upgrade all packages)"
-    dnf upgrade -y > >(log_output) 2>&1
-    info "DNF update completed successfully."
+#   _update_dnf
+_update_dnf() {
+    dnf upgrade -y >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: update_yum
+# Function: _update_yum
 # Description: Updates all installed packages using YUM.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw yum output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw yum output is appended here.
 #
 # Returns:
 #   0 - Update completed successfully.
 #   1 - yum update failed.
 #
 # Examples:
-#   update_yum
-update_yum() {
-    info "Running YUM update (update all packages)"
-    yum update -y > >(log_output) 2>&1
-    info "YUM update completed successfully."
+#   _update_yum
+_update_yum() {
+    yum update -y >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: update_zypper
+# Function: _update_zypper
 # Description: Refreshes Zypper repositories and upgrades all installed packages.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw zypper output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw zypper output is appended here.
 #
 # Returns:
 #   0 - Update completed successfully.
 #   1 - zypper refresh or zypper update failed.
 #
 # Examples:
-#   update_zypper
-update_zypper() {
-    info "Running Zypper update (refresh repositories and update packages)"
-    zypper refresh > >(log_output) 2>&1
-    zypper --non-interactive update > >(log_output) 2>&1
-    info "Zypper update completed successfully."
+#   _update_zypper
+_update_zypper() {
+    zypper refresh >> "$VERBOSE_FILE" 2>&1
+    zypper --non-interactive update >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: update_pacman
+# Function: _update_pacman
 # Description: Synchronizes Pacman databases and upgrades all installed packages.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw pacman output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw pacman output is appended here.
 #
 # Returns:
 #   0 - Update completed successfully.
 #   1 - pacman -Syu failed.
 #
 # Examples:
-#   update_pacman
-update_pacman() {
-    info "Running Pacman update (sync databases and upgrade packages)"
-    pacman -Syu --noconfirm > >(log_output) 2>&1
-    info "Pacman update completed successfully."
+#   _update_pacman
+_update_pacman() {
+    pacman -Syu --noconfirm >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: update_apk
+# Function: _update_apk
 # Description: Updates the APK package index and upgrades all installed packages.
 #
 # Arguments:
 #   None
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw apk output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw apk output is appended here.
 #
 # Returns:
 #   0 - Update completed successfully.
 #   1 - apk update or apk upgrade failed.
 #
 # Examples:
-#   update_apk
-update_apk() {
-    info "Running APK update (update package index and upgrade packages)"
-    apk update > >(log_output) 2>&1
-    apk upgrade > >(log_output) 2>&1
-    info "APK update completed successfully."
+#   _update_apk
+_update_apk() {
+    apk update >> "$VERBOSE_FILE" 2>&1
+    apk upgrade >> "$VERBOSE_FILE" 2>&1
 }

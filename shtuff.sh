@@ -56,6 +56,10 @@ source "${SHTUFF_DIR}/src/gpu/gpu_select.sh"
 source "${SHTUFF_DIR}/src/gpu/gpu_install.sh"
 
 # Containers
+# System
+source "${SHTUFF_DIR}/src/system/locale.sh"
+
+# Containers
 source "${SHTUFF_DIR}/src/containers/lxc_config.sh"
 source "${SHTUFF_DIR}/src/containers/lxc_create.sh"
 source "${SHTUFF_DIR}/src/containers/lxc_delete.sh"

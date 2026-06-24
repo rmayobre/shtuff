@@ -66,6 +66,10 @@ source <(_fetch "${BASE_URL}/src/gpu/gpu_select.sh")
 source <(_fetch "${BASE_URL}/src/gpu/gpu_install.sh")
 
 # Containers
+# System
+source <(_fetch "${BASE_URL}/src/system/locale.sh")
+
+# Containers
 source <(_fetch "${BASE_URL}/src/containers/lxc_config.sh")
 source <(_fetch "${BASE_URL}/src/containers/lxc_create.sh")
 source <(_fetch "${BASE_URL}/src/containers/lxc_delete.sh")

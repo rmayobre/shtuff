@@ -1607,3 +1607,37 @@ container create \
 # Add a second GPU to slot 1 after creation
 gpu_select --container multi-gpu --index 1 --pcie
 ```
+
+---
+
+## System
+
+### `locale`
+
+Configures the system locale by installing the necessary locale package,
+generating the locale, and setting it as the default. Auto-detects the
+package manager (apt, dnf, yum, pacman, apk, zypper).
+
+```
+locale LOCALE [--dry-run]
+```
+
+| Argument / Option | Type   | Required | Default       | Description |
+|-------------------|--------|----------|---------------|-------------|
+| `LOCALE`          | string | yes      | —             | The locale to configure (e.g. `en_US.UTF-8`, `de_DE.UTF-8`). |
+| `--dry-run`       | flag   | no       | `$IS_DRY_RUN` | Print the commands that would be executed without running them. |
+
+**Returns:** `0` on success; `1` if no locale was provided, the package manager is unsupported, or locale generation failed.
+
+```bash
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+
+# Configure US English locale
+locale "en_US.UTF-8"
+
+# Configure German locale
+locale "de_DE.UTF-8"
+
+# Preview what would be executed
+locale "fr_FR.UTF-8" --dry-run
+```

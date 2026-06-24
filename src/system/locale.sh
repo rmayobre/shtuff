@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-# Function: locale_setup
+# Function: locale
 # Description: Configures the system locale by installing the necessary locale
 #              package, generating the locale, and setting it as the default via
 #              environment variables. Auto-detects the package manager.
 #
 # Arguments:
-#   --locale LOCALE (string, optional, default: "en_US.UTF-8"): The locale to
-#       configure (e.g. "de_DE.UTF-8", "fr_FR.UTF-8").
+#   $1 - locale (string, required): The locale to configure
+#        (e.g. "en_US.UTF-8", "de_DE.UTF-8").
 #   --dry-run (flag, optional): Print the commands that would be executed without
 #       running them. Defaults to IS_DRY_RUN if not specified.
 #
@@ -19,33 +19,39 @@
 #   1 - Invalid arguments, unsupported package manager, or locale generation failed.
 #
 # Examples:
-#   locale_setup
-#   locale_setup --locale "de_DE.UTF-8"
-#   locale_setup --locale "fr_FR.UTF-8" --dry-run
-locale_setup() {
-    local locale="en_US.UTF-8"
+#   locale "en_US.UTF-8"
+#   locale "de_DE.UTF-8"
+#   locale "fr_FR.UTF-8" --dry-run
+locale() {
+    local locale=""
     local dry_run="${IS_DRY_RUN:-false}"
 
     while (( "$#" )); do
         case "$1" in
-            --locale)
-                if [[ -z "$2" || "$2" == --* ]]; then
-                    error "Missing value for --locale"
-                    return 1
-                fi
-                locale="$2"
-                shift 2
-                ;;
             --dry-run)
                 dry_run="true"
                 shift
                 ;;
-            *)
+            -*)
                 error "Unknown option: $1"
                 return 1
                 ;;
+            *)
+                if [[ -z "$locale" ]]; then
+                    locale="$1"
+                else
+                    error "Unexpected argument: $1"
+                    return 1
+                fi
+                shift
+                ;;
         esac
     done
+
+    if [[ -z "$locale" ]]; then
+        error "Usage: locale <LOCALE> [--dry-run]"
+        return 1
+    fi
 
     local lang="${locale%%.*}"
     local encoding="${locale##*.}"

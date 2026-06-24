@@ -27,6 +27,11 @@
 #       _gpu_apply_passthrough. Use gpu_list to discover available addresses.
 #   --pcie (flag, optional): Enable PCIe passthrough mode (pcie=1) when configuring
 #       GPU passthrough on PCT backends. Has no effect on LXC backends.
+#   --prompt (flag, optional): Interactively prompt for any of the above values that
+#       are left null, empty, or unset (skipped if --dry-run is set). Any values
+#       already provided on the command line are used as the prompt defaults and are
+#       not re-prompted. After confirmation, also offers to configure the container's
+#       network interface via 'container network prompt'.
 #
 #   exec subcommand — run a command inside the container without an interactive session:
 #   -- COMMAND... (required): Everything after -- is the command to run inside the container.
@@ -53,6 +58,9 @@
 #       (no keyword) — configure the interface (default behaviour).
 #       show          — display the current network configuration.
 #       prompt        — interactive form to configure the interface.
+#
+#   prompt subcommand — alias for 'create --prompt'; interactively prompts for any
+#   create options not supplied as arguments.
 #
 #   Configure / show flags:
 #   --bridge BRIDGE (string, optional): Host bridge interface to attach to.
@@ -105,8 +113,9 @@
 #   container shell-script --name mycontainer --content '#!/bin/bash\necho hello' --path /usr/local/bin/hello.sh
 #   container shell-script --name 100 --content "$(cat setup.sh)" --path /opt/setup.sh
 #   container shell-script --name mycontainer --path /opt/setup.sh --env PORT="$PORT" --env DIR="$INSTALL_DIR"
+#   container create --prompt
+#   container create --name myapp --memory 1024 --prompt
 #   container prompt
-#   CONTAINER_NAME=myapp CONTAINER_MEMORY=1024 container prompt
 function container {
     local command="${1:-}"
     shift || true
@@ -122,7 +131,7 @@ function container {
         delete)  _container_delete  "$@" ;;
         network)       _container_network       "$@" ;;
         shell-script)  _container_shell_script  "$@" ;;
-        prompt)        _container_prompt        "$@" ;;
+        prompt)        _container_create --prompt "$@" ;;
         *)
             error "container: unknown command: '$command'. Valid commands: create, config, start, exec, enter, push, pull, delete, network, shell-script, prompt"
             return 1
@@ -264,17 +273,197 @@ _container_config() {
     fi
 }
 
+# _container_create_prompt
+# Interactively prompts for any container creation option left null, empty, or unset,
+# using the caller's existing local variables as defaults (and skipping the prompt
+# entirely when a value is already present). Relies on bash's dynamic scoping: the
+# caller (_container_create) must declare 'name', 'template', 'dist', 'release', 'arch',
+# 'hostname', 'memory', 'cores', 'storage', 'disk_size', 'password', 'gpu_addr',
+# 'pcie_mode', and 'backend' as local variables before calling this function — those
+# variables are assigned directly.
+#
+# Returns:
+#   0 - User confirmed; caller should proceed with creation.
+#   1 - GPU selection failed.
+#   2 - User cancelled at the confirmation prompt.
+_container_create_prompt() {
+    if [[ -z "$name" ]]; then
+        question "Container name:"
+        name="$answer"
+    fi
+
+    if [[ -n "$template" ]]; then
+        info "Using --template='$template'"
+    elif [[ "$backend" == "pct" ]]; then
+        question "Template path (leave blank to auto-resolve via distribution/release):"
+        template="$answer"
+    else
+        question "Template name (leave blank for 'download'):"
+        template="${answer:-download}"
+    fi
+
+    local needs_dist_release="false"
+    if [[ "$backend" == "pct" ]]; then
+        [[ -z "$template" ]] && needs_dist_release="true"
+    elif [[ "$template" == "download" ]]; then
+        needs_dist_release="true"
+    fi
+
+    if [[ "$needs_dist_release" == "true" ]]; then
+        if [[ -n "$dist" ]]; then
+            info "Using --dist='$dist'"
+        fi
+        if [[ -n "$release" ]]; then
+            info "Using --release='$release'"
+        fi
+        if [[ -z "$dist" || -z "$release" ]]; then
+            _container_dist_release_prompt
+        fi
+
+        if [[ -n "$arch" ]]; then
+            info "Using --arch='$arch'"
+        elif [[ "$backend" == "lxc" ]]; then
+            options "Architecture:" \
+                --choice "amd64" \
+                --choice "arm64" \
+                --choice "armhf" \
+                --choice "i386"
+            arch="$answer"
+        fi
+    fi
+
+    if [[ -n "$hostname" ]]; then
+        info "Using --hostname='$hostname'"
+    else
+        question "Hostname inside container (leave blank to use container name):"
+        hostname="$answer"
+    fi
+
+    if [[ -n "$memory" ]]; then
+        info "Using --memory='${memory}MB'"
+    else
+        local mem_prompt="Memory limit in MB"
+        [[ "$backend" == "pct" ]] && mem_prompt+=" (leave blank for 512MB)"
+        mem_prompt+=":"
+        question "$mem_prompt"
+        memory="$answer"
+    fi
+
+    if [[ -n "$cores" ]]; then
+        info "Using --cores='$cores'"
+    else
+        local cores_prompt="Number of CPU cores"
+        [[ "$backend" == "pct" ]] && cores_prompt+=" (leave blank for 1)"
+        cores_prompt+=":"
+        question "$cores_prompt"
+        cores="$answer"
+    fi
+
+    if [[ -n "$storage" ]]; then
+        info "Using --storage='$storage'"
+    elif [[ "$backend" == "pct" ]]; then
+        question "Storage pool (leave blank for 'local-lvm'):"
+        storage="$answer"
+    else
+        options "Storage backing store:" \
+            --choice "dir" \
+            --choice "btrfs" \
+            --choice "zfs" \
+            --choice "overlayfs" \
+            --choice "best"
+        storage="$answer"
+    fi
+
+    if [[ -n "$disk_size" ]]; then
+        info "Using --disk-size='${disk_size}GB'"
+    else
+        local disk_prompt="Root disk size in GB"
+        [[ "$backend" == "pct" ]] && disk_prompt+=" (leave blank for 8GB)"
+        disk_prompt+=":"
+        question "$disk_prompt"
+        disk_size="$answer"
+    fi
+
+    if [[ -n "$password" ]]; then
+        info "Using --password from arguments"
+    else
+        question "Root password (leave blank to skip):"
+        password="$answer"
+    fi
+
+    if [[ -n "$gpu_addr" ]]; then
+        info "Using --gpu='$gpu_addr'"
+    elif confirm "Enable GPU passthrough for this container?"; then
+        gpu_select || return 1
+        gpu_addr="${answer%% *}"
+    fi
+
+    info "Container configuration summary:"
+    info "  Backend:  $backend"
+    info "  Name:     $name"
+    info "  Template: $template"
+    [[ "$needs_dist_release" == "true" ]] && info "  Dist / Release / Arch: ${dist} / ${release} / ${arch}"
+    [[ -n "$hostname"  ]] && info "  Hostname: $hostname"
+    [[ -n "$memory"    ]] && info "  Memory:   ${memory}MB"
+    [[ -n "$cores"     ]] && info "  Cores:    $cores"
+    [[ -n "$storage"   ]] && info "  Storage:  $storage"
+    [[ -n "$disk_size" ]] && info "  Disk:     ${disk_size}GB"
+    [[ -n "$password"  ]] && info "  Password: (set)"
+    if [[ -n "$gpu_addr" ]]; then
+        local gpu_summary="  GPU:      $gpu_addr"
+        [[ "$pcie_mode" == "true" ]] && gpu_summary+=" (PCIe)"
+        info "$gpu_summary"
+    fi
+
+    if ! confirm "Create this container?"; then
+        info "container create: cancelled."
+        return 2
+    fi
+
+    return 0
+}
+
 # _container_create
-# Extracts --name NAME, --gpu PCI_ADDR, and --pcie from args. All other flags are
-# forwarded unchanged to the appropriate backend. Both pct_create and lxc_create accept
-# --dist, --release, and --arch for download-template selection; pct_create resolves them
-# via pveam while lxc_create uses the lxc-create download template. When --gpu is
-# provided, GPU passthrough is applied after the container is created using
+# Extracts --name NAME, --gpu PCI_ADDR, --pcie, and --prompt from args. All other flags
+# are forwarded unchanged to the appropriate backend. Both pct_create and lxc_create
+# accept --dist, --release, and --arch for download-template selection; pct_create
+# resolves them via pveam while lxc_create uses the lxc-create download template. When
+# --gpu is provided, GPU passthrough is applied after the container is created using
 # _gpu_apply_passthrough.
+#
+# When --prompt is given, any argument left null, empty, or unset is interactively
+# prompted for via _container_create_prompt (skipped entirely if --dry-run is set),
+# using any value already supplied as the default. After confirmation the container is
+# created, and the user is asked whether to configure its network interface via
+# _container_network_prompt. Without --prompt, missing required arguments simply
+# cause the backend create function to error out.
+#
+# Each option below can also be shortcut via the corresponding CONTAINER_* environment
+# variable: if the command-line flag is not given, the environment variable (when set)
+# is used in its place and its prompt (under --prompt) is skipped.
+#
+# Globals:
+#   CONTAINER_NAME (read): Shortcut for --name.
+#   CONTAINER_TEMPLATE (read): Shortcut for --template.
+#   CONTAINER_DIST (read): Shortcut for --dist.
+#   CONTAINER_RELEASE (read): Shortcut for --release.
+#   CONTAINER_ARCH (read): Shortcut for --arch.
+#   CONTAINER_HOSTNAME (read): Shortcut for --hostname.
+#   CONTAINER_MEMORY (read): Shortcut for --memory.
+#   CONTAINER_CORES (read): Shortcut for --cores.
+#   CONTAINER_STORAGE (read): Shortcut for --storage.
+#   CONTAINER_DISK_SIZE (read): Shortcut for --disk-size.
+#   CONTAINER_PASSWORD (read): Shortcut for --password.
+#   CONTAINER_GPU (read): Shortcut for --gpu.
+#   CONTAINER_GPU_PCIE (read): Set to "true" to shortcut --pcie.
 _container_create() {
     local name=""
     local gpu_addr=""
     local pcie_mode="false"
+    local template="" dist="" release="" arch=""
+    local hostname="" memory="" cores="" storage="" disk_size="" password=""
+    local dry_run="${IS_DRY_RUN:-false}"
+    local prompt_mode="false"
     local passthrough=()
 
     while [[ $# -gt 0 ]]; do
@@ -291,6 +480,54 @@ _container_create() {
                 pcie_mode="true"
                 shift
                 ;;
+            --prompt)
+                prompt_mode="true"
+                shift
+                ;;
+            -t|--template)
+                template="$2"
+                shift 2
+                ;;
+            -d|--dist)
+                dist="$2"
+                shift 2
+                ;;
+            -r|--release)
+                release="$2"
+                shift 2
+                ;;
+            -a|--arch)
+                arch="$2"
+                shift 2
+                ;;
+            -h|--hostname)
+                hostname="$2"
+                shift 2
+                ;;
+            -m|--memory)
+                memory="$2"
+                shift 2
+                ;;
+            -c|--cores)
+                cores="$2"
+                shift 2
+                ;;
+            --storage)
+                storage="$2"
+                shift 2
+                ;;
+            --disk-size)
+                disk_size="$2"
+                shift 2
+                ;;
+            -p|--password)
+                password="$2"
+                shift 2
+                ;;
+            --dry-run)
+                dry_run="true"
+                shift
+                ;;
             *)
                 passthrough+=("$1")
                 shift
@@ -298,14 +535,50 @@ _container_create() {
         esac
     done
 
+    # CONTAINER_* environment variables shortcut any prompts for unset values.
+    name="${name:-${CONTAINER_NAME:-}}"
+    gpu_addr="${gpu_addr:-${CONTAINER_GPU:-}}"
+    [[ "$pcie_mode" == "false" && "${CONTAINER_GPU_PCIE:-false}" == "true" ]] && pcie_mode="true"
+    template="${template:-${CONTAINER_TEMPLATE:-}}"
+    dist="${dist:-${CONTAINER_DIST:-}}"
+    release="${release:-${CONTAINER_RELEASE:-}}"
+    arch="${arch:-${CONTAINER_ARCH:-}}"
+    hostname="${hostname:-${CONTAINER_HOSTNAME:-}}"
+    memory="${memory:-${CONTAINER_MEMORY:-}}"
+    cores="${cores:-${CONTAINER_CORES:-}}"
+    storage="${storage:-${CONTAINER_STORAGE:-}}"
+    disk_size="${disk_size:-${CONTAINER_DISK_SIZE:-}}"
+    password="${password:-${CONTAINER_PASSWORD:-}}"
+
+    local backend
+    backend=$(_container_backend)
+
+    if [[ "$prompt_mode" == "true" && "$dry_run" != "true" ]]; then
+        _container_create_prompt
+        case $? in
+            2) return 0 ;;
+            1) return 1 ;;
+        esac
+    fi
+
     if [[ -z "$name" ]]; then
         error "container create: --name is required"
         return 1
     fi
 
-    local backend
-    backend=$(_container_backend)
-    debug "container create: backend='$backend' name='$name'"
+    debug "container create: backend='$backend' name='$name' prompt='$prompt_mode'"
+
+    [[ -n "$template"  ]] && passthrough+=(--template "$template")
+    [[ -n "$dist"      ]] && passthrough+=(--dist "$dist")
+    [[ -n "$release"   ]] && passthrough+=(--release "$release")
+    [[ -n "$arch"      ]] && passthrough+=(--arch "$arch")
+    [[ -n "$hostname"  ]] && passthrough+=(--hostname "$hostname")
+    [[ -n "$memory"    ]] && passthrough+=(--memory "$memory")
+    [[ -n "$cores"     ]] && passthrough+=(--cores "$cores")
+    [[ -n "$storage"   ]] && passthrough+=(--storage "$storage")
+    [[ -n "$disk_size" ]] && passthrough+=(--disk-size "$disk_size")
+    [[ -n "$password"  ]] && passthrough+=(--password "$password")
+    [[ "$dry_run" == "true" ]] && passthrough+=(--dry-run)
 
     local container_id
     if [[ "$backend" == "pct" ]]; then
@@ -339,6 +612,13 @@ _container_create() {
             --container "$container_id" \
             --pci-addr  "$gpu_addr"    \
             --pcie      "$pcie_mode"   || return 1
+    fi
+
+    if [[ "$prompt_mode" == "true" && "$dry_run" != "true" ]]; then
+        if confirm "Configure network interface for '$name'?"; then
+            _container_network_prompt --name "$name"
+            return $?
+        fi
     fi
 
     return 0

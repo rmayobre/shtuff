@@ -95,7 +95,9 @@ function delete {
 
     if (( total > 1 )); then
         progress --current 0 --total "$total" --message "$message"
-        printf "\n"
+        if ! _zones_active; then
+            printf "\n"
+        fi
     fi
 
     for (( i = 0; i < total; i++ )); do

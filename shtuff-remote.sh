@@ -24,6 +24,9 @@ source <(_fetch "${BASE_URL}/src/graphics/colors.sh")
 # Logging
 source <(_fetch "${BASE_URL}/src/logging/log.sh")
 
+# Terminal
+source <(_fetch "${BASE_URL}/src/terminal/zones.sh")
+
 # Graphical
 source <(_fetch "${BASE_URL}/src/graphics/draw_loading_indicator.sh")
 

@@ -39,13 +39,29 @@ function draw_loading_indicator {
 
     local -a frames=("$@")
 
+    # Acquire a status zone slot when zones are active
+    local _slot=-1
+    if _zones_active; then
+        _slot=$(_acquire_status_slot) || _slot=-1
+    fi
+
     # Loop while PID is still running.
     local i=0
     while kill -0 "$pid" 2>/dev/null; do
-        printf "\r${color}${frames[$i]} ${message}${RESET_COLOR}"
+        if (( _slot >= 0 )); then
+            _write_to_status_zone --slot "$_slot" \
+                --message "${color}${frames[$i]} ${message}${RESET_COLOR}"
+        else
+            printf "\r${color}${frames[$i]} ${message}${RESET_COLOR}"
+        fi
         i=$(( (i + 1) % ${#frames[@]} ))
         sleep 0.1
     done
+
+    # Release the slot when the indicator loop ends
+    if (( _slot >= 0 )); then
+        _release_status_slot "$_slot"
+    fi
 }
 
 # Function: draw_loading_spinner

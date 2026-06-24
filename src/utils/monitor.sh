@@ -105,9 +105,17 @@ function monitor {
         local exit_code=0
         wait "$pid" 2>/dev/null || exit_code=$?
         if [[ $exit_code -eq 0 && -n "$success_msg" ]]; then
-            echo -e "\033[32m✓ $success_msg${RESET_COLOR}"
+            if _zones_active; then
+                _write_to_log_zone "\033[32m✓ $success_msg${RESET_COLOR}"
+            else
+                echo -e "\033[32m✓ $success_msg${RESET_COLOR}"
+            fi
         elif [[ $exit_code -ne 0 && -n "$error_msg" ]]; then
-            echo -e "\033[31m✗ $error_msg${RESET_COLOR}"
+            if _zones_active; then
+                _write_to_log_zone "\033[31m✗ $error_msg${RESET_COLOR}"
+            else
+                echo -e "\033[31m✗ $error_msg${RESET_COLOR}"
+            fi
         fi
         return $exit_code
     fi
@@ -155,17 +163,27 @@ function monitor {
     # Collect error code from pid
     wait "$pid" 2>/dev/null || exit_code=$?
 
-    # Clear the line
-    printf "\r\033[K"
+    # Clear the line (zone mode handles this via slot release in draw_loading_indicator)
+    if ! _zones_active; then
+        printf "\r\033[K"
+    fi
 
     # Show cursor
     tput cnorm
 
     # Show completion message
     if [[ $exit_code -eq 0 && -n "$success_msg" ]]; then
-        echo -e "\033[32m✓ $success_msg${RESET_COLOR}"
+        if _zones_active; then
+            _write_to_log_zone "\033[32m✓ $success_msg${RESET_COLOR}"
+        else
+            echo -e "\033[32m✓ $success_msg${RESET_COLOR}"
+        fi
     elif [[ $exit_code -ne 0 && -n "$error_msg" ]]; then
-        echo -e "\033[31m✗ $error_msg${RESET_COLOR}"
+        if _zones_active; then
+            _write_to_log_zone "\033[31m✗ $error_msg${RESET_COLOR}"
+        else
+            echo -e "\033[31m✗ $error_msg${RESET_COLOR}"
+        fi
     fi
 
     return $exit_code

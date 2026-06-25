@@ -103,7 +103,7 @@ function delete {
         if [[ -d "$target" ]]; then
             rm -rf "$target" &
         else
-            rm "$target" &
+            rm -f "$target" &
         fi
         monitor $! \
             --style "$style" \

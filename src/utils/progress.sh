@@ -171,7 +171,7 @@ function progress {
     printf -v count_str "(%${count_width}d/%d)" "$current" "$total"
 
     # Overwrite the current terminal line with the updated bar.
-    printf "\r%s [%b%s%b%s] %s %s" \
+    printf "\r\033[K%s [%b%s%b%s] %s %s" \
         "$message" \
         "$GREEN" "$bar_filled" \
         "$RESET_COLOR" "$bar_empty" \

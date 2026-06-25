@@ -105,46 +105,37 @@ function monitor {
         local exit_code=0
         wait "$pid" 2>/dev/null || exit_code=$?
         if [[ $exit_code -eq 0 && -n "$success_msg" ]]; then
-            echo -e "\033[32m✓ $success_msg${RESET_COLOR}"
+            info "$success_msg"
         elif [[ $exit_code -ne 0 && -n "$error_msg" ]]; then
-            echo -e "\033[31m✗ $error_msg${RESET_COLOR}"
+            error "$error_msg"
         fi
         return $exit_code
     fi
 
+    # Hide cursor and ensure it is restored on interruption.
+    tput civis
+    trap 'printf "\033[A\033[2K"; tput cnorm' INT TERM EXIT
+
     # Display loading indicator
     case "$style" in
         "$SPINNER_LOADING_STYLE")
-            # Hide cursor
-            tput civis
-
             draw_loading_spinner "$pid" "$message"
             ;;
         "$DOTS_LOADING_STYLE")
-            # Hide cursor
-            tput civis
-
             draw_loading_dots "$pid" "$message"
             ;;
         "$BARS_LOADING_STYLE")
-            # Hide cursor
-            tput civis
-
             draw_loading_bars "$pid" "$message"
             ;;
         "$ARROWS_LOADING_STYLE")
-            # Hide cursor
-            tput civis
-
             draw_loading_arrows "$pid" "$message"
             ;;
         "$CLOCK_LOADING_STYLE")
-            # Hide cursor
-            tput civis
-
             draw_loading_clock "$pid" "$message"
             ;;
         *)
+            tput cnorm
+            trap - INT TERM EXIT
             error "Unknown loading style: $style"
             return 1
             ;;
@@ -155,17 +146,18 @@ function monitor {
     # Collect error code from pid
     wait "$pid" 2>/dev/null || exit_code=$?
 
-    # Clear the line
-    printf "\r\033[K"
+    # Move up to the spinner line and erase it
+    printf "\033[A\033[2K"
 
     # Show cursor
     tput cnorm
+    trap - INT TERM EXIT
 
     # Show completion message
     if [[ $exit_code -eq 0 && -n "$success_msg" ]]; then
-        echo -e "\033[32m✓ $success_msg${RESET_COLOR}"
+        info "$success_msg"
     elif [[ $exit_code -ne 0 && -n "$error_msg" ]]; then
-        echo -e "\033[31m✗ $error_msg${RESET_COLOR}"
+        error "$error_msg"
     fi
 
     return $exit_code

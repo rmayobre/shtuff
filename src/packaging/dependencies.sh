@@ -2,11 +2,11 @@
 
 # Function: dependencies
 # Description: Updates system packages, then installs one or more packages individually
-#              with graceful per-package failure handling. Each package is installed in
-#              the background with its own loading indicator via monitor. Packages that
-#              fail to install are skipped with a warning rather than aborting the entire
-#              operation. When more than one package is specified, an overall progress bar
-#              is pinned above the per-item output.
+#              with graceful per-package failure handling. Each package is installed with
+#              its own loading indicator. Packages that fail to install are skipped with
+#              a warning rather than aborting the entire operation. When more than one
+#              package is specified, an overall progress bar is pinned above the per-item
+#              output.
 #
 # Arguments:
 #   $@ - packages (string, required): One or more package names to install.
@@ -33,8 +33,7 @@ dependencies() {
     local -a packages=("$@")
     local total=${#packages[@]}
 
-    update &
-    monitor $! \
+    update \
         --style "$SPINNER_LOADING_STYLE" \
         --message "Updating system packages" \
         --success_msg "System packages updated" \
@@ -48,8 +47,7 @@ dependencies() {
     for (( i = 0; i < total; i++ )); do
         local pkg="${packages[$i]}"
 
-        install "$pkg" &
-        monitor $! \
+        install "$pkg" \
             --style "$SPINNER_LOADING_STYLE" \
             --message "Installing $pkg" \
             --success_msg "$pkg installed" \

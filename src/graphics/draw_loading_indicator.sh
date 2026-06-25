@@ -39,10 +39,13 @@ function draw_loading_indicator {
 
     local -a frames=("$@")
 
+    # Advance one line so the spinner has its own display row.
+    printf "\n"
+
     # Loop while PID is still running.
     local i=0
     while kill -0 "$pid" 2>/dev/null; do
-        printf "\r${color}${frames[$i]} ${message}${RESET_COLOR}"
+        printf "\033[A\033[2K${color}${frames[$i]} ${message}${RESET_COLOR}\n"
         i=$(( (i + 1) % ${#frames[@]} ))
         sleep 0.1
     done

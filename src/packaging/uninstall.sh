@@ -2,25 +2,60 @@
 
 # Function: uninstall
 # Description: Detects the system's package manager and removes one or more installed packages.
+#              Runs the package manager command in the background and displays a loading
+#              indicator via monitor while the removal is in progress.
 #
 # Arguments:
 #   $@ - packages (string, required): One or more package names to remove, separated by spaces.
+#   --message MSG (string, optional): Message shown during the loading indicator.
+#   --style STYLE (string, optional, default: DEFAULT_LOADING_STYLE): Loading indicator style.
+#   --success_msg MSG (string, optional): Message shown on successful completion.
+#   --error_msg MSG (string, optional): Message shown on failure.
 #
 # Globals:
-#   None
+#   DEFAULT_LOADING_STYLE (read): Fallback loading indicator style.
+#   VERBOSE_FILE (write): Raw package manager output is appended here.
 #
 # Returns:
 #   0 - All packages removed successfully.
-#   1 - No packages specified, or no supported package manager found.
+#   1 - No packages specified, unknown option, or no supported package manager found.
 #
 # Examples:
 #   uninstall nginx
 #   uninstall nodejs npm
+#   uninstall nginx --message "Removing nginx" --success_msg "nginx removed"
 uninstall() {
-    if [ "$#" -eq 0 ]; then
-        error "Usage: uninstall <package1> [package2...]"
+    local message=""
+    local style="$DEFAULT_LOADING_STYLE"
+    local success_msg=""
+    local error_msg=""
+    local -a packages=()
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -m|--message)     message="$2";     shift 2 ;;
+            -s|--style)       style="$2";       shift 2 ;;
+            -sm|--success_msg) success_msg="$2"; shift 2 ;;
+            -e|--error_msg)   error_msg="$2";   shift 2 ;;
+            -*)
+                error "uninstall: unknown option: $1"
+                return 1
+                ;;
+            *)
+                packages+=("$1")
+                shift
+                ;;
+        esac
+    done
+
+    if [[ ${#packages[@]} -eq 0 ]]; then
+        error "Usage: uninstall <package1> [package2...] [--message MSG] [--style STYLE]"
         return 1
     fi
+
+    [[ -z "$message" ]] && message="Uninstalling ${packages[*]}"
+    [[ -z "$success_msg" ]] && success_msg="Packages removed"
+    [[ -z "$error_msg" ]] && error_msg="Failed to remove packages"
 
     if [[ $EUID -ne 0 ]]; then
         if command -v sudo &>/dev/null; then
@@ -30,173 +65,141 @@ uninstall() {
         fi
     fi
 
-    local dependencies=("$@")
-
     if command -v apt &> /dev/null; then
-        uninstall_apt "${dependencies[@]}"
+        _uninstall_apt "${packages[@]}" &
     elif command -v dnf &> /dev/null; then
-        uninstall_dnf "${dependencies[@]}"
+        _uninstall_dnf "${packages[@]}" &
     elif command -v yum &> /dev/null; then
-        uninstall_yum "${dependencies[@]}"
+        _uninstall_yum "${packages[@]}" &
     elif command -v zypper &> /dev/null; then
-        uninstall_zypper "${dependencies[@]}"
+        _uninstall_zypper "${packages[@]}" &
     elif command -v pacman &> /dev/null; then
-        uninstall_pacman "${dependencies[@]}"
+        _uninstall_pacman "${packages[@]}" &
     elif command -v apk &> /dev/null; then
-        uninstall_apk "${dependencies[@]}"
+        _uninstall_apk "${packages[@]}" &
     else
         error "Could not determine the primary package manager."
         error "Cannot proceed with dependency removal."
         return 1
     fi
+
+    monitor $! \
+        --style "$style" \
+        --message "$message" \
+        --success_msg "$success_msg" \
+        --error_msg "$error_msg"
 }
 
-# Function: uninstall_apt
+# Function: _uninstall_apt
 # Description: Removes one or more packages using APT.
 #
 # Arguments:
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw apt output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw apt output is appended here.
 #
 # Returns:
 #   0 - All packages removed successfully.
-#   1 - No packages specified.
+#   1 - apt remove failed.
 #
 # Examples:
-#   uninstall_apt nginx
-uninstall_apt() {
-    if [ "$#" -eq 0 ]; then
-        error "Usage: uninstall_apt <package1> [package2...]"
-        return 1
-    fi
-    info "Uninstalling packages with APT: $*"
-    apt remove -y "$@" > >(log_output) 2>&1
+#   _uninstall_apt nginx
+_uninstall_apt() {
+    apt remove -y "$@" >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: uninstall_dnf
+# Function: _uninstall_dnf
 # Description: Removes one or more packages using DNF.
 #
 # Arguments:
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw dnf output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw dnf output is appended here.
 #
 # Returns:
 #   0 - All packages removed successfully.
-#   1 - No packages specified.
+#   1 - dnf remove failed.
 #
 # Examples:
-#   uninstall_dnf nginx
-uninstall_dnf() {
-    if [ "$#" -eq 0 ]; then
-        error "Usage: uninstall_dnf <package1> [package2...]"
-        return 1
-    fi
-    info "Uninstalling packages with DNF: $*"
-    dnf remove -y "$@" > >(log_output) 2>&1
+#   _uninstall_dnf nginx
+_uninstall_dnf() {
+    dnf remove -y "$@" >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: uninstall_yum
+# Function: _uninstall_yum
 # Description: Removes one or more packages using YUM.
 #
 # Arguments:
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw yum output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw yum output is appended here.
 #
 # Returns:
 #   0 - All packages removed successfully.
-#   1 - No packages specified.
+#   1 - yum remove failed.
 #
 # Examples:
-#   uninstall_yum nginx
-uninstall_yum() {
-    if [ "$#" -eq 0 ]; then
-        error "Usage: uninstall_yum <package1> [package2...]"
-        return 1
-    fi
-    info "Uninstalling packages with YUM: $*"
-    yum remove -y "$@" > >(log_output) 2>&1
+#   _uninstall_yum nginx
+_uninstall_yum() {
+    yum remove -y "$@" >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: uninstall_zypper
+# Function: _uninstall_zypper
 # Description: Removes one or more packages using Zypper in non-interactive mode.
 #
 # Arguments:
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw zypper output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw zypper output is appended here.
 #
 # Returns:
 #   0 - All packages removed successfully.
-#   1 - No packages specified.
+#   1 - zypper remove failed.
 #
 # Examples:
-#   uninstall_zypper nginx
-uninstall_zypper() {
-    if [ "$#" -eq 0 ]; then
-        error "Usage: uninstall_zypper <package1> [package2...]"
-        return 1
-    fi
-    info "Uninstalling packages with Zypper: $*"
-    zypper --non-interactive remove "$@" > >(log_output) 2>&1
+#   _uninstall_zypper nginx
+_uninstall_zypper() {
+    zypper --non-interactive remove "$@" >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: uninstall_pacman
+# Function: _uninstall_pacman
 # Description: Removes one or more packages and their unique dependencies using Pacman.
 #
 # Arguments:
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw pacman output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw pacman output is appended here.
 #
 # Returns:
 #   0 - All packages removed successfully.
-#   1 - No packages specified.
+#   1 - pacman remove failed.
 #
 # Examples:
-#   uninstall_pacman nginx
-uninstall_pacman() {
-    if [ "$#" -eq 0 ]; then
-        error "Usage: uninstall_pacman <package1> [package2...]"
-        return 1
-    fi
-    info "Uninstalling packages with Pacman: $*"
-    pacman -Rs --noconfirm "$@" > >(log_output) 2>&1
+#   _uninstall_pacman nginx
+_uninstall_pacman() {
+    pacman -Rs --noconfirm "$@" >> "$VERBOSE_FILE" 2>&1
 }
 
-# Function: uninstall_apk
+# Function: _uninstall_apk
 # Description: Removes one or more packages using APK.
 #
 # Arguments:
 #   $@ - packages (string, required): One or more package names to remove.
 #
 # Globals:
-#   VERBOSE_FILE (write): Raw apk output is appended here via log_output.
-#   VERBOSE_LOGS (read): Public alias for VERBOSE_FILE.
+#   VERBOSE_FILE (write): Raw apk output is appended here.
 #
 # Returns:
 #   0 - All packages removed successfully.
-#   1 - No packages specified.
+#   1 - apk del failed.
 #
 # Examples:
-#   uninstall_apk nginx
-uninstall_apk() {
-    if [ "$#" -eq 0 ]; then
-        error "Usage: uninstall_apk <package1> [package2...]"
-        return 1
-    fi
-    info "Uninstalling packages with APK: $*"
-    apk del "$@" > >(log_output) 2>&1
+#   _uninstall_apk nginx
+_uninstall_apk() {
+    apk del "$@" >> "$VERBOSE_FILE" 2>&1
 }

@@ -61,9 +61,7 @@ info "Starting BentoPDF installation..."
 info "BentoPDF will be exposed on port ${BENTODPF_PORT}."
 
 # --- Step 1: Update System ---
-info "Updating system packages..."
-update &
-monitor $! \
+update \
     --style "$SPINNER_LOADING_STYLE" \
     --message "Updating system packages" \
     --success_msg "System packages updated" \
@@ -71,9 +69,7 @@ monitor $! \
 
 # --- Step 2: Install Docker ---
 if ! command -v docker &>/dev/null; then
-    info "Docker not found. Installing Docker..."
-    install docker.io &
-    monitor $! \
+    install docker.io \
         --style "$SPINNER_LOADING_STYLE" \
         --message "Installing Docker" \
         --success_msg "Docker installed" \

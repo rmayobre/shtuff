@@ -6,7 +6,10 @@
 #              indicator via monitor while the installation is in progress.
 #
 # Arguments:
-#   $@ - packages (string, required): One or more package names to install, separated by spaces.
+#   $@ - packages (string, optional): Package names to install, separated by spaces. At least
+#        one package or --group is required.
+#   --group NAME (string, optional, repeatable): Also install the members of a group defined
+#        with group, resolved to the names for this system's package manager.
 #   --message MSG (string, optional): Message shown during the loading indicator.
 #   --style STYLE (string, optional, default: DEFAULT_LOADING_STYLE): Loading indicator style.
 #   --success_msg MSG (string, optional): Message shown on successful completion.
@@ -15,14 +18,18 @@
 # Globals:
 #   DEFAULT_LOADING_STYLE (read): Fallback loading indicator style.
 #   VERBOSE_FILE (write): Raw package manager output is appended here.
+#   SHTUFF_GROUPS (read): Group definitions used by --group.
+#   _GROUP_RESOLVED (write): Scratch result of group resolution.
 #
 # Returns:
-#   0 - All packages installed successfully.
-#   1 - No packages specified, unknown option, or no supported package manager found.
+#   0 - All packages installed successfully, or the requested groups hold nothing for this
+#       package manager.
+#   1 - No packages specified, unknown option, unknown group, or no supported package manager found.
 #
 # Examples:
 #   install curl
 #   install nodejs npm unzip
+#   install --group webserver
 #   install nodejs npm --message "Installing Node.js" --success_msg "Node.js installed"
 install() {
     local message=""
@@ -30,9 +37,16 @@ install() {
     local success_msg=""
     local error_msg=""
     local -a packages=()
+    local -a groups=()
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            -g|--group)
+                if [[ $# -lt 2 ]]; then
+                    error "install: $1 requires a value"
+                    return 1
+                fi
+                groups+=("$2"); shift 2 ;;
             -m|--message)     message="$2";     shift 2 ;;
             -s|--style)       style="$2";       shift 2 ;;
             -sm|--success_msg) success_msg="$2"; shift 2 ;;
@@ -48,8 +62,18 @@ install() {
         esac
     done
 
+    local g
+    for g in "${groups[@]}"; do
+        _group_resolve "$g" || return 1
+        packages+=("${_GROUP_RESOLVED[@]}")
+    done
+
     if [[ ${#packages[@]} -eq 0 ]]; then
-        error "Usage: install <package1> [package2...] [--message MSG] [--style STYLE]"
+        if [[ ${#groups[@]} -gt 0 ]]; then
+            warn "Nothing to install: ${groups[*]} has no packages for this package manager."
+            return 0
+        fi
+        error "Usage: install <package1> [package2...] [--group NAME] [--message MSG] [--style STYLE]"
         return 1
     fi
 

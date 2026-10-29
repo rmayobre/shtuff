@@ -18,6 +18,7 @@ source "${SHTUFF_DIR}/src/logging/log.sh"
 source "${SHTUFF_DIR}/src/graphics/draw_loading_indicator.sh"
 
 # Package Managament
+source "${SHTUFF_DIR}/src/packaging/group.sh"
 source "${SHTUFF_DIR}/src/packaging/clean.sh"
 source "${SHTUFF_DIR}/src/packaging/install.sh"
 source "${SHTUFF_DIR}/src/packaging/uninstall.sh"

@@ -257,12 +257,15 @@ commands in your scripts — use these functions instead.
 Installs one or more packages using the detected package manager.
 
 ```
-install PACKAGE...
+install PACKAGE... [--group NAME]
 ```
 
 | Argument     | Type   | Required | Description |
 |--------------|--------|----------|-------------|
-| `PACKAGE…`   | string | yes      | One or more package names to install. |
+| `PACKAGE…`   | string | yes*     | One or more package names to install. |
+| `--group NAME` | string | no     | Also install a group defined with [`group`](#group). Repeatable. |
+
+\* Required unless `--group` is given.
 
 **Returns:** `0` on success; `1` if no packages were specified or no supported package manager was found.
 
@@ -308,12 +311,16 @@ monitor $! \
 Removes one or more packages using the detected package manager.
 
 ```
-uninstall PACKAGE...
+uninstall PACKAGE... [--group NAME] [--force]
 ```
 
 | Argument     | Type   | Required | Description |
 |--------------|--------|----------|-------------|
-| `PACKAGE…`   | string | yes      | One or more package names to remove. |
+| `PACKAGE…`   | string | yes*     | One or more package names to remove. |
+| `--group NAME` | string | no     | Also remove a group defined with [`group`](#group). Members another group still lists are kept. Repeatable. |
+| `--force`    | flag   | no       | Remove group members even if another group still lists them. |
+
+\* Required unless `--group` is given.
 
 **Returns:** `0` on success; `1` if no packages were specified or no supported package manager was found.
 
@@ -335,6 +342,44 @@ clean
 ```bash
 clean
 ```
+
+### `group`
+
+Defines a named, in-memory group of packages with per-package-manager name overrides, so
+one definition works on apt, dnf, yum, zypper, pacman, and apk. `group` only records the
+definition; consume it with `--group NAME` on `install`, `uninstall`, or `dependencies`.
+Groups live for the lifetime of the shell and are discarded when the script exits.
+
+```
+group --name NAME --package PKG [--apt N] [--dnf N] [--yum N] [--zypper N] [--pacman N] [--apk N] ...
+group --name NAME --remove PKG
+```
+
+| Argument            | Type   | Required | Description |
+|---------------------|--------|----------|-------------|
+| `--name NAME`       | string | yes      | Group to create or amend. Calling `group` again merges into it. |
+| `--package PKG`     | string | yes*     | Adds a member; `PKG` is the default name on any manager without an override. Repeatable. |
+| `--apt/--dnf/--yum/--zypper/--pacman/--apk NAME` | string | no | Name to use on that manager for the preceding `--package`. `none` skips the package there. `yum` falls back to the `--dnf` name. |
+| `--remove PKG`      | string | no       | Removes the member whose default name is `PKG`. Applied before additions. |
+
+\* At least one `--package` or `--remove` is required.
+
+**Returns:** `0` on success; `1` on missing or invalid arguments (nothing is modified).
+
+```bash
+group --name webserver \
+    --package nginx \
+    --package apache2 --dnf httpd --yum httpd --pacman apache \
+    --package ufw --dnf none --yum none
+
+install --group webserver || exit 1       # fails if a name is not found
+dependencies --group webserver            # skips packages that fail
+uninstall --group webserver               # keeps packages another group still lists
+uninstall --group webserver --force       # removes them regardless
+```
+
+`uninstall --group` discards the group definition on success, so a package shared by two
+groups is removed once both have been uninstalled.
 
 ---
 

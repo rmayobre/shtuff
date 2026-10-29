@@ -28,6 +28,7 @@ source <(_fetch "${BASE_URL}/src/logging/log.sh")
 source <(_fetch "${BASE_URL}/src/graphics/draw_loading_indicator.sh")
 
 # Package Managament
+source <(_fetch "${BASE_URL}/src/packaging/group.sh")
 source <(_fetch "${BASE_URL}/src/packaging/clean.sh")
 source <(_fetch "${BASE_URL}/src/packaging/install.sh")
 source <(_fetch "${BASE_URL}/src/packaging/uninstall.sh")

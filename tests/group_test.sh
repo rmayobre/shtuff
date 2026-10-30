@@ -49,7 +49,7 @@ assert_fails "unknown group"               _group_resolve nope
 # install / uninstall / dependencies wiring (package manager calls stubbed)
 LOG=$(mktemp)
 _group_manager() { echo apt; }
-_install_apt()   { sleep 0.3; echo "install $*" >> "$LOG"; }
+_install_apt()   { sleep 0.3; [[ " $* " == *" badpkg "* ]] && return 1; echo "install $*" >> "$LOG"; }
 _uninstall_apt() { sleep 0.3; echo "uninstall $*" >> "$LOG"; }
 update()         { :; }
 command() { [[ "$1" == "-v" && "$2" == "apt" ]] && return 0; builtin command "$@"; }
@@ -62,7 +62,24 @@ assert_eq "install --group"     "$(tail -1 "$LOG")" "install curl git"
 
 dependencies --group b >/dev/null 2>&1
 assert_eq "dependencies --group" "$(tail -1 "$LOG")" "install vim"
-# shellcheck disable=SC2034
+
+# dependencies is strict by default: attempts everything, then fails
+assert_fails "dependencies fails on a bad package" dependencies badpkg
+dependencies badpkg okpkg >/dev/null 2>&1
+assert_eq "dependencies attempts remaining packages" "$(tail -1 "$LOG")" "install okpkg"
+assert_fails "dependencies fails when one of many fails" dependencies badpkg okpkg
+
+if ! dependencies --skip-failures badpkg okpkg >/dev/null 2>&1; then
+    echo "Test FAILED: dependencies --skip-failures should return 0" >&2
+    FAILED=1
+fi
+
+update() { return 1; }
+assert_fails "dependencies fails when update fails" dependencies okpkg
+if ! dependencies --skip-failures okpkg >/dev/null 2>&1; then
+    echo "Test FAILED: dependencies --skip-failures should ignore update failure" >&2
+    FAILED=1
+fi
 unset -f update
 
 uninstall --group a >/dev/null

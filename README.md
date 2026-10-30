@@ -343,6 +343,33 @@ clean
 clean
 ```
 
+### `dependencies`
+
+Updates system packages, then installs each package one at a time with its own loading
+indicator and an overall progress bar. Every package is attempted even if an earlier one
+fails. By default the function then returns `1` and lists the failures; use
+`--skip-failures` for optional packages.
+
+```
+dependencies PACKAGE... [--group NAME] [--skip-failures]
+```
+
+| Argument           | Type   | Required | Description |
+|--------------------|--------|----------|-------------|
+| `PACKAGE…`         | string | yes*     | One or more package names to install. |
+| `--group NAME`     | string | no       | Also install a group defined with [`group`](#group). Repeatable. |
+| `--skip-failures`  | flag   | no       | Warn about and skip failed packages (and a failed system update) and return `0`. |
+
+\* Required unless `--group` is given.
+
+**Returns:** `0` if everything installed (or `--skip-failures` was given); `1` on bad arguments,
+a failed system update, or any package failing to install.
+
+```bash
+dependencies curl nodejs npm unzip || exit 1
+dependencies --skip-failures htop ncdu
+```
+
 ### `group`
 
 Defines a named, in-memory group of packages with per-package-manager name overrides, so
@@ -373,7 +400,7 @@ group --name webserver \
     --package ufw --dnf none --yum none
 
 install --group webserver || exit 1       # fails if a name is not found
-dependencies --group webserver            # skips packages that fail
+dependencies --group webserver || exit 1  # tries every package, fails if any failed
 uninstall --group webserver               # keeps packages another group still lists
 uninstall --group webserver --force       # removes them regardless
 ```

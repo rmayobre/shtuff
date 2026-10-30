@@ -53,11 +53,13 @@ update                          # Update all system packages (shows spinner)
 install nodejs npm curl unzip   # Install one or more packages (shows spinner)
 uninstall nginx                 # Remove one or more packages (shows spinner)
 clean                           # Remove orphans and clean package cache (shows spinner)
-dependencies curl nodejs npm    # Update system, install packages one-by-one, skip failures
+dependencies curl nodejs npm    # Update system, install packages one-by-one; fails if any fail
 ```
 All commands auto-detect the package manager (apt, dnf, yum, zypper, pacman, apk).
 Each command runs in the background and displays a loading indicator via `monitor`.
 Optional flags: `--message MSG`, `--style STYLE`, `--success_msg MSG`, `--error_msg MSG`.
+`dependencies` tries every package, then returns non-zero if any failed; pass
+`--skip-failures` for optional packages (warn and return 0).
 
 ### Dependency Groups
 `group` defines a named, in-memory set of packages with per-package-manager name
@@ -70,7 +72,7 @@ group --name webserver \
     --package ufw --dnf none --yum none
 
 install --group webserver || exit 1     # fails if a name is not found
-dependencies --group webserver          # skips packages that fail
+dependencies --group webserver || exit 1  # tries every package, fails if any failed
 uninstall --group webserver             # keeps packages another group still lists (--force overrides)
 ```
 Groups live only for the lifetime of the shell. `uninstall --group` discards the

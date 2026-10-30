@@ -53,11 +53,31 @@ update                          # Update all system packages (shows spinner)
 install nodejs npm curl unzip   # Install one or more packages (shows spinner)
 uninstall nginx                 # Remove one or more packages (shows spinner)
 clean                           # Remove orphans and clean package cache (shows spinner)
-dependencies curl nodejs npm    # Update system, install packages one-by-one, skip failures
+dependencies curl nodejs npm    # Update system, install packages one-by-one; stops on first failure
 ```
 All commands auto-detect the package manager (apt, dnf, yum, zypper, pacman, apk).
 Each command runs in the background and displays a loading indicator via `monitor`.
 Optional flags: `--message MSG`, `--style STYLE`, `--success_msg MSG`, `--error_msg MSG`.
+`install` returns distinct codes (1 usage, 2 unknown group, 3 no package manager, 4 install
+failed). `dependencies` stops at the first failure and returns that code; pass
+`--skip-failures` for optional packages (warn, try all, return 0).
+
+### Dependency Groups
+`group` defines a named, in-memory set of packages with per-package-manager name
+overrides. Manager flags apply to the preceding `--package`; `none` skips a package on
+that manager; `yum` falls back to the `--dnf` name.
+```bash
+group --name webserver \
+    --package nginx \
+    --package apache2 --dnf httpd --yum httpd --pacman apache \
+    --package ufw --dnf none --yum none
+
+install --group webserver || exit 1     # fails if a name is not found
+dependencies --group webserver || exit 1  # stops at the first failure
+uninstall --group webserver             # keeps packages another group still lists (--force overrides)
+```
+Groups live only for the lifetime of the shell. `uninstall --group` discards the
+definition on success.
 
 ### Background Process Monitoring
 Always run the command in the background with `&`, then pass `$!` to `monitor`:
@@ -218,7 +238,7 @@ as `delete` removes the path itself. Use `delete` for temp files and directories
 - **Never call functions prefixed with `_`** — they are private internal helpers
   used by shtuff itself and are not part of the public API. Their signatures and
   behavior may change without notice. Only call the documented public functions
-  (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`, `dependencies`,
+  (`info`, `warn`, `error`, `debug`, `install`, `update`, `uninstall`, `clean`, `dependencies`, `group`,
   `monitor`, `stop`, `copy`, `move`, `delete`, `download`, `service`, `timer`,
   `question`, `options`, `selections`, `confirm`, `scan`, `poll`,
   `bridge`, `forward`, `network`).

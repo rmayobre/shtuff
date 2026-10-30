@@ -6,7 +6,13 @@
 #              indicator via monitor while the removal is in progress.
 #
 # Arguments:
-#   $@ - packages (string, required): One or more package names to remove, separated by spaces.
+#   $@ - packages (string, optional): Package names to remove, separated by spaces. At least
+#        one package or --group is required.
+#   --group NAME (string, optional, repeatable): Also remove the members of a group defined
+#        with group, resolved to the names for this system's package manager. Members that
+#        another defined group still lists are kept. On success the group's definition is
+#        discarded, so a package shared by two groups is removed once both are uninstalled.
+#   --force (flag, optional): Remove group members even if another group still lists them.
 #   --message MSG (string, optional): Message shown during the loading indicator.
 #   --style STYLE (string, optional, default: DEFAULT_LOADING_STYLE): Loading indicator style.
 #   --success_msg MSG (string, optional): Message shown on successful completion.
@@ -15,24 +21,36 @@
 # Globals:
 #   DEFAULT_LOADING_STYLE (read): Fallback loading indicator style.
 #   VERBOSE_FILE (write): Raw package manager output is appended here.
+#   SHTUFF_GROUPS (write): Group definitions; uninstalled groups are discarded.
+#   _GROUP_RESOLVED (write): Scratch result of group resolution.
 #
 # Returns:
-#   0 - All packages removed successfully.
-#   1 - No packages specified, unknown option, or no supported package manager found.
+#   0 - All packages removed successfully, or nothing was left to remove.
+#   1 - No packages specified, unknown option, unknown group, or no supported package manager found.
 #
 # Examples:
 #   uninstall nginx
 #   uninstall nodejs npm
+#   uninstall --group webserver
 #   uninstall nginx --message "Removing nginx" --success_msg "nginx removed"
 uninstall() {
     local message=""
     local style="$DEFAULT_LOADING_STYLE"
     local success_msg=""
     local error_msg=""
+    local force=false
     local -a packages=()
+    local -a groups=()
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            -g|--group)
+                if [[ $# -lt 2 ]]; then
+                    error "uninstall: $1 requires a value"
+                    return 1
+                fi
+                groups+=("$2"); shift 2 ;;
+            -f|--force)       force=true;       shift ;;
             -m|--message)     message="$2";     shift 2 ;;
             -s|--style)       style="$2";       shift 2 ;;
             -sm|--success_msg) success_msg="$2"; shift 2 ;;
@@ -48,8 +66,40 @@ uninstall() {
         esac
     done
 
+    local g p
+    if [[ ${#groups[@]} -gt 0 ]]; then
+        local -a members=()
+        for g in "${groups[@]}"; do
+            _group_resolve "$g" || return 1
+            members+=("${_GROUP_RESOLVED[@]}")
+        done
+
+        if [[ "$force" == false ]]; then
+            local -A held=()
+            _group_resolve_others "${groups[@]}" || return 1
+            for p in "${_GROUP_RESOLVED[@]}"; do
+                held[$p]=1
+            done
+            for p in "${members[@]}"; do
+                if [[ -n "${held[$p]+x}" ]]; then
+                    warn "Keeping '$p': another group still requires it."
+                else
+                    packages+=("$p")
+                fi
+            done
+        else
+            packages+=("${members[@]}")
+        fi
+
+        if [[ ${#packages[@]} -eq 0 ]]; then
+            warn "Nothing to remove for: ${groups[*]}"
+            for g in "${groups[@]}"; do unset "SHTUFF_GROUPS[$g]"; done
+            return 0
+        fi
+    fi
+
     if [[ ${#packages[@]} -eq 0 ]]; then
-        error "Usage: uninstall <package1> [package2...] [--message MSG] [--style STYLE]"
+        error "Usage: uninstall <package1> [package2...] [--group NAME] [--force] [--message MSG] [--style STYLE]"
         return 1
     fi
 
@@ -88,6 +138,12 @@ uninstall() {
         --message "$message" \
         --success_msg "$success_msg" \
         --error_msg "$error_msg"
+    local rc=$?
+
+    if [[ $rc -eq 0 ]]; then
+        for g in "${groups[@]}"; do unset "SHTUFF_GROUPS[$g]"; done
+    fi
+    return $rc
 }
 
 # Function: _uninstall_apt

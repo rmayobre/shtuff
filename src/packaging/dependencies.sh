@@ -1,59 +1,116 @@
 #!/usr/bin/env bash
 
 # Function: dependencies
-# Description: Updates system packages, then installs one or more packages individually
-#              with graceful per-package failure handling. Each package is installed with
-#              its own loading indicator. Packages that fail to install are skipped with
-#              a warning rather than aborting the entire operation. When more than one
-#              package is specified, an overall progress bar is pinned above the per-item
-#              output.
+# Description: Updates system packages, then installs one or more packages individually.
+#              Each package is installed with its own loading indicator. By default the
+#              first failure (the system update or a package install) stops the run: the
+#              remaining packages are not attempted and the failing step's error code is
+#              returned, so the caller can stop with `|| exit`. Pass --skip-failures to
+#              treat the packages as optional: failures are warned about, every package is
+#              attempted, and the function still returns 0. When more than one package is
+#              specified, an overall progress bar is pinned above the per-item output.
 #
 # Arguments:
-#   $@ - packages (string, required): One or more package names to install.
+#   $@ - packages (string, optional): Package names to install. At least one package or
+#        --group is required.
+#   --group NAME (string, optional, repeatable): Also install the members of a group defined
+#        with group, resolved to the names for this system's package manager.
+#   --skip-failures (flag, optional): Warn about and skip packages (and a failed system
+#        update) instead of stopping with a non-zero return.
 #
 # Globals:
 #   SPINNER_LOADING_STYLE (read): Loading style used for monitor indicators.
 #   GREEN (read): ANSI color applied to the filled bar segment via progress.
 #   RESET_COLOR (read): ANSI reset sequence used by progress and monitor.
+#   SHTUFF_GROUPS (read): Group definitions used by --group.
+#   _GROUP_RESOLVED (write): Scratch result of group resolution.
 #
 # Returns:
-#   0 - Function completed. Individual package failures are warned but do not
-#       cause a non-zero return.
-#   1 - No packages specified.
+#   0 - Every package installed, or --skip-failures was given and failures were only warned about.
+#   1 - No packages specified, or unknown option; also returned when the system update fails.
+#   2-4 - Error code of the failing step (see install): unknown group, no supported package
+#       manager, or the package manager command failed.
 #
 # Examples:
-#   dependencies curl nodejs npm unzip
-#   dependencies apache2 httpd curl
+#   dependencies curl nodejs npm unzip || exit 1
+#   dependencies --group webserver curl || exit 1
+#   dependencies --skip-failures htop ncdu
 dependencies() {
-    if [ "$#" -eq 0 ]; then
-        error "Usage: dependencies <package1> [package2...]"
+    local -a packages=()
+    local -a groups=()
+    local skip_failures=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -g|--group)
+                if [[ $# -lt 2 ]]; then
+                    error "dependencies: $1 requires a value"
+                    return 1
+                fi
+                groups+=("$2"); shift 2 ;;
+            --skip-failures)
+                skip_failures=true; shift ;;
+            -*)
+                error "dependencies: unknown option: $1"
+                return 1
+                ;;
+            *)
+                packages+=("$1"); shift ;;
+        esac
+    done
+
+    local g
+    for g in "${groups[@]}"; do
+        _group_resolve "$g" || return $?
+        packages+=("${_GROUP_RESOLVED[@]}")
+    done
+
+    if [ "${#packages[@]}" -eq 0 ]; then
+        error "Usage: dependencies <package1> [package2...] [--group NAME] [--skip-failures]"
         return 1
     fi
 
-    local -a packages=("$@")
     local total=${#packages[@]}
 
+    local rc
     update \
         --style "$SPINNER_LOADING_STYLE" \
         --message "Updating system packages" \
         --success_msg "System packages updated" \
         --error_msg "Failed to update system packages"
+    rc=$?
+    if [[ $rc -ne 0 ]]; then
+        if [[ "$skip_failures" == true ]]; then
+            warn "System update failed, continuing."
+        else
+            error "System update failed; not installing dependencies."
+            return 1
+        fi
+    fi
 
     if (( total > 1 )); then
         progress --current 0 --total "$total" --message "Installing dependencies"
         printf "\n"
     fi
 
+    local i pkg
     for (( i = 0; i < total; i++ )); do
-        local pkg="${packages[$i]}"
+        pkg="${packages[$i]}"
 
         install "$pkg" \
             --style "$SPINNER_LOADING_STYLE" \
             --message "Installing $pkg" \
             --success_msg "$pkg installed" \
-            --error_msg "Failed to install $pkg (skipping)" || {
-            warn "Package '$pkg' could not be installed, skipping."
-        }
+            --error_msg "Failed to install $pkg"
+        rc=$?
+        if [[ $rc -ne 0 ]]; then
+            if [[ "$skip_failures" == true ]]; then
+                warn "Package '$pkg' could not be installed, skipping."
+            else
+                error "Stopping: '$pkg' failed to install."
+                return $rc
+            fi
+        fi
 
         if (( total > 1 )); then
             progress --current $(( i + 1 )) --total "$total" --message "Installing dependencies" \

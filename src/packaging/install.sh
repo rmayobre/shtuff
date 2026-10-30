@@ -24,7 +24,10 @@
 # Returns:
 #   0 - All packages installed successfully, or the requested groups hold nothing for this
 #       package manager.
-#   1 - No packages specified, unknown option, unknown group, or no supported package manager found.
+#   1 - No packages specified, or unknown/invalid option.
+#   2 - Unknown or invalid group name.
+#   3 - No supported package manager found.
+#   4 - The package manager command failed (its raw exit status is logged with debug).
 #
 # Examples:
 #   install curl
@@ -64,7 +67,7 @@ install() {
 
     local g
     for g in "${groups[@]}"; do
-        _group_resolve "$g" || return 1
+        _group_resolve "$g" || return $?
         packages+=("${_GROUP_RESOLVED[@]}")
     done
 
@@ -104,7 +107,7 @@ install() {
     else
         error "Could not determine the primary package manager."
         error "Cannot proceed with installation."
-        return 1
+        return 3
     fi
 
     monitor $! \
@@ -112,6 +115,12 @@ install() {
         --message "$message" \
         --success_msg "$success_msg" \
         --error_msg "$error_msg"
+    local rc=$?
+    if [[ $rc -ne 0 ]]; then
+        debug "install: package manager command exited with status $rc"
+        return 4
+    fi
+    return 0
 }
 
 # Function: _install_apt

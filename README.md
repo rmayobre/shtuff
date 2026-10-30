@@ -267,7 +267,8 @@ install PACKAGE... [--group NAME]
 
 \* Required unless `--group` is given.
 
-**Returns:** `0` on success; `1` if no packages were specified or no supported package manager was found.
+**Returns:** `0` on success; `1` if no packages were specified or an option is unknown; `2` for an
+unknown group; `3` if no supported package manager was found; `4` if the package manager command failed.
 
 ```bash
 source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
@@ -346,9 +347,9 @@ clean
 ### `dependencies`
 
 Updates system packages, then installs each package one at a time with its own loading
-indicator and an overall progress bar. Every package is attempted even if an earlier one
-fails. By default the function then returns `1` and lists the failures; use
-`--skip-failures` for optional packages.
+indicator and an overall progress bar. By default the first failure stops the run: the
+remaining packages are not attempted and the failing step's error code is returned (see
+`install`), so `|| exit 1` ends the script. Use `--skip-failures` for optional packages.
 
 ```
 dependencies PACKAGE... [--group NAME] [--skip-failures]
@@ -358,12 +359,12 @@ dependencies PACKAGE... [--group NAME] [--skip-failures]
 |--------------------|--------|----------|-------------|
 | `PACKAGE…`         | string | yes*     | One or more package names to install. |
 | `--group NAME`     | string | no       | Also install a group defined with [`group`](#group). Repeatable. |
-| `--skip-failures`  | flag   | no       | Warn about and skip failed packages (and a failed system update) and return `0`. |
+| `--skip-failures`  | flag   | no       | Warn about and skip failed packages (and a failed system update), attempt every package, and return `0`. |
 
 \* Required unless `--group` is given.
 
-**Returns:** `0` if everything installed (or `--skip-failures` was given); `1` on bad arguments,
-a failed system update, or any package failing to install.
+**Returns:** `0` if everything installed (or `--skip-failures` was given); `1` on bad arguments or a
+failed system update; otherwise the failing `install` code (`2`–`4`).
 
 ```bash
 dependencies curl nodejs npm unzip || exit 1
@@ -400,7 +401,7 @@ group --name webserver \
     --package ufw --dnf none --yum none
 
 install --group webserver || exit 1       # fails if a name is not found
-dependencies --group webserver || exit 1  # tries every package, fails if any failed
+dependencies --group webserver || exit 1  # stops at the first failure
 uninstall --group webserver               # keeps packages another group still lists
 uninstall --group webserver --force       # removes them regardless
 ```

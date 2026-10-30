@@ -63,16 +63,26 @@ assert_eq "install --group"     "$(tail -1 "$LOG")" "install curl git"
 dependencies --group b >/dev/null 2>&1
 assert_eq "dependencies --group" "$(tail -1 "$LOG")" "install vim"
 
-# dependencies is strict by default: attempts everything, then fails
-assert_fails "dependencies fails on a bad package" dependencies badpkg
-dependencies badpkg okpkg >/dev/null 2>&1
-assert_eq "dependencies attempts remaining packages" "$(tail -1 "$LOG")" "install okpkg"
-assert_fails "dependencies fails when one of many fails" dependencies badpkg okpkg
+# install returns distinct codes
+install badpkg >/dev/null 2>&1
+assert_eq "install failure code"      "$?" "4"
+install --group missing >/dev/null 2>&1
+assert_eq "install unknown group code" "$?" "2"
+install >/dev/null 2>&1
+assert_eq "install usage code"        "$?" "1"
 
-if ! dependencies --skip-failures badpkg okpkg >/dev/null 2>&1; then
+# dependencies stops at the first failure and returns install's code
+before=$(wc -l < "$LOG")
+dependencies okpkg badpkg lastpkg >/dev/null 2>&1
+assert_eq "dependencies returns install code" "$?" "4"
+assert_eq "dependencies stops at first failure" "$(tail -1 "$LOG")" "install okpkg"
+assert_eq "dependencies skips remaining packages" "$(( $(wc -l < "$LOG") - before ))" "1"
+
+if ! dependencies --skip-failures badpkg lastpkg >/dev/null 2>&1; then
     echo "Test FAILED: dependencies --skip-failures should return 0" >&2
     FAILED=1
 fi
+assert_eq "dependencies --skip-failures continues" "$(tail -1 "$LOG")" "install lastpkg"
 
 update() { return 1; }
 assert_fails "dependencies fails when update fails" dependencies okpkg

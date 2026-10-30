@@ -2,13 +2,13 @@
 
 # Function: dependencies
 # Description: Updates system packages, then installs one or more packages individually.
-#              Each package is installed with its own loading indicator, and every package
-#              is attempted even if an earlier one fails. By default any failure (the
-#              system update or a package install) makes the function return non-zero after
-#              all packages were attempted, with every failed package listed. Pass
-#              --skip-failures to treat the packages as optional: failures are warned about
-#              and the function still returns 0. When more than one package is specified,
-#              an overall progress bar is pinned above the per-item output.
+#              Each package is installed with its own loading indicator. By default the
+#              first failure (the system update or a package install) stops the run: the
+#              remaining packages are not attempted and the failing step's error code is
+#              returned, so the caller can stop with `|| exit`. Pass --skip-failures to
+#              treat the packages as optional: failures are warned about, every package is
+#              attempted, and the function still returns 0. When more than one package is
+#              specified, an overall progress bar is pinned above the per-item output.
 #
 # Arguments:
 #   $@ - packages (string, optional): Package names to install. At least one package or
@@ -16,7 +16,7 @@
 #   --group NAME (string, optional, repeatable): Also install the members of a group defined
 #        with group, resolved to the names for this system's package manager.
 #   --skip-failures (flag, optional): Warn about and skip packages (and a failed system
-#        update) instead of returning non-zero.
+#        update) instead of stopping with a non-zero return.
 #
 # Globals:
 #   SPINNER_LOADING_STYLE (read): Loading style used for monitor indicators.
@@ -27,8 +27,9 @@
 #
 # Returns:
 #   0 - Every package installed, or --skip-failures was given and failures were only warned about.
-#   1 - No packages specified, unknown option, unknown group, system update failed, or one
-#       or more packages failed to install (without --skip-failures).
+#   1 - No packages specified, or unknown option; also returned when the system update fails.
+#   2-4 - Error code of the failing step (see install): unknown group, no supported package
+#       manager, or the package manager command failed.
 #
 # Examples:
 #   dependencies curl nodejs npm unzip || exit 1
@@ -37,7 +38,6 @@
 dependencies() {
     local -a packages=()
     local -a groups=()
-    local -a failed=()
     local skip_failures=false
 
     while [[ $# -gt 0 ]]; do
@@ -61,7 +61,7 @@ dependencies() {
 
     local g
     for g in "${groups[@]}"; do
-        _group_resolve "$g" || return 1
+        _group_resolve "$g" || return $?
         packages+=("${_GROUP_RESOLVED[@]}")
     done
 
@@ -72,11 +72,14 @@ dependencies() {
 
     local total=${#packages[@]}
 
-    if ! update \
+    local rc
+    update \
         --style "$SPINNER_LOADING_STYLE" \
         --message "Updating system packages" \
         --success_msg "System packages updated" \
-        --error_msg "Failed to update system packages"; then
+        --error_msg "Failed to update system packages"
+    rc=$?
+    if [[ $rc -ne 0 ]]; then
         if [[ "$skip_failures" == true ]]; then
             warn "System update failed, continuing."
         else
@@ -98,23 +101,22 @@ dependencies() {
             --style "$SPINNER_LOADING_STYLE" \
             --message "Installing $pkg" \
             --success_msg "$pkg installed" \
-            --error_msg "Failed to install $pkg" || {
-            failed+=("$pkg")
+            --error_msg "Failed to install $pkg"
+        rc=$?
+        if [[ $rc -ne 0 ]]; then
             if [[ "$skip_failures" == true ]]; then
                 warn "Package '$pkg' could not be installed, skipping."
+            else
+                error "Stopping: '$pkg' failed to install."
+                return $rc
             fi
-        }
+        fi
 
         if (( total > 1 )); then
             progress --current $(( i + 1 )) --total "$total" --message "Installing dependencies" \
                 --lines-above $(( i + 2 ))
         fi
     done
-
-    if [[ ${#failed[@]} -gt 0 && "$skip_failures" == false ]]; then
-        error "Failed to install: ${failed[*]}"
-        return 1
-    fi
 
     return 0
 }

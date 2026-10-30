@@ -211,7 +211,8 @@ _group_manager() {
 #
 # Returns:
 #   0 - Resolved (the result may be empty if every member is "none").
-#   1 - Invalid or undefined group, or no supported package manager.
+#   2 - Invalid or undefined group.
+#   3 - No supported package manager.
 #
 # Examples:
 #   _group_resolve webserver && install "${_GROUP_RESOLVED[@]}"
@@ -221,13 +222,13 @@ _group_resolve() {
 
     if [[ ! "$name" =~ ^[A-Za-z0-9._-]+$ ]]; then
         error "Invalid group name: $name"
-        return 1
+        return 2
     fi
     if [[ -z "${SHTUFF_GROUPS[$name]+x}" ]]; then
         error "Unknown group: $name (define it with 'group --name $name ...')"
-        return 1
+        return 2
     fi
-    mgr=$(_group_manager) || return 1
+    mgr=$(_group_manager) || return 3
 
     while IFS= read -r line; do
         [[ -z "$line" ]] && continue
@@ -272,7 +273,8 @@ _group_resolve() {
 #
 # Returns:
 #   0 - Resolved.
-#   1 - A group failed to resolve.
+#   2 - A group failed to resolve (invalid or undefined).
+#   3 - No supported package manager.
 #
 # Examples:
 #   _group_resolve_others webserver
@@ -285,7 +287,7 @@ _group_resolve_others() {
             [[ "$s" == "$g" ]] && skip=true
         done
         [[ "$skip" == false ]] || continue
-        _group_resolve "$g" || return 1
+        _group_resolve "$g" || return $?
         all+=("${_GROUP_RESOLVED[@]}")
     done
     _GROUP_RESOLVED=("${all[@]}")

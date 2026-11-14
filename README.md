@@ -4,6 +4,10 @@
 
 Shell stuff - A collection of scripts for everyday use while making shell scripts.
 
+> **Documentation:** see [`docs/`](docs/README.md) for getting started, using shtuff in your own scripts, platform support, architecture and per-function reference pages.
+>
+> **Entry points changed:** `shtuff.sh` and `shtuff-remote.sh` were replaced by `shtuff-core.sh` (core only) and `shtuff-linux.sh` (core + Linux), plus matching `-remote` files. Update any script that sources the old names.
+
 # How to source these scripts
 
 These scripts can be accessed via three methods: locally sourced, remote sourced, and forking.

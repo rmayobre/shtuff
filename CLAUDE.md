@@ -302,23 +302,28 @@ shellcheck examples/install-bentodpf-native.sh
 
 ```
 shtuff/
-├── shtuff.sh              # Local sourcing entry point
-├── shtuff-remote.sh       # Remote sourcing entry point
+├── shtuff.sh              # Local loader (detects interpreter + OS)
+├── shtuff-remote.sh       # Remote loader (same detection, fetches modules)
 ├── src/
-│   ├── containers/        # Container management
-│   │   ├── lxc/           # LXC container functions
-│   │   └── pct/           # Proxmox CT functions
-│   ├── graphics/          # ANSI colors, loading indicators
-│   ├── logging/           # _log(), info(), warn(), error(), debug()
-│   ├── networking/        # scan(), poll(), bridge(), forward(), network()
-│   ├── packaging/         # install(), update(), uninstall(), clean()
-│   ├── prompts/           # question(), options(), selections(), confirm()
-│   ├── systemd/           # service(), timer()
-│   └── utils/             # monitor(), stop(), copy(), move(), delete(), download()
+│   ├── manifest.txt       # Ordered module list read by both loaders
+│   ├── core/              # Common to every platform
+│   │   ├── containers/    # lxc/ and pct/ container functions
+│   │   ├── gpu/
+│   │   ├── graphics/      # ANSI colors, loading indicators
+│   │   ├── logging/       # log_bash.sh, log_ash.sh (per-interpreter variants)
+│   │   ├── networking/
+│   │   ├── packaging/     # install/update/uninstall/clean, incl. brew.sh
+│   │   ├── prompts/
+│   │   ├── system/
+│   │   └── utils/
+│   ├── linux/             # Linux-only logic
+│   │   └── systemd/       # service(), timer()
+│   └── mac/               # macOS-only logic (launchd etc.; in progress)
+├── tests/
 └── examples/
-    ├── install-bentodpf-container.sh
-    ├── install-bentodpf-docker.sh
-    ├── install-bentodpf-native.sh
-    ├── update-bentodpf-docker.sh
-    └── update-bentodpf-native.sh
 ```
+
+Modules may ship interpreter variants (`<name>_bash.sh`, `<name>_ash.sh`,
+`<name>_zsh.sh`). The loader prefers the variant for the running shell, then
+`<name>.sh` (bash only). Add every new module to `src/manifest.txt`. Homebrew
+support lives in `core/packaging/` because it runs on Linux as well as macOS.

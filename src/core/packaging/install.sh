@@ -57,7 +57,7 @@ install() {
     [[ -z "$success_msg" ]] && success_msg="Packages installed"
     [[ -z "$error_msg" ]] && error_msg="Failed to install packages"
 
-    if [[ $EUID -ne 0 ]]; then
+    if [[ $EUID -ne 0 && "$(uname -s)" != "Darwin" ]]; then
         if command -v sudo &>/dev/null; then
             warn "Not running as root. Package installation may fail without elevated privileges."
         else
@@ -65,7 +65,9 @@ install() {
         fi
     fi
 
-    if command -v apt &> /dev/null; then
+    if [[ "$(uname -s)" == "Darwin" ]] && command -v brew &> /dev/null; then
+        _install_brew "${packages[@]}" &
+    elif command -v apt &> /dev/null; then
         _install_apt "${packages[@]}" &
     elif command -v dnf &> /dev/null; then
         _install_dnf "${packages[@]}" &
@@ -77,6 +79,8 @@ install() {
         _install_pacman "${packages[@]}" &
     elif command -v apk &> /dev/null; then
         _install_apk "${packages[@]}" &
+    elif command -v brew &> /dev/null; then
+        _install_brew "${packages[@]}" &
     else
         error "Could not determine the primary package manager."
         error "Cannot proceed with installation."
@@ -106,7 +110,7 @@ install() {
 # Examples:
 #   _install_apt curl git
 _install_apt() {
-    apt update >> "$VERBOSE_FILE" 2>&1
+    apt update >> "$VERBOSE_FILE" 2>&1 || return 1
     apt install -y "$@" >> "$VERBOSE_FILE" 2>&1
 }
 
@@ -202,5 +206,24 @@ _install_pacman() {
 # Examples:
 #   _install_apk curl git
 _install_apk() {
-    apk add "$@" >> "$VERBOSE_FILE" 2>&1
+    apk add --no-cache "$@" >> "$VERBOSE_FILE" 2>&1
+}
+
+# Function: _install_brew
+# Description: Installs one or more packages using Homebrew (macOS or Linux).
+#
+# Arguments:
+#   $@ - packages (string, required): One or more formula names to install.
+#
+# Globals:
+#   VERBOSE_FILE (write): Raw brew output is appended here.
+#
+# Returns:
+#   0 - All packages installed successfully.
+#   1 - brew install failed.
+#
+# Examples:
+#   _install_brew jq
+_install_brew() {
+    _brew install "$@" >> "$VERBOSE_FILE" 2>&1
 }

@@ -1,104 +1,87 @@
 #!/usr/bin/env bash
+# shtuff remote loader. Source this file; do not execute it.
+#
+#   source <(curl -fsSL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+#
+# On bash 3.2 (macOS) `source <(...)` does not work reliably; use instead:
+#   eval "$(curl -fsSL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)"
+#
+# Detects the interpreter and OS, fetches src/manifest.txt, then fetches and
+# evaluates the matching modules (see shtuff.sh for the variant rules).
+#
+# NOTE: This file is parsed by bash 3.2, zsh and BusyBox ash, so keep it POSIX.
 
-# Base URL for scripts. Change if this project has been forked.
-BASE_URL="https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/"
+# Base URL for scripts (no trailing slash). Change if this project has been forked.
+SHTUFF_BASE_URL="${SHTUFF_BASE_URL:-https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main}"
 
-# When set to "true", all functions that support --dry-run will print the system
-# calls they would execute instead of running them. Can be overridden per-call
-# with --dry-run.
-IS_DRY_RUN=${IS_DRY_RUN:-false}
-
-# Determine fetch command (prefer curl, fall back to wget)
-if command -v curl &>/dev/null; then
-    _fetch() { curl -sL "$1"; }
-elif command -v wget &>/dev/null; then
-    _fetch() { wget -qO- "$1"; }
+if [ -n "${BASH_VERSION:-}" ]; then
+    SHTUFF_INTERP=bash
+elif [ -n "${ZSH_VERSION:-}" ]; then
+    SHTUFF_INTERP=zsh
 else
-    echo "shtuff: curl or wget is required but neither was found." >&2
-    return 1
+    SHTUFF_INTERP=ash
 fi
 
-# Globals
-source <(_fetch "${BASE_URL}/src/graphics/colors.sh")
+case "$(uname -s 2>/dev/null)" in
+    Darwin) SHTUFF_OS=mac ;;
+    Linux)  SHTUFF_OS=linux ;;
+    *)      SHTUFF_OS=unknown ;;
+esac
 
-# Logging
-source <(_fetch "${BASE_URL}/src/logging/log.sh")
+IS_DRY_RUN=${IS_DRY_RUN:-false}
 
-# Graphical
-source <(_fetch "${BASE_URL}/src/graphics/draw_loading_indicator.sh")
+# Fetch helper: curl preferred, wget fallback. Fails on HTTP errors so an error
+# page is never evaluated as code.
+if command -v curl >/dev/null 2>&1; then
+    _shtuff_fetch() { curl -fsSL "$1"; }
+elif command -v wget >/dev/null 2>&1; then
+    _shtuff_fetch() { wget -qO- "$1"; }
+else
+    echo "shtuff: curl or wget is required but neither was found." >&2
+    echo "shtuff: Alpine: apk add curl ca-certificates" >&2
+    return 1 2>/dev/null || exit 1
+fi
 
-# Package Managament
-source <(_fetch "${BASE_URL}/src/packaging/clean.sh")
-source <(_fetch "${BASE_URL}/src/packaging/install.sh")
-source <(_fetch "${BASE_URL}/src/packaging/uninstall.sh")
-source <(_fetch "${BASE_URL}/src/packaging/update.sh")
-source <(_fetch "${BASE_URL}/src/packaging/dependencies.sh")
+_shtuff_manifest=$(_shtuff_fetch "${SHTUFF_BASE_URL}/src/manifest.txt") || {
+    echo "shtuff: could not download ${SHTUFF_BASE_URL}/src/manifest.txt" >&2
+    echo "shtuff: (BusyBox wget needs ca-certificates and ssl_client for HTTPS)" >&2
+    return 1 2>/dev/null || exit 1
+}
 
-# Systemd
-source <(_fetch "${BASE_URL}/src/systemd/service.sh")
-source <(_fetch "${BASE_URL}/src/systemd/timer.sh")
+# Fetches module $1 (interpreter variant first) into _sl_code. Evaluation
+# happens at top level (not inside a function) so `declare -r` constants in
+# modules stay global.
+_shtuff_fetch_module() {
+    _sl_code=""
+    for _sf_cand in "$1_${SHTUFF_INTERP}" \
+                    "$( [ "$SHTUFF_INTERP" = zsh ] && echo "$1_ash" )" \
+                    "$( [ "$SHTUFF_INTERP" = bash ] && echo "$1" )"; do
+        [ -n "$_sf_cand" ] || continue
+        if _sl_code=$(_shtuff_fetch "${SHTUFF_BASE_URL}/src/${_sf_cand}.sh" 2>/dev/null) && [ -n "$_sl_code" ]; then
+            return 0
+        fi
+    done
+    _sl_code=""
+    return 1
+}
 
-# Networking
-source <(_fetch "${BASE_URL}/src/networking/scan.sh")
-source <(_fetch "${BASE_URL}/src/networking/poll.sh")
-source <(_fetch "${BASE_URL}/src/networking/bridge.sh")
-source <(_fetch "${BASE_URL}/src/networking/forward.sh")
-source <(_fetch "${BASE_URL}/src/networking/network.sh")
+SHTUFF_SKIPPED=""
+_sl_list=$(printf '%s\n' "$_shtuff_manifest" | while IFS= read -r _l; do
+    case "$_l" in
+        ''|'#'*) ;;
+        core/*|"${SHTUFF_OS}"/*) printf '%s\n' "$_l" ;;
+    esac
+done)
+for _sl_mod in $_sl_list; do
+    if _shtuff_fetch_module "$_sl_mod"; then
+        eval "$_sl_code"
+    else
+        SHTUFF_SKIPPED="${SHTUFF_SKIPPED:+$SHTUFF_SKIPPED }$_sl_mod"
+    fi
+done
 
-# Utilities
-source <(_fetch "${BASE_URL}/src/utils/download.sh")
-source <(_fetch "${BASE_URL}/src/utils/copy.sh")
-source <(_fetch "${BASE_URL}/src/utils/delete.sh")
-source <(_fetch "${BASE_URL}/src/utils/monitor.sh")
-source <(_fetch "${BASE_URL}/src/utils/move.sh")
-source <(_fetch "${BASE_URL}/src/utils/progress.sh")
-source <(_fetch "${BASE_URL}/src/utils/stop.sh")
-
-# Prompts
-source <(_fetch "${BASE_URL}/src/prompts/question.sh")
-source <(_fetch "${BASE_URL}/src/prompts/options.sh")
-source <(_fetch "${BASE_URL}/src/prompts/selections.sh")
-source <(_fetch "${BASE_URL}/src/prompts/confirm.sh")
-
-# GPU
-source <(_fetch "${BASE_URL}/src/gpu/gpu_list.sh")
-source <(_fetch "${BASE_URL}/src/gpu/gpu_select.sh")
-source <(_fetch "${BASE_URL}/src/gpu/gpu_install.sh")
-
-# Containers
-# System
-source <(_fetch "${BASE_URL}/src/system/locale.sh")
-
-# Containers - LXC
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_config.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_create.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_delete.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_enter.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_exec.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_push.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_pull.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_start.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_network.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_network_show.sh")
-source <(_fetch "${BASE_URL}/src/containers/lxc/lxc_shell_script.sh")
-
-# Containers - PCT
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_config.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_create.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_delete.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_enter.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_exec.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_push.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_pull.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_start.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_next_vmid.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_network.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_network_show.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_shell_script.sh")
-source <(_fetch "${BASE_URL}/src/containers/pct/pct_find_vmid.sh")
-
-# Containers - Shared
-source <(_fetch "${BASE_URL}/src/containers/container_network_prompt.sh")
-source <(_fetch "${BASE_URL}/src/containers/container_prompt.sh")
-source <(_fetch "${BASE_URL}/src/containers/container.sh")
-source <(_fetch "${BASE_URL}/src/containers/container_script.sh")
+if [ -n "$SHTUFF_SKIPPED" ] && [ "$SHTUFF_INTERP" != bash ]; then
+    echo "shtuff: running under ${SHTUFF_INTERP}; only logging is available." >&2
+    echo "shtuff: install bash (Alpine: apk add bash) for the full library." >&2
+fi
+unset _shtuff_manifest _sl_code _sf_cand _sl_list _sl_mod

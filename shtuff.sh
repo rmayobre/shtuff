@@ -1,94 +1,87 @@
 #!/usr/bin/env bash
+# shtuff local loader. Source this file; do not execute it.
+#
+# Detects the running interpreter (bash, zsh, ash/POSIX sh) and OS (linux, mac),
+# then sources the modules listed in src/manifest.txt: everything under core/
+# plus the directory for the detected OS. Each module may ship per-interpreter
+# variants (<name>_bash.sh, <name>_ash.sh, <name>_zsh.sh); the loader prefers
+# the variant for the running shell, then the plain <name>.sh.
+#
+# NOTE: This file is parsed by bash 3.2, zsh and BusyBox ash, so keep it POSIX.
 
-# Current directory path of this project.
-SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# --- Interpreter -------------------------------------------------------------
+if [ -n "${BASH_VERSION:-}" ]; then
+    SHTUFF_INTERP=bash
+    if [ "${BASH_VERSINFO:-0}" -lt 3 ]; then
+        echo "shtuff: bash 3.2 or newer is required." >&2
+        return 1 2>/dev/null || exit 1
+    fi
+elif [ -n "${ZSH_VERSION:-}" ]; then
+    SHTUFF_INTERP=zsh
+else
+    SHTUFF_INTERP=ash
+fi
+
+# --- Operating system --------------------------------------------------------
+case "$(uname -s 2>/dev/null)" in
+    Darwin) SHTUFF_OS=mac ;;
+    Linux)  SHTUFF_OS=linux ;;
+    *)      SHTUFF_OS=unknown ;;
+esac
+
+# --- Project directory -------------------------------------------------------
+# bash and zsh can locate this file; plain ash cannot, so it must be preset
+# (SHTUFF_DIR=/path/to/shtuff) or sourced from the project root.
+if [ -z "${SHTUFF_DIR:-}" ]; then
+    case "$SHTUFF_INTERP" in
+        bash) SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) ;;
+        zsh)  eval 'SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "${(%):-%x}")" && pwd)' ;;
+        *)    SHTUFF_DIR=$(pwd) ;;
+    esac
+fi
+if [ ! -f "${SHTUFF_DIR}/src/manifest.txt" ]; then
+    echo "shtuff: cannot find src/manifest.txt under '${SHTUFF_DIR}'. Set SHTUFF_DIR." >&2
+    return 1 2>/dev/null || exit 1
+fi
 
 # When set to "true", all functions that support --dry-run will print the system
 # calls they would execute instead of running them. Can be overridden per-call
 # with --dry-run.
 IS_DRY_RUN=${IS_DRY_RUN:-false}
 
-# Globals
-source "${SHTUFF_DIR}/src/graphics/colors.sh"
+# Prints the file to source for module $1, preferring the interpreter variant.
+# Modules without a variant are written in bash, so none is returned under ash
+# and zsh. Sourcing happens at top level (not inside a function) so `declare -r`
+# constants in modules stay global.
+_shtuff_resolve() {
+    _sr_base="${SHTUFF_DIR}/src/$1"
+    for _sr_cand in "${_sr_base}_${SHTUFF_INTERP}.sh" \
+                    "$( [ "$SHTUFF_INTERP" = zsh ] && echo "${_sr_base}_ash.sh" )" \
+                    "$( [ "$SHTUFF_INTERP" = bash ] && echo "${_sr_base}.sh" )"; do
+        if [ -n "$_sr_cand" ] && [ -f "$_sr_cand" ]; then
+            printf '%s\n' "$_sr_cand"
+            return 0
+        fi
+    done
+    return 1
+}
 
-# Logging
-source "${SHTUFF_DIR}/src/logging/log.sh"
+SHTUFF_SKIPPED=""
+while IFS= read -r _sl_line || [ -n "$_sl_line" ]; do
+    case "$_sl_line" in
+        ''|'#'*) continue ;;
+        core/*|"${SHTUFF_OS}"/*)
+            if _sl_file=$(_shtuff_resolve "$_sl_line"); then
+                . "$_sl_file"
+            else
+                SHTUFF_SKIPPED="${SHTUFF_SKIPPED:+$SHTUFF_SKIPPED }$_sl_line"
+            fi
+            ;;
+    esac
+done < "${SHTUFF_DIR}/src/manifest.txt"
 
-# Graphical
-source "${SHTUFF_DIR}/src/graphics/draw_loading_indicator.sh"
-
-# Package Managament
-source "${SHTUFF_DIR}/src/packaging/clean.sh"
-source "${SHTUFF_DIR}/src/packaging/install.sh"
-source "${SHTUFF_DIR}/src/packaging/uninstall.sh"
-source "${SHTUFF_DIR}/src/packaging/update.sh"
-source "${SHTUFF_DIR}/src/packaging/dependencies.sh"
-
-# Systemd
-source "${SHTUFF_DIR}/src/systemd/service.sh"
-source "${SHTUFF_DIR}/src/systemd/timer.sh"
-
-# Networking
-source "${SHTUFF_DIR}/src/networking/scan.sh"
-source "${SHTUFF_DIR}/src/networking/poll.sh"
-source "${SHTUFF_DIR}/src/networking/bridge.sh"
-source "${SHTUFF_DIR}/src/networking/forward.sh"
-source "${SHTUFF_DIR}/src/networking/network.sh"
-
-# Utilities
-source "${SHTUFF_DIR}/src/utils/download.sh"
-source "${SHTUFF_DIR}/src/utils/copy.sh"
-source "${SHTUFF_DIR}/src/utils/delete.sh"
-source "${SHTUFF_DIR}/src/utils/monitor.sh"
-source "${SHTUFF_DIR}/src/utils/move.sh"
-source "${SHTUFF_DIR}/src/utils/progress.sh"
-source "${SHTUFF_DIR}/src/utils/stop.sh"
-
-# Prompts
-source "${SHTUFF_DIR}/src/prompts/question.sh"
-source "${SHTUFF_DIR}/src/prompts/options.sh"
-source "${SHTUFF_DIR}/src/prompts/selections.sh"
-source "${SHTUFF_DIR}/src/prompts/confirm.sh"
-
-# GPU
-source "${SHTUFF_DIR}/src/gpu/gpu_list.sh"
-source "${SHTUFF_DIR}/src/gpu/gpu_select.sh"
-source "${SHTUFF_DIR}/src/gpu/gpu_install.sh"
-
-# Containers
-# System
-source "${SHTUFF_DIR}/src/system/locale.sh"
-
-# Containers - LXC
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_config.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_create.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_delete.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_enter.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_exec.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_push.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_pull.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_start.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_network.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_network_show.sh"
-source "${SHTUFF_DIR}/src/containers/lxc/lxc_shell_script.sh"
-
-# Containers - PCT
-source "${SHTUFF_DIR}/src/containers/pct/pct_config.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_create.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_delete.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_enter.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_exec.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_push.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_pull.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_start.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_next_vmid.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_network.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_network_show.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_shell_script.sh"
-source "${SHTUFF_DIR}/src/containers/pct/pct_find_vmid.sh"
-
-# Containers - Shared
-source "${SHTUFF_DIR}/src/containers/container_network_prompt.sh"
-source "${SHTUFF_DIR}/src/containers/container_prompt.sh"
-source "${SHTUFF_DIR}/src/containers/container.sh"
-source "${SHTUFF_DIR}/src/containers/container_script.sh"
+if [ -n "$SHTUFF_SKIPPED" ] && [ "$SHTUFF_INTERP" != bash ]; then
+    echo "shtuff: running under ${SHTUFF_INTERP}; only logging is available." >&2
+    echo "shtuff: install bash (Alpine: apk add bash) for the full library." >&2
+fi
+unset _sl_line _sl_file _sr_base _sr_cand

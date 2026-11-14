@@ -1,0 +1,83 @@
+# shtuff module manifest. One module per line, relative to src/, without the .sh suffix.
+# Ordering matters: later modules may depend on earlier ones.
+# Only modules under core/ and the detected OS directory (linux/ or mac/) are loaded.
+# A module may ship interpreter variants (<name>_bash.sh, <name>_ash.sh, <name>_zsh.sh);
+# the loader prefers the variant for the running shell, then the plain <name>.sh.
+#!/usr/bin/env bash
+# Current directory path of this project.
+# When set to "true", all functions that support --dry-run will print the system
+# calls they would execute instead of running them. Can be overridden per-call
+# with --dry-run.
+# Globals
+core/graphics/colors
+# Logging
+core/logging/log
+# Graphical
+core/graphics/draw_loading_indicator
+# Package Managament
+core/packaging/brew
+core/packaging/clean
+core/packaging/install
+core/packaging/uninstall
+core/packaging/update
+core/packaging/dependencies
+# Systemd
+linux/systemd/service
+linux/systemd/timer
+# Networking
+core/networking/scan
+core/networking/poll
+core/networking/bridge
+core/networking/forward
+core/networking/network
+# Utilities
+core/utils/download
+core/utils/copy
+core/utils/delete
+core/utils/monitor
+core/utils/move
+core/utils/progress
+core/utils/stop
+# Prompts
+core/prompts/question
+core/prompts/options
+core/prompts/selections
+core/prompts/confirm
+# GPU
+core/gpu/gpu_list
+core/gpu/gpu_select
+core/gpu/gpu_install
+# Containers
+# System
+core/system/locale
+# Containers - LXC
+core/containers/lxc/lxc_config
+core/containers/lxc/lxc_create
+core/containers/lxc/lxc_delete
+core/containers/lxc/lxc_enter
+core/containers/lxc/lxc_exec
+core/containers/lxc/lxc_push
+core/containers/lxc/lxc_pull
+core/containers/lxc/lxc_start
+core/containers/lxc/lxc_network
+core/containers/lxc/lxc_network_show
+core/containers/lxc/lxc_shell_script
+# Containers - PCT
+core/containers/pct/pct_config
+core/containers/pct/pct_create
+core/containers/pct/pct_delete
+core/containers/pct/pct_enter
+core/containers/pct/pct_exec
+core/containers/pct/pct_push
+core/containers/pct/pct_pull
+core/containers/pct/pct_start
+core/containers/pct/pct_next_vmid
+core/containers/pct/pct_network
+core/containers/pct/pct_network_show
+core/containers/pct/pct_shell_script
+core/containers/pct/pct_find_vmid
+# Containers - Shared
+core/containers/container_network_prompt
+core/containers/container_prompt
+core/containers/container
+core/containers/container_script

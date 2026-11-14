@@ -56,7 +56,7 @@ Inside `src/`, send user-facing output through `info`, `warn`, `error` and
 - Avoid `sed -i` without a suffix, `readlink -f`, `grep -P` and `date -d`. They differ
   on BSD and BusyBox.
 - Do not call `tput` directly; use ANSI escapes guarded by a TTY check.
-- Public functions are documented in `CLAUDE.md`. Names starting with `_` are private.
+- Public functions are documented in [`AGENTS.md`](../AGENTS.md). Names starting with `_` are private.
 
 ## Testing
 

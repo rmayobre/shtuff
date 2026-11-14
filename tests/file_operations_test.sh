@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../shtuff.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../shtuff-core.sh"
 
 mkdir testdir
 

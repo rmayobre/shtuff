@@ -33,7 +33,7 @@
 #   - On PCT: Debian 13 template must be downloaded before running this script
 
 # Source shtuff utilities
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -fsSL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # --- Configuration ---
 readonly BENTOPDF_SERVICE="bentopdf"

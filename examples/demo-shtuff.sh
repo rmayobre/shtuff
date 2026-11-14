@@ -9,7 +9,7 @@
 #   sudo ./demo-shtuff.sh          # Full demo (packaging requires root)
 #   ./demo-shtuff.sh               # Partial demo (skips packaging)
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../shtuff.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../shtuff-linux.sh"
 
 DEMO_DIR=$(mktemp -d /tmp/shtuff_demo_XXXXXX)
 

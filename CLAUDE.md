@@ -16,19 +16,20 @@ that serve as reference implementations.
 
 **Locally** (after cloning):
 ```bash
-source ./shtuff.sh
+source ./shtuff-linux.sh      # core + Linux modules
+source ./shtuff-core.sh       # core modules only (platform-neutral)
 ```
 
 **Remotely** (production scripts):
 
 Using `curl`:
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -fsSL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 ```
 
 Using `wget` (alternative for systems without curl):
 ```bash
-source <(wget -qO- https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(wget -qO- https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 ```
 
 All example scripts use the curl remote form. When writing new scripts, always use the
@@ -302,28 +303,34 @@ shellcheck examples/install-bentodpf-native.sh
 
 ```
 shtuff/
-├── shtuff.sh              # Local loader (detects interpreter + OS)
-├── shtuff-remote.sh       # Remote loader (same detection, fetches modules)
+├── shtuff-core.sh         # Local entry point: core modules only
+├── shtuff-linux.sh        # Local entry point: core + linux modules
+├── shtuff-core-remote.sh  # Remote entry point: core only
+├── shtuff-linux-remote.sh # Remote entry point: core + linux
 ├── src/
 │   ├── manifest.txt       # Ordered module list read by both loaders
+│   ├── loader.sh          # Shared local loader (interpreter detection, variants)
+│   ├── loader-remote.sh   # Shared remote loader
 │   ├── core/              # Common to every platform
 │   │   ├── graphics/      # ANSI colors, loading indicators
 │   │   ├── logging/       # log_bash.sh, log_ash.sh (per-interpreter variants)
-│   │   ├── networking/
+│   │   ├── networking/    # scan, poll
 │   │   ├── packaging/     # install/update/uninstall/clean, incl. brew.sh
 │   │   ├── prompts/
-│   │   ├── system/
 │   │   └── utils/
 │   ├── linux/             # Linux-only logic
 │   │   ├── containers/    # lxc/ and pct/ container functions
 │   │   ├── gpu/
+│   │   ├── networking/    # bridge, forward, network
+│   │   ├── system/        # locale
 │   │   └── systemd/       # service(), timer()
 │   └── mac/               # macOS-only logic (launchd etc.; in progress)
 ├── tests/
 └── examples/
 ```
 
-Modules may ship interpreter variants (`<name>_bash.sh`, `<name>_ash.sh`,
+Pick the entry point for your platform: `shtuff-core*.sh` loads only `core/`; `shtuff-linux*.sh`
+loads `core/` plus `linux/`. Modules may ship interpreter variants (`<name>_bash.sh`, `<name>_ash.sh`,
 `<name>_zsh.sh`). The loader prefers the variant for the running shell, then
 `<name>.sh` (bash only). Add every new module to `src/manifest.txt`. Homebrew
 support lives in `core/packaging/` because it runs on Linux as well as macOS.

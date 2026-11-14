@@ -1,11 +1,15 @@
-#!/usr/bin/env bash
-# shtuff local loader. Source this file; do not execute it.
+# shtuff shared local loader. Sourced by shtuff-core.sh and shtuff-linux.sh;
+# do not source it directly.
 #
-# Detects the running interpreter (bash, zsh, ash/POSIX sh) and OS (linux, mac),
-# then sources the modules listed in src/manifest.txt: everything under core/
-# plus the directory for the detected OS. Each module may ship per-interpreter
-# variants (<name>_bash.sh, <name>_ash.sh, <name>_zsh.sh); the loader prefers
-# the variant for the running shell, then the plain <name>.sh.
+# Inputs (set by the entry point):
+#   SHTUFF_DIR        Project root (directory holding src/).
+#   SHTUFF_PLATFORMS  Space-separated module directories to load, e.g. "core linux".
+#
+# Detects the running interpreter (bash, zsh, ash/POSIX sh), then sources the
+# modules listed in src/manifest.txt whose first path component is in
+# SHTUFF_PLATFORMS. Each module may ship per-interpreter variants
+# (<name>_bash.sh, <name>_ash.sh, <name>_zsh.sh); the loader prefers the variant
+# for the running shell, then the plain <name>.sh (bash only).
 #
 # NOTE: This file is parsed by bash 3.2, zsh and BusyBox ash, so keep it POSIX.
 
@@ -22,22 +26,10 @@ else
     SHTUFF_INTERP=ash
 fi
 
-# --- Operating system --------------------------------------------------------
-case "$(uname -s 2>/dev/null)" in
-    Darwin) SHTUFF_OS=mac ;;
-    Linux)  SHTUFF_OS=linux ;;
-    *)      SHTUFF_OS=unknown ;;
-esac
-
 # --- Project directory -------------------------------------------------------
-# bash and zsh can locate this file; plain ash cannot, so it must be preset
-# (SHTUFF_DIR=/path/to/shtuff) or sourced from the project root.
-if [ -z "${SHTUFF_DIR:-}" ]; then
-    case "$SHTUFF_INTERP" in
-        bash) SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "${BASH_SOURCE[0]}")" && pwd) ;;
-        zsh)  eval 'SHTUFF_DIR=$(unset CDPATH && cd "$(dirname "${(%):-%x}")" && pwd)' ;;
-        *)    SHTUFF_DIR=$(pwd) ;;
-    esac
+if [ -z "${SHTUFF_DIR:-}" ] || [ -z "${SHTUFF_PLATFORMS:-}" ]; then
+    echo "shtuff: source shtuff-core.sh or shtuff-linux.sh instead of the loader." >&2
+    return 1 2>/dev/null || exit 1
 fi
 if [ ! -f "${SHTUFF_DIR}/src/manifest.txt" ]; then
     echo "shtuff: cannot find src/manifest.txt under '${SHTUFF_DIR}'. Set SHTUFF_DIR." >&2
@@ -70,13 +62,17 @@ SHTUFF_SKIPPED=""
 while IFS= read -r _sl_line || [ -n "$_sl_line" ]; do
     case "$_sl_line" in
         ''|'#'*) continue ;;
-        core/*|"${SHTUFF_OS}"/*)
+        */*)
+          case " ${SHTUFF_PLATFORMS} " in
+            *" ${_sl_line%%/*} "*)
             if _sl_file=$(_shtuff_resolve "$_sl_line"); then
                 . "$_sl_file"
             else
                 SHTUFF_SKIPPED="${SHTUFF_SKIPPED:+$SHTUFF_SKIPPED }$_sl_line"
             fi
             ;;
+          esac
+          ;;
     esac
 done < "${SHTUFF_DIR}/src/manifest.txt"
 

@@ -27,9 +27,9 @@ linux/systemd/timer
 # Networking
 core/networking/scan
 core/networking/poll
-core/networking/bridge
-core/networking/forward
-core/networking/network
+linux/networking/bridge
+linux/networking/forward
+linux/networking/network
 # Utilities
 core/utils/download
 core/utils/copy
@@ -49,7 +49,7 @@ linux/gpu/gpu_select
 linux/gpu/gpu_install
 # Containers
 # System
-core/system/locale
+linux/system/locale
 # Containers - LXC
 linux/containers/lxc/lxc_config
 linux/containers/lxc/lxc_create

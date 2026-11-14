@@ -1,19 +1,17 @@
-#!/usr/bin/env bash
-# shtuff remote loader. Source this file; do not execute it.
+# shtuff shared remote loader. Fetched and evaluated by shtuff-core-remote.sh and
+# shtuff-linux-remote.sh; do not source it directly.
 #
-#   source <(curl -fsSL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+# Inputs (set by the entry point):
+#   SHTUFF_BASE_URL   Raw URL of the repository root, no trailing slash.
+#   SHTUFF_PLATFORMS  Space-separated module directories to load, e.g. "core linux".
+#   _shtuff_fetch     Function printing the body of a URL (curl or wget).
 #
-# On bash 3.2 (macOS) `source <(...)` does not work reliably; use instead:
-#   eval "$(curl -fsSL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)"
-#
-# Detects the interpreter and OS, fetches src/manifest.txt, then fetches and
-# evaluates the matching modules (see shtuff.sh for the variant rules).
+# Fetches src/manifest.txt, then fetches and evaluates each module whose first
+# path component is in SHTUFF_PLATFORMS (see loader.sh for the variant rules).
 #
 # NOTE: This file is parsed by bash 3.2, zsh and BusyBox ash, so keep it POSIX.
 
-# Base URL for scripts (no trailing slash). Change if this project has been forked.
-SHTUFF_BASE_URL="${SHTUFF_BASE_URL:-https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main}"
-
+# --- Interpreter -------------------------------------------------------------
 if [ -n "${BASH_VERSION:-}" ]; then
     SHTUFF_INTERP=bash
 elif [ -n "${ZSH_VERSION:-}" ]; then
@@ -21,12 +19,6 @@ elif [ -n "${ZSH_VERSION:-}" ]; then
 else
     SHTUFF_INTERP=ash
 fi
-
-case "$(uname -s 2>/dev/null)" in
-    Darwin) SHTUFF_OS=mac ;;
-    Linux)  SHTUFF_OS=linux ;;
-    *)      SHTUFF_OS=unknown ;;
-esac
 
 IS_DRY_RUN=${IS_DRY_RUN:-false}
 
@@ -69,7 +61,11 @@ SHTUFF_SKIPPED=""
 _sl_list=$(printf '%s\n' "$_shtuff_manifest" | while IFS= read -r _l; do
     case "$_l" in
         ''|'#'*) ;;
-        core/*|"${SHTUFF_OS}"/*) printf '%s\n' "$_l" ;;
+        */*)
+            case " ${SHTUFF_PLATFORMS} " in
+                *" ${_l%%/*} "*) printf '%s\n' "$_l" ;;
+            esac
+            ;;
     esac
 done)
 for _sl_mod in $_sl_list; do

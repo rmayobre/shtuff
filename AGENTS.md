@@ -15,7 +15,7 @@ creating or modifying installer or update scripts.
 - File operations with progress indicators (`copy`, `move`, `delete`)
 - Systemd service and timer generation (`service`, `timer`)
 
-All utilities live in `src/`. The remote entry point `shtuff-remote.sh` fetches
+All utilities live in `src/`. The remote entry point `shtuff-linux-remote.sh` fetches
 and sources every module from GitHub at runtime.
 
 ---
@@ -26,7 +26,7 @@ and sources every module from GitHub at runtime.
 
 Always source remotely in production scripts:
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 ```
 
 ### Logging
@@ -163,7 +163,7 @@ Every `install-*.sh` script must follow this structure:
 ```
 1.  #!/usr/bin/env bash
 2.  Header comment (purpose, usage, options, requirements)
-3.  source <(curl -sL .../shtuff-remote.sh)
+3.  source <(curl -sL .../shtuff-linux-remote.sh)
 4.  readonly constants  +  overridable VARS="${VARS:-default}"
 5.  Argument parser     (while [[ $# -gt 0 ]]; do ... done)
 6.  Root check          ([[ $EUID -ne 0 ]] && error "..." && exit 1)

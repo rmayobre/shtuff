@@ -307,8 +307,6 @@ shtuff/
 ├── src/
 │   ├── manifest.txt       # Ordered module list read by both loaders
 │   ├── core/              # Common to every platform
-│   │   ├── containers/    # lxc/ and pct/ container functions
-│   │   ├── gpu/
 │   │   ├── graphics/      # ANSI colors, loading indicators
 │   │   ├── logging/       # log_bash.sh, log_ash.sh (per-interpreter variants)
 │   │   ├── networking/
@@ -317,6 +315,8 @@ shtuff/
 │   │   ├── system/
 │   │   └── utils/
 │   ├── linux/             # Linux-only logic
+│   │   ├── containers/    # lxc/ and pct/ container functions
+│   │   ├── gpu/
 │   │   └── systemd/       # service(), timer()
 │   └── mac/               # macOS-only logic (launchd etc.; in progress)
 ├── tests/

@@ -44,40 +44,40 @@ core/prompts/options
 core/prompts/selections
 core/prompts/confirm
 # GPU
-core/gpu/gpu_list
-core/gpu/gpu_select
-core/gpu/gpu_install
+linux/gpu/gpu_list
+linux/gpu/gpu_select
+linux/gpu/gpu_install
 # Containers
 # System
 core/system/locale
 # Containers - LXC
-core/containers/lxc/lxc_config
-core/containers/lxc/lxc_create
-core/containers/lxc/lxc_delete
-core/containers/lxc/lxc_enter
-core/containers/lxc/lxc_exec
-core/containers/lxc/lxc_push
-core/containers/lxc/lxc_pull
-core/containers/lxc/lxc_start
-core/containers/lxc/lxc_network
-core/containers/lxc/lxc_network_show
-core/containers/lxc/lxc_shell_script
+linux/containers/lxc/lxc_config
+linux/containers/lxc/lxc_create
+linux/containers/lxc/lxc_delete
+linux/containers/lxc/lxc_enter
+linux/containers/lxc/lxc_exec
+linux/containers/lxc/lxc_push
+linux/containers/lxc/lxc_pull
+linux/containers/lxc/lxc_start
+linux/containers/lxc/lxc_network
+linux/containers/lxc/lxc_network_show
+linux/containers/lxc/lxc_shell_script
 # Containers - PCT
-core/containers/pct/pct_config
-core/containers/pct/pct_create
-core/containers/pct/pct_delete
-core/containers/pct/pct_enter
-core/containers/pct/pct_exec
-core/containers/pct/pct_push
-core/containers/pct/pct_pull
-core/containers/pct/pct_start
-core/containers/pct/pct_next_vmid
-core/containers/pct/pct_network
-core/containers/pct/pct_network_show
-core/containers/pct/pct_shell_script
-core/containers/pct/pct_find_vmid
+linux/containers/pct/pct_config
+linux/containers/pct/pct_create
+linux/containers/pct/pct_delete
+linux/containers/pct/pct_enter
+linux/containers/pct/pct_exec
+linux/containers/pct/pct_push
+linux/containers/pct/pct_pull
+linux/containers/pct/pct_start
+linux/containers/pct/pct_next_vmid
+linux/containers/pct/pct_network
+linux/containers/pct/pct_network_show
+linux/containers/pct/pct_shell_script
+linux/containers/pct/pct_find_vmid
 # Containers - Shared
-core/containers/container_network_prompt
-core/containers/container_prompt
-core/containers/container
-core/containers/container_script
+linux/containers/container_network_prompt
+linux/containers/container_prompt
+linux/containers/container
+linux/containers/container_script

@@ -22,7 +22,10 @@ jobs:
       - name: Build tarball
         run: |
           tar -czf "shtuff-${{ steps.version.outputs.VERSION }}.tar.gz" \
-            shtuff.sh \
+            shtuff-core.sh \
+            shtuff-linux.sh \
+            shtuff-core-remote.sh \
+            shtuff-linux-remote.sh \
             README.md \
             src/
 

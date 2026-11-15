@@ -44,7 +44,7 @@ update() {
         esac
     done
 
-    if [[ $EUID -ne 0 ]]; then
+    if [[ $EUID -ne 0 && "$(uname -s)" != "Darwin" ]]; then
         if command -v sudo &>/dev/null; then
             warn "Not running as root. Package updates may fail without elevated privileges."
         else
@@ -52,7 +52,9 @@ update() {
         fi
     fi
 
-    if command -v apt &> /dev/null; then
+    if [[ "$(uname -s)" == "Darwin" ]] && command -v brew &> /dev/null; then
+        _update_brew &
+    elif command -v apt &> /dev/null; then
         _update_apt &
     elif command -v dnf &> /dev/null; then
         _update_dnf &
@@ -64,6 +66,8 @@ update() {
         _update_pacman &
     elif command -v apk &> /dev/null; then
         _update_apk &
+    elif command -v brew &> /dev/null; then
+        _update_brew &
     else
         error "Could not determine the primary package manager."
         error "Cannot proceed with system update."
@@ -93,7 +97,7 @@ update() {
 # Examples:
 #   _update_apt
 _update_apt() {
-    apt update >> "$VERBOSE_FILE" 2>&1
+    apt update >> "$VERBOSE_FILE" 2>&1 || return 1
     apt upgrade -y >> "$VERBOSE_FILE" 2>&1
 }
 
@@ -190,6 +194,21 @@ _update_pacman() {
 # Examples:
 #   _update_apk
 _update_apk() {
-    apk update >> "$VERBOSE_FILE" 2>&1
-    apk upgrade >> "$VERBOSE_FILE" 2>&1
+    apk update >> "$VERBOSE_FILE" 2>&1 && apk upgrade >> "$VERBOSE_FILE" 2>&1
+}
+
+# Function: _update_brew
+# Description: Updates Homebrew and upgrades all installed formulae.
+#
+# Globals:
+#   VERBOSE_FILE (write): Raw brew output is appended here.
+#
+# Returns:
+#   0 - Update and upgrade succeeded.
+#   1 - brew update or brew upgrade failed.
+#
+# Examples:
+#   _update_brew
+_update_brew() {
+    _brew update >> "$VERBOSE_FILE" 2>&1 && _brew upgrade >> "$VERBOSE_FILE" 2>&1
 }

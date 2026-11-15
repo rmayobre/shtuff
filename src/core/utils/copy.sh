@@ -1,29 +1,30 @@
 #!/usr/bin/env bash
 
-# Function: move
-# Description: Moves one or more source files or directories to a destination,
-#              displaying a per-item loading indicator as each source is moved.
+# Function: copy
+# Description: Copies one or more source files or directories to a destination,
+#              displaying a per-item loading indicator as each source is copied.
 #              When more than one source is provided an overall progress bar is
 #              printed above the per-item output and updated in place after every
-#              completion. The last positional argument is treated as the destination.
+#              completion. Directories are detected automatically and copied with
+#              cp -r. The last positional argument is treated as the destination.
 #
 # Visual Output:
-#   Moving three files — the bar stays pinned on the first line and updates
+#   Copying three files — the bar stays pinned on the first line and updates
 #   in place while per-item output scrolls below it:
 #
-#     Moving [████████████████████████████████████████] 100% (3/3)  <- pinned, updates
-#     ✓ app.log moved
-#     ✓ error.log moved
-#     ✓ debug.log moved
+#     Copying [████████████████████████████████████████] 100% (3/3)  <- pinned, updates
+#     ✓ config.json copied
+#     ✓ settings.yaml copied
+#     ✓ env.conf copied
 #
 # Arguments:
 #   SOURCE... DEST (string, required): Two or more positional paths. All paths
 #                  except the last are sources; the last is the destination.
 #   --style STYLE  (string, optional, default: "spinner"): Loading indicator style.
 #       Valid values: spinner, dots, bars, arrows, clock.
-#   --message MSG  (string, optional, default: "Moving"): Verb shown in both
+#   --message MSG  (string, optional, default: "Copying"): Verb shown in both
 #                  the progress bar label and each per-item loading indicator.
-#   --dry-run      (flag, optional): Print the move commands that would be executed
+#   --dry-run      (flag, optional): Print the copy commands that would be executed
 #                  without running them. Defaults to IS_DRY_RUN if not specified.
 #
 # Globals:
@@ -33,21 +34,21 @@
 #   IS_DRY_RUN            (read): When "true", enables dry-run mode by default.
 #
 # Returns:
-#   0 - All items moved successfully.
-#   1 - Fewer than two paths provided, or mv failed for any item.
+#   0 - All items copied successfully.
+#   1 - Fewer than two paths provided, or cp failed for any item.
 #
 # Examples:
-#   # Move three log files into an archive directory
-#   move app.log error.log debug.log /var/log/archive/
+#   # Copy three config files into /etc/myapp/
+#   copy config.json settings.yaml env.conf /etc/myapp/
 #
-#   # Move a build artifact to a publish directory
-#   move dist/ /srv/releases/v2.0/
+#   # Copy a directory into a staging area
+#   copy src/ /tmp/staging/
 #
 #   # Custom style and label
-#   move --style bars --message "Archiving" monday.tar tuesday.tar /mnt/backup/
-function move {
+#   copy --style dots --message "Deploying" dist/ /var/www/html/
+function copy {
     local style="$DEFAULT_LOADING_STYLE"
-    local message="Moving"
+    local message="Copying"
     local dry_run="${IS_DRY_RUN:-false}"
     local -a paths=()
 
@@ -66,7 +67,7 @@ function move {
                 shift
                 ;;
             -*)
-                error "move: unknown option: $1"
+                error "copy: unknown option: $1"
                 return 1
                 ;;
             *)
@@ -77,17 +78,21 @@ function move {
     done
 
     if (( ${#paths[@]} < 2 )); then
-        error "move: at least one source and a destination are required"
+        error "copy: at least one source and a destination are required"
         return 1
     fi
 
-    local dest="${paths[-1]}"
+    local dest="${paths[$(( ${#paths[@]} - 1 ))]}"
     local -a sources=("${paths[@]:0:${#paths[@]}-1}")
     local total=${#sources[@]}
 
     if [[ "$dry_run" == "true" ]]; then
         for src in "${sources[@]}"; do
-            echo "[DRY RUN] mv \"$src\" \"$dest\""
+            if [[ -d "$src" ]]; then
+                echo "[DRY RUN] cp -r \"$src\" \"$dest\""
+            else
+                echo "[DRY RUN] cp \"$src\" \"$dest\""
+            fi
         done
         return 0
     fi
@@ -99,12 +104,16 @@ function move {
 
     for (( i = 0; i < total; i++ )); do
         local src="${sources[$i]}"
-        mv "$src" "$dest" &
+        if [[ -d "$src" ]]; then
+            cp -r "$src" "$dest" &
+        else
+            cp "$src" "$dest" &
+        fi
         monitor $! \
             --style "$style" \
             --message "$message $src" \
-            --success_msg "$src moved" \
-            --error_msg "Failed to move $src" || return 1
+            --success_msg "$src copied" \
+            --error_msg "Failed to copy $src" || return 1
         if (( total > 1 )); then
             progress --current $(( i + 1 )) --total "$total" --message "$message" \
                 --lines-above $(( i + 2 ))

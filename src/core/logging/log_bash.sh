@@ -28,26 +28,33 @@ LOG_TIMESTAMP=${LOG_TIMESTAMP:-true}  # Include timestamps
 
 # Verbose output file — always written when verbose() / log_output() is called.
 # Overridable via environment; defaults to a per-process temp file.
-VERBOSE_FILE="${VERBOSE_FILE:-/tmp/script_$$.log}"
+VERBOSE_FILE="${VERBOSE_FILE:-${TMPDIR:-/tmp}/script_$$.log}"
 VERBOSE_LOGS="$VERBOSE_FILE"
 
-# Log level hierarchy (lower number = higher priority)
-readonly -A LOG_LEVELS=(
-    ["$ERROR_LEVEL"]=1
-    ["$WARN_LEVEL"]=2
-    ["$INFO_LEVEL"]=3
-    ["$DEBUG_LEVEL"]=4
-    ["$VERBOSE_LEVEL"]=5
-)
+# Log level hierarchy (lower number = higher priority).
+# Implemented with case statements instead of associative arrays so the file
+# also loads on bash 3.2 (macOS system bash).
+_log_level_num() {
+    case "$1" in
+        "$ERROR_LEVEL")   echo 1 ;;
+        "$WARN_LEVEL")    echo 2 ;;
+        "$INFO_LEVEL")    echo 3 ;;
+        "$DEBUG_LEVEL")   echo 4 ;;
+        "$VERBOSE_LEVEL") echo 5 ;;
+        *) return 1 ;;
+    esac
+}
 
-# Color codes for console output
-readonly -A LOG_COLORS=(
-    ["$ERROR_LEVEL"]="$RED"
-    ["$WARN_LEVEL"]="$YELLOW"
-    ["$INFO_LEVEL"]="$GREEN"
-    ["$DEBUG_LEVEL"]="$CYAN"
-    ["$VERBOSE_LEVEL"]="$MAGENTA"
-)
+# Color codes for console output.
+_log_color() {
+    case "$1" in
+        "$ERROR_LEVEL")   printf '%s' "$RED" ;;
+        "$WARN_LEVEL")    printf '%s' "$YELLOW" ;;
+        "$INFO_LEVEL")    printf '%s' "$GREEN" ;;
+        "$DEBUG_LEVEL")   printf '%s' "$CYAN" ;;
+        "$VERBOSE_LEVEL") printf '%s' "$MAGENTA" ;;
+    esac
+}
 
 # Function: _log
 # Description: Logs a message at the given level if it falls within the current threshold.
@@ -59,9 +66,7 @@ readonly -A LOG_COLORS=(
 #   $@ - message (string, required): Message to log; all remaining arguments are joined with spaces.
 #
 # Globals:
-#   LOG_LEVELS (read): Associative array mapping level names to numeric priorities.
 #   LOG_LEVEL (read): Current logging threshold; messages above this priority are suppressed.
-#   LOG_COLORS (read): Associative array mapping level names to ANSI color codes.
 #   LOG_FILE (read): Optional file path; when set, non-verbose messages are written only to this file.
 #   LOG_TIMESTAMP (read): When "true", a timestamp prefix is prepended to each message.
 #   RESET (read): ANSI reset sequence applied after the colored message on TTY output.
@@ -81,7 +86,7 @@ _log() {
     # Check if minimum arguments provided
     if [[ $# -lt 2 ]]; then
         echo "_log: insufficient arguments. Usage: _log LEVEL MESSAGE" >&2
-        echo "Available levels: ${!LOG_LEVELS[*]}" >&2
+        echo "Available levels: $ERROR_LEVEL $WARN_LEVEL $INFO_LEVEL $DEBUG_LEVEL $VERBOSE_LEVEL" >&2
         return 1
     fi
 
@@ -91,8 +96,10 @@ _log() {
     fi
 
     local level="$1"
-    local num_level=${LOG_LEVELS[$level]}
-    local global_level=${LOG_LEVELS[$LOG_LEVEL]}
+    local num_level global_level
+    num_level=$(_log_level_num "$level")
+    global_level=$(_log_level_num "$LOG_LEVEL")
+    : "${global_level:=3}"
 
     # Shift to the next parameter position to collect all arguments into a
     # single message. This allows for the caller to provide an array or
@@ -132,7 +139,7 @@ _log() {
         echo "$formatted_message" >> "$VERBOSE_FILE"
         if [[ "$LOG_LEVEL" == "$VERBOSE_LEVEL" ]]; then
             if [[ -t 2 ]]; then
-                echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET" >&2
+                printf '%b%s%b\n' "$(_log_color "$level")" "$formatted_message" "$RESET" >&2
             else
                 echo "$formatted_message" >&2
             fi
@@ -148,7 +155,7 @@ _log() {
     else
         # Output to stderr so log messages never pollute stdout return values
         if [[ -t 2 ]]; then
-            echo -e "${LOG_COLORS[$level]}${formatted_message}$RESET" >&2
+            printf '%b%s%b\n' "$(_log_color "$level")" "$formatted_message" "$RESET" >&2
         else
             echo "$formatted_message" >&2
         fi

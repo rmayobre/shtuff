@@ -19,7 +19,7 @@ set -euo pipefail
 
 # Source shtuff locally
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${SCRIPT_DIR}/../shtuff.sh"
+source "${SCRIPT_DIR}/../shtuff-linux.sh"
 
 PASS=0
 FAIL=0
@@ -85,7 +85,7 @@ assert_fn_exists "options"
 assert_fn_exists "selections"
 assert_fn_exists "confirm"
 
-pass "All prompt functions loaded from src/prompts/"
+pass "All prompt functions loaded from src/core/prompts/"
 
 # ─── 3. Networking: check_port → scan ─────────────────────────────────────────
 

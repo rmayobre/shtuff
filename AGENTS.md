@@ -14,9 +14,49 @@ creating or modifying installer or update scripts.
 - Visual progress indicators for background processes (`monitor`)
 - File operations with progress indicators (`copy`, `move`, `delete`)
 - Systemd service and timer generation (`service`, `timer`)
+- Interactive prompts (`question`, `options`, `selections`, `confirm`)
+- Networking helpers (`scan`, `poll`; Linux only: `bridge`, `forward`, `network`)
+- Linux-only containers (LXC, Proxmox) and GPU helpers
 
-All utilities live in `src/`. The remote entry point `shtuff-remote.sh` fetches
-and sources every module from GitHub at runtime.
+All utilities live in `src/`. Pick the entry point for the platform: `shtuff-core*.sh`
+loads `src/core/` (works anywhere bash does); `shtuff-linux*.sh` loads `src/core/`
+plus `src/linux/`. The `-remote` entry points fetch every module from GitHub at runtime.
+
+## Repository Layout
+
+```
+shtuff/
+├── shtuff-core.sh          # Local entry point: core modules only
+├── shtuff-linux.sh         # Local entry point: core + linux modules
+├── shtuff-core-remote.sh   # Remote entry point: core only
+├── shtuff-linux-remote.sh  # Remote entry point: core + linux
+├── src/
+│   ├── manifest.txt        # Ordered module list read by both loaders
+│   ├── loader.sh           # Shared local loader (interpreter detection, variants)
+│   ├── loader-remote.sh    # Shared remote loader
+│   ├── core/               # Common to every platform
+│   │   ├── graphics/       # ANSI colors, loading indicators
+│   │   ├── logging/        # log_bash.sh, log_ash.sh (per-interpreter variants)
+│   │   ├── networking/     # scan, poll
+│   │   ├── packaging/      # install/update/uninstall/clean/dependencies, brew.sh
+│   │   ├── prompts/
+│   │   └── utils/          # monitor, copy, move, delete, download, progress, stop
+│   ├── linux/              # Linux-only logic
+│   │   ├── containers/     # lxc/ and pct/ container functions
+│   │   ├── gpu/
+│   │   ├── networking/     # bridge, forward, network
+│   │   ├── system/         # locale
+│   │   └── systemd/        # service(), timer()
+│   └── mac/                # macOS-only logic (reserved; empty)
+├── docs/                   # Project docs; docs/reference/ is generated
+├── tests/
+└── examples/
+```
+
+Modules may ship interpreter variants (`<name>_bash.sh`, `<name>_ash.sh`,
+`<name>_zsh.sh`). The loader prefers the variant for the running shell, then
+`<name>.sh` (bash only). Homebrew support lives in `core/packaging/` because it
+runs on Linux as well as macOS. See [`docs/architecture.md`](docs/architecture.md).
 
 ---
 
@@ -24,10 +64,25 @@ and sources every module from GitHub at runtime.
 
 ### Sourcing
 
-Always source remotely in production scripts:
+Always source remotely in production scripts. Use the Linux entry point for scripts
+that need systemd, containers or GPU helpers; use the core one for platform-neutral scripts.
+
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -fsSL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 ```
+
+Use `wget` when the target system may not have `curl`:
+```bash
+source <(wget -qO- https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
+```
+
+For local development after cloning:
+```bash
+source ./shtuff-linux.sh    # core + Linux modules
+source ./shtuff-core.sh     # core modules only
+```
+
+On macOS's bash 3.2, `source <(...)` is unreliable; use `eval "$(curl -fsSL URL)"`.
 
 ### Logging
 
@@ -36,7 +91,8 @@ source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/m
 | `error`  | ERROR   | Red    | Always printed |
 | `warn`   | WARN    | Yellow | |
 | `info`   | INFO    | Green  | |
-| `debug`  | DEBUG   | Cyan   | Only when `LOG_LEVEL=DEBUG` |
+| `debug`  | DEBUG   | Cyan   | Only when `LOG_LEVEL=debug` |
+| `verbose`| VERBOSE | Magenta| Always written to `$VERBOSE_FILE`; shown only when `LOG_LEVEL=verbose` |
 
 ### Package Management
 
@@ -45,9 +101,12 @@ update                        # Full system upgrade (no arguments)
 install pkg1 pkg2 ...         # Install packages
 uninstall pkg1 pkg2 ...       # Remove packages
 clean                         # Remove orphans, clean cache
+dependencies pkg1 pkg2 ...    # Update, then install one-by-one, skipping failures
 ```
 
-Auto-detects: `apt`, `dnf`, `yum`, `zypper`, `pacman`, `apk`.
+Auto-detects: `apt`, `dnf`, `yum`, `zypper`, `pacman`, `apk`, and Homebrew (`brew`).
+Each call runs in the background behind a loading indicator. Optional flags:
+`--message MSG`, `--style STYLE`, `--success_msg MSG`, `--error_msg MSG`.
 
 ### Background Process Monitor
 
@@ -115,6 +174,8 @@ DEPLOY_ENV="$answer"
 - `question PROMPT` — reads a line of text; result in `$answer`.
 - `options PROMPT --choice VAL [--choice VAL ...]` — displays a numbered
   list, re-prompts on invalid input; selected choice text in `$answer`.
+- `selections PROMPT --choice VAL [--choice VAL ...]` — numbered multi-select;
+  the chosen items are stored in the `$answers` array.
 - `confirm PROMPT` — yes/no dialog; sets `$answer` to `"yes"` or `"no"`;
   returns `0` for yes, `1` for no. Can be used directly in `if` statements.
 
@@ -136,12 +197,9 @@ service \
     --wanted-by "multi-user.target" || exit 1 # optional (default: multi-user.target)
 ```
 
-After calling `service`, always reload and enable:
-```bash
-systemctl daemon-reload
-systemctl enable myapp
-systemctl start myapp
-```
+`service` writes the unit file and then runs `systemctl daemon-reload`,
+`systemctl enable` and `systemctl start` itself. Pass `--lazy` to write the file
+only and skip those steps (for example when you need to start the service later).
 
 ### Systemd Timer Generator
 
@@ -163,7 +221,7 @@ Every `install-*.sh` script must follow this structure:
 ```
 1.  #!/usr/bin/env bash
 2.  Header comment (purpose, usage, options, requirements)
-3.  source <(curl -sL .../shtuff-remote.sh)
+3.  source <(curl -fsSL .../shtuff-linux-remote.sh)
 4.  readonly constants  +  overridable VARS="${VARS:-default}"
 5.  Argument parser     (while [[ $# -gt 0 ]]; do ... done)
 6.  Root check          ([[ $EUID -ne 0 ]] && error "..." && exit 1)
@@ -171,8 +229,9 @@ Every `install-*.sh` script must follow this structure:
 8.  Step 2: install     (install deps & + monitor)
 9.  Step 3+: download / extract / configure
 10. Service step:       service --name ... --exec-start ...
-11. Enable/start:       daemon-reload, enable, start & + monitor
-12. Completion info:    info messages with URL and management commands
+11. Completion info:    info messages with URL and management commands
+    (`service` already reloaded, enabled and started the unit; pass `--lazy`
+    to `service` if you need to start it yourself later)
 ```
 
 ### Argument Parsing Pattern
@@ -331,7 +390,8 @@ monitor $! \
 | Clean up `/tmp/` after extraction | `rm -rf /tmp/myapp_extract /tmp/myapp.zip` |
 | Use `${VAR:?}` in destructive `rm -rf` | Prevents catastrophic empty-variable expansion |
 | Scripts require root | Check `$EUID -ne 0` at the top |
-| Prefer `curl -sL` for downloads | Silent + follow redirects |
+| Prefer `curl -fsSL` for downloads | Silent, follow redirects, fail on HTTP errors |
+| Pass `--lazy` to `service` only when you must start it later | Otherwise it enables and starts the unit |
 | **Never call `_`-prefixed functions** | Functions starting with `_` are private internal helpers used by shtuff. They are not part of the public API and may change without notice. |
 
 ### Public API
@@ -341,10 +401,11 @@ Only call these documented public functions. Everything else is private:
 | Module      | Public functions |
 |-------------|-----------------|
 | Logging     | `info`, `warn`, `error`, `debug` |
-| Packaging   | `install`, `update`, `uninstall`, `clean` |
-| Utils       | `monitor`, `stop`, `copy`, `move`, `delete` |
-| Systemd     | `service`, `timer` |
-| Forms       | `question`, `options`, `confirm` |
+| Packaging   | `install`, `update`, `uninstall`, `clean`, `dependencies` |
+| Utils       | `monitor`, `stop`, `copy`, `move`, `delete`, `download` |
+| Systemd (linux) | `service`, `timer` |
+| Forms       | `question`, `options`, `selections`, `confirm` |
+| Networking  | `scan`, `poll`; linux only: `bridge`, `forward`, `network` |
 
 Any function whose name begins with `_` (e.g. `_log_write`, `_detect_pm`) is an
 internal implementation detail. Do not call it, reference it, or rely on its
@@ -420,6 +481,20 @@ in this exact format:
 
 ---
 
+### Adding or Moving a Module
+
+- Put platform-neutral code in `src/core/<feature>/` and Linux-only code in
+  `src/linux/<feature>/`. `core/` must never call anything from `linux/` or need a
+  Linux-only tool to load. Check with `bash -c 'source ./shtuff-core.sh; type your_fn'`.
+- Add every new module to `src/manifest.txt` (path without `.sh`, in load order).
+  A module that uses another module's functions or constants must come after it.
+- Ship interpreter variants (`<name>_bash.sh`, `<name>_ash.sh`) only where the
+  code genuinely differs.
+- Avoid bash-4-only syntax in `core/` (`declare -A`, `${var,,}`, `${arr[-1]}`) so
+  it keeps working on macOS's bash 3.2. See [`docs/contributing.md`](docs/contributing.md)
+  for the full portability checklist.
+- Run `./docs/generate-reference.sh` after changing function headers.
+
 ### Logging in `src/` Functions
 
 All user-facing output must go through the shtuff logging functions. Never use
@@ -462,4 +537,14 @@ Always check syntax before committing:
 ```bash
 bash -n examples/install-myapp-native.sh
 bash -n examples/update-myapp-native.sh
+```
+
+Run `shellcheck` too when it is available:
+```bash
+shellcheck examples/install-myapp-native.sh
+```
+
+Run the test script, which sources `shtuff-core.sh`:
+```bash
+bash tests/file_operations_test.sh
 ```

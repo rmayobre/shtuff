@@ -57,7 +57,7 @@ uninstall() {
     [[ -z "$success_msg" ]] && success_msg="Packages removed"
     [[ -z "$error_msg" ]] && error_msg="Failed to remove packages"
 
-    if [[ $EUID -ne 0 ]]; then
+    if [[ $EUID -ne 0 && "$(uname -s)" != "Darwin" ]]; then
         if command -v sudo &>/dev/null; then
             warn "Not running as root. Package removal may fail without elevated privileges."
         else
@@ -65,7 +65,9 @@ uninstall() {
         fi
     fi
 
-    if command -v apt &> /dev/null; then
+    if [[ "$(uname -s)" == "Darwin" ]] && command -v brew &> /dev/null; then
+        _uninstall_brew "${packages[@]}" &
+    elif command -v apt &> /dev/null; then
         _uninstall_apt "${packages[@]}" &
     elif command -v dnf &> /dev/null; then
         _uninstall_dnf "${packages[@]}" &
@@ -77,6 +79,8 @@ uninstall() {
         _uninstall_pacman "${packages[@]}" &
     elif command -v apk &> /dev/null; then
         _uninstall_apk "${packages[@]}" &
+    elif command -v brew &> /dev/null; then
+        _uninstall_brew "${packages[@]}" &
     else
         error "Could not determine the primary package manager."
         error "Cannot proceed with dependency removal."
@@ -202,4 +206,23 @@ _uninstall_pacman() {
 #   _uninstall_apk nginx
 _uninstall_apk() {
     apk del "$@" >> "$VERBOSE_FILE" 2>&1
+}
+
+# Function: _uninstall_brew
+# Description: Removes one or more packages using Homebrew.
+#
+# Arguments:
+#   $@ - packages (string, required): One or more formula names to remove.
+#
+# Globals:
+#   VERBOSE_FILE (write): Raw brew output is appended here.
+#
+# Returns:
+#   0 - All packages removed successfully.
+#   1 - brew uninstall failed.
+#
+# Examples:
+#   _uninstall_brew jq
+_uninstall_brew() {
+    _brew uninstall "$@" >> "$VERBOSE_FILE" 2>&1
 }

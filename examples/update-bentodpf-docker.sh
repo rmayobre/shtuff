@@ -14,7 +14,7 @@
 #   - Internet connection
 
 # Source shtuff utilities
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -fsSL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # --- Configuration ---
 readonly BENTODPF_IMAGE="bentopdf/bentopdf"

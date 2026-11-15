@@ -44,7 +44,7 @@ clean() {
         esac
     done
 
-    if [[ $EUID -ne 0 ]]; then
+    if [[ $EUID -ne 0 && "$(uname -s)" != "Darwin" ]]; then
         if command -v sudo &>/dev/null; then
             warn "Not running as root. Package cleanup may fail without elevated privileges."
         else
@@ -52,7 +52,9 @@ clean() {
         fi
     fi
 
-    if command -v apt &> /dev/null; then
+    if [[ "$(uname -s)" == "Darwin" ]] && command -v brew &> /dev/null; then
+        _clean_brew &
+    elif command -v apt &> /dev/null; then
         _clean_apt &
     elif command -v dnf &> /dev/null; then
         _clean_dnf &
@@ -64,6 +66,8 @@ clean() {
         _clean_pacman &
     elif command -v apk &> /dev/null; then
         _clean_apk &
+    elif command -v brew &> /dev/null; then
+        _clean_brew &
     else
         error "Could not determine the primary package manager."
         error "Cannot proceed with cleaning process."
@@ -196,5 +200,26 @@ _clean_pacman() {
 # Examples:
 #   _clean_apk
 _clean_apk() {
-    apk cache clean >> "$VERBOSE_FILE" 2>&1 || return 1
+    # /etc/apk/cache is absent on most container images; nothing to clean is success.
+    if [[ -d /etc/apk/cache ]]; then
+        apk cache clean >> "$VERBOSE_FILE" 2>&1 || return 1
+    fi
+    rm -rf /var/cache/apk/* 2>/dev/null
+    return 0
+}
+
+# Function: _clean_brew
+# Description: Removes unused dependencies and clears the Homebrew download cache.
+#
+# Globals:
+#   VERBOSE_FILE (write): Raw brew output is appended here.
+#
+# Returns:
+#   0 - Cleanup succeeded.
+#   1 - brew autoremove or brew cleanup failed.
+#
+# Examples:
+#   _clean_brew
+_clean_brew() {
+    _brew autoremove >> "$VERBOSE_FILE" 2>&1 && _brew cleanup >> "$VERBOSE_FILE" 2>&1
 }

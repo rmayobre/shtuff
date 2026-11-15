@@ -44,12 +44,12 @@ function confirm {
         local reply
         while true; do
             read -r -p "${prompt} [y/n]: " reply
-            case "${reply,,}" in
-                y|yes)
+            case "$reply" in
+                [Yy]|[Yy][Ee][Ss])
                     answer="yes"
                     return 0
                     ;;
-                n|no)
+                [Nn]|[Nn][Oo])
                     answer="no"
                     return 1
                     ;;

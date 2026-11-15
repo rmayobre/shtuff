@@ -4,13 +4,17 @@
 
 Shell stuff - A collection of scripts for everyday use while making shell scripts.
 
+> **Documentation:** see [`docs/`](docs/README.md) for getting started, using shtuff in your own scripts, platform support, architecture and per-function reference pages.
+>
+> **Entry points changed:** `shtuff.sh` and `shtuff-remote.sh` were replaced by `shtuff-core.sh` (core only) and `shtuff-linux.sh` (core + Linux), plus matching `-remote` files. Update any script that sources the old names.
+
 # How to source these scripts
 
 These scripts can be accessed via three methods: locally sourced, remote sourced, and forking.
 
 ## Local Source
 
-Use `git` to clone this repo's main branch and source the `shtuff.sh` file to your script.
+Use `git` to clone this repo's main branch and source `shtuff-linux.sh` (or `shtuff-core.sh` for the platform-neutral subset) to your script.
 
 ```bash
 git clone https://github.com/rmayobre/shtuff.git
@@ -21,7 +25,7 @@ Source the scripts locally in your script:
 ```bash
 #!/bin/bash
 
-source ./shtuff/shtuff.sh # or where ever you cloned the project.
+source ./shtuff/shtuff-linux.sh # or where ever you cloned the project.
 
 # Now you have access to all my shtuff
 
@@ -31,7 +35,7 @@ uninstall htop curl nano # Remove package(s)
 clean                    # Cleanup unused packages and cache
 ```
 
-Custom shell scripts can reference this repo on it's main branch by sourcing the raw `shtuff-remote.sh` shell file.
+Custom shell scripts can reference this repo on it's main branch by sourcing the raw `shtuff-linux-remote.sh` shell file.
 
 ## Remote Source
 
@@ -40,7 +44,7 @@ Custom shell scripts can reference this repo on it's main branch by sourcing the
 ```bash
 #!/bin/bash
 
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Now you have access to all my shtuff
 
@@ -55,7 +59,7 @@ clean                    # Cleanup unused packages and cache
 ```bash
 #!/bin/bash
 
-source <(wget -qO- https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(wget -qO- https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Now you have access to all my shtuff
 
@@ -83,7 +87,7 @@ mkdir -p "${SHTUFF_TMP}"
 curl -sL "https://github.com/rmayobre/shtuff/releases/download/${VERSION}/shtuff-${VERSION}.tar.gz" \
     | tar -xz -C "${SHTUFF_TMP}"
 
-source "${SHTUFF_TMP}/shtuff.sh"
+source "${SHTUFF_TMP}/shtuff-linux.sh"
 
 # Now you have access to all my shtuff (pinned to the chosen version)
 
@@ -105,7 +109,7 @@ mkdir -p "${SHTUFF_TMP}"
 wget -qO- "https://github.com/rmayobre/shtuff/releases/download/${VERSION}/shtuff-${VERSION}.tar.gz" \
     | tar -xz -C "${SHTUFF_TMP}"
 
-source "${SHTUFF_TMP}/shtuff.sh"
+source "${SHTUFF_TMP}/shtuff-linux.sh"
 
 # Now you have access to all my shtuff (pinned to the chosen version)
 
@@ -115,13 +119,13 @@ uninstall htop wget nano # Remove package(s)
 clean                    # Cleanup unused packages and cache
 ```
 
-The tarball is extracted into a temporary directory, and `shtuff.sh` is sourced from
-there. Because `shtuff.sh` resolves the `src/` files relative to its own location, all
+The tarball is extracted into a temporary directory, and `shtuff-linux.sh` is sourced from
+there. Because the entry point resolves the `src/` files relative to its own location, all
 utilities are available immediately after the `source` line.
 
 ## Forking
 
-Just fork the project and write your scripts in the same repository. NOTE: update the base URL defined in the `shtuff-remote.sh` file.
+Just fork the project and write your scripts in the same repository. NOTE: update the base URL `SHTUFF_BASE_URL` (or the default in the `shtuff-*-remote.sh` entry points).
 
 ---
 
@@ -158,7 +162,7 @@ Level constants that can be assigned to `LOG_LEVEL`:
 | `DEBUG_LEVEL`  | `"debug"` |
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 LOG_LEVEL=$DEBUG_LEVEL        # Log everything (default: INFO_LEVEL)
 LOG_FILE="/tmp/logs/test.log" # Log into this file (default: does not log to files)
@@ -267,7 +271,7 @@ install PACKAGE...
 **Returns:** `0` on success; `1` if no packages were specified or no supported package manager was found.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 install curl
 install nodejs npm unzip
@@ -372,7 +376,7 @@ monitor PID [OPTIONS]
 Always append `|| exit 1` to propagate failures.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Default spinner style
 some_long_command &
@@ -440,7 +444,7 @@ copy [OPTIONS] SOURCE... DEST
 **Returns:** `0` if all items were copied; `1` if fewer than two paths were provided or `cp` failed.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Copy a single file
 copy /tmp/app.zip /opt/app/ || exit 1
@@ -550,7 +554,7 @@ service --name NAME --description DESC --exec-start COMMAND [OPTIONS]
 **Returns:** `0` on success; `1` if a required argument is missing or an unknown option is provided.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Create a simple Python app service
 service \
@@ -638,7 +642,7 @@ timer --name NAME [SCHEDULING OPTIONS] [OPTIONS]
 | `*-*-* *:00/15:00`      | Every 15 minutes |
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Daily backup timer at 2 AM, catching up on missed runs
 timer \
@@ -700,7 +704,7 @@ Downloading [████████████████░░░░░░�
 ```
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 files=(file1.txt file2.txt file3.txt file4.txt file5.txt)
 total=${#files[@]}
@@ -736,7 +740,7 @@ question PROMPT
 **Returns:** `0` on success; `1` if no prompt argument was provided.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 question "What is your name?"
 echo "Hello, $answer!"
@@ -765,7 +769,7 @@ options PROMPT --choice VALUE [--choice VALUE ...]
 **Returns:** `0` on success; `1` if the prompt is missing, an unknown flag is passed, or no `--choice` values are provided.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 options "What would you like to do?" \
     --choice "Install" \
@@ -809,7 +813,7 @@ confirm PROMPT
 **Returns:** `0` if the user answered yes; `1` if no; `2` if no prompt was provided.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Use as a condition
 if confirm "Overwrite existing files?"; then
@@ -851,7 +855,7 @@ download --url URL [OPTIONS]
 **Returns:** `0` on success; `1` if required arguments are missing, no download tool is available, or the download fails.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 download --url "https://example.com/archive.zip"
 download --url "https://example.com/archive.zip" --dir /tmp
@@ -1146,7 +1150,7 @@ CONTAINER_NAME=myapp CONTAINER_MEMORY=1024 container prompt
 **Returns:** `0` on success; `1` for unknown subcommand or missing `--name`; propagates backend exit codes otherwise.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Create a Debian container (LXC)
 container create \
@@ -1225,7 +1229,7 @@ Omit `--content` from `container shell-script` to use `$script` implicitly.
 
 ```bash
 #!/bin/bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 CONTAINER_SCRIPT
 #!/bin/bash
@@ -1262,7 +1266,7 @@ that use shtuff as the underlying framework.
 # Usage:   ./install.sh [--port PORT] [--dir DIR]
 # Requirements: bash 4+, root or sudo
 
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # ── Constants (never change at runtime) ───────────────────────────────────────
 readonly REPO="https://github.com/example/myapp/releases/latest/download/myapp.zip"
@@ -1338,7 +1342,7 @@ info "Manage the service: systemctl {start|stop|restart|status} ${SERVICE_NAME}"
 # Purpose: Update <app> to the latest release.
 # Usage:   ./update.sh [--dir DIR]
 
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 readonly REPO="https://api.github.com/repos/example/myapp/releases/latest"
 readonly SERVICE_NAME="myapp"
@@ -1390,7 +1394,7 @@ them. Useful for testing scripts in a safe environment.
 
 ```bash
 IS_DRY_RUN=true
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 check_port --port 8080     # prints: [DRY RUN] ss -tlnp ...
 forward add --from-port 8080 --to-host 10.0.0.10 --to-port 80  # prints commands only
@@ -1434,7 +1438,7 @@ gpu_list
 **Returns:** `0` if one or more GPUs were found and listed; `1` if `lspci` is not available; `2` if no GPUs were detected.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 gpu_list
 ```
@@ -1473,7 +1477,7 @@ gpu_select [OPTIONS]
 **Returns:** `0` on success; `1` if `lspci` is unavailable, no GPUs are found, or arguments are invalid; `2` if the container is not found or passthrough configuration fails.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Select a GPU — result stored in $answer
 gpu_select
@@ -1532,7 +1536,7 @@ gpu_install [OPTIONS]
 **Returns:** `0` on success; `1` if arguments are invalid or the vendor is unsupported; `2` if host installation fails; `3` if the container is not found or installation inside the container fails.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Auto-detect vendor and install on the host
 gpu_install
@@ -1556,7 +1560,7 @@ Complete example: discover GPUs, create a container with passthrough pre-configu
 then install the matching acceleration libraries inside it.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # 1. See what GPUs are available
 gpu_list
@@ -1580,7 +1584,7 @@ gpu_install --vendor nvidia --container gpu-workload || exit 1
 Using `container prompt` for a fully interactive setup:
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Interactive: prompts for all fields; asks "Enable GPU passthrough?" mid-flow
 container prompt
@@ -1594,7 +1598,7 @@ CONTAINER_GPU=01:00.0 \
 Scripted multi-GPU passthrough (PCT, two GPUs on separate hostpci slots):
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 container create \
     --name multi-gpu \
@@ -1630,7 +1634,7 @@ locale LOCALE [--dry-run]
 **Returns:** `0` on success; `1` if no locale was provided, the package manager is unsupported, or locale generation failed.
 
 ```bash
-source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-remote.sh)
+source <(curl -sL https://raw.githubusercontent.com/rmayobre/shtuff/refs/heads/main/shtuff-linux-remote.sh)
 
 # Configure US English locale
 locale "en_US.UTF-8"

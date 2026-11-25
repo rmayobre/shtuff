@@ -47,6 +47,7 @@ _shtuff_fetch_module() {
     _sl_code=""
     for _sf_cand in "$1_${SHTUFF_INTERP}" \
                     "$( [ "$SHTUFF_INTERP" = zsh ] && echo "$1_ash" )" \
+                    "$1_posix" \
                     "$( [ "$SHTUFF_INTERP" = bash ] && echo "$1" )"; do
         [ -n "$_sf_cand" ] || continue
         if _sl_code=$(_shtuff_fetch "${SHTUFF_BASE_URL}/src/${_sf_cand}.sh" 2>/dev/null) && [ -n "$_sl_code" ]; then
@@ -77,7 +78,7 @@ for _sl_mod in $_sl_list; do
 done
 
 if [ -n "$SHTUFF_SKIPPED" ] && [ "$SHTUFF_INTERP" != bash ]; then
-    echo "shtuff: running under ${SHTUFF_INTERP}; only logging is available." >&2
+    echo "shtuff: running under ${SHTUFF_INTERP}; modules that still need bash were skipped." >&2
     echo "shtuff: install bash (Alpine: apk add bash) for the full library." >&2
 fi
 unset _shtuff_manifest _sl_code _sf_cand _sl_list _sl_mod

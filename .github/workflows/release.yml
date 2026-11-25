@@ -26,6 +26,8 @@ jobs:
             shtuff-linux.sh \
             shtuff-core-remote.sh \
             shtuff-linux-remote.sh \
+            shtuff-mac.sh \
+            shtuff-mac-remote.sh \
             README.md \
             src/
 

@@ -9,11 +9,13 @@ exists but has not been run on that platform.
 |---|---|
 | bash 4+ | Supported (tested on Linux) |
 | bash 3.2 (macOS default) | Logging, `copy`, `move` and `confirm` were fixed for 3.2. Other modules are not checked. Untested on macOS |
-| BusyBox ash (Alpine default) | Logging only. The loader prints a message. Install bash with `apk add bash` |
-| zsh | Logging only (uses the ash variant) |
+| BusyBox ash (Alpine default) | Logging, colors, loading indicators and `monitor`. Other modules are skipped and the loader prints a message. Install bash with `apk add bash` for the rest |
+| zsh | Same subset as ash. `monitor` and the loading indicators have zsh versions; logging uses the ash version |
 
-Logging has a variant per interpreter (`log_bash.sh`, `log_ash.sh`). The ash one
-was tested under `dash`, not BusyBox ash.
+`monitor` and the loading indicators have a bash, zsh and ash implementation, and
+were tested in all three under a pseudo-terminal (`busybox ash` 1.36, `dash`, zsh 5.9,
+bash 5.2). Logging has bash and ash variants. This is Linux only: nothing here has
+run on macOS or on Alpine's own BusyBox build.
 
 ## Features by platform
 
@@ -23,7 +25,7 @@ was tested under `dash`, not BusyBox ash.
 | `install`, `update`, `uninstall`, `clean` | apt | dnf/yum | pacman | apk | Homebrew, untested |
 | Logging, prompts, `copy`, `move`, `delete`, `monitor` | Yes | Untested | Untested | Untested | Untested |
 | `scan` (port check) | Yes | Yes | Yes | Needs a fix, see below | Not implemented: no `ss` or `/proc` |
-| `service`, `timer` | systemd | systemd | systemd | Not implemented: Alpine uses OpenRC | Not implemented: launchd |
+| `service`, `timer` | systemd | systemd | systemd | Fails with an error: Alpine uses OpenRC, which is not supported yet | Fails with an error: launchd is not implemented |
 | `bridge`, `forward`, `network` | Yes | Untested | Untested | Needs `iproute2` and `iptables` | Not available |
 | Containers (`lxc_*`, `pct_*`) | Yes | Untested | Untested | Untested | Not available |
 | GPU helpers | Yes | Untested | Untested | Package names are Debian-specific | Not available |
@@ -34,12 +36,9 @@ far ran in a container without systemd, so the systemd functions were not run he
 
 ## Known gaps
 
-- **No init-system abstraction.** `service` and `timer` write systemd units. On a
-  system without systemd they do not fail cleanly. OpenRC (Alpine) and launchd
-  (macOS) versions are planned.
-- **Terminal handling.** `monitor` calls `tput`, which is missing from a fresh Alpine
-  and fails without a `TERM`. Spinner frames use UTF-8 glyphs that may not render
-  in a plain `C` locale.
+- **systemd only.** `service` and `timer` need `systemctl`. Without it they print an
+  error (naming OpenRC when it is detected) and return 1. On macOS, `shtuff-mac.sh`
+  provides placeholders that always fail. OpenRC and launchd versions are planned.
 - **`scan` on Linux.** The `/proc/net/tcp` fallback can match remote ports and
   non-listening sockets, so a port can be reported in use when it is not.
 - **Containers and GPU on Alpine.** Guest commands assume `bash`, and GPU package

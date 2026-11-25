@@ -1,27 +1,33 @@
 # Monitoring and utilities
 
-`monitor` waits on a background PID and shows a loading indicator. Start the command with `&` and pass `$!`.
+`monitor` runs a command (or watches a background PID), captures its output and shows a loading indicator and a status message instead. It has bash, zsh and ash implementations; the bash headers are shown here.
 
 > Generated from the header comments in `src/` by `docs/generate-reference.sh`. Edit the headers, not this file.
 
 ## `monitor`
 
-_Source: `src/core/utils/monitor.sh`_
+_Source: `src/core/utils/monitor_bash.sh`_
 
 ```text
 Function: monitor
-Description: Monitors a background process by PID, displaying a loading indicator until it exits,
-             then prints a success or error message based on its exit code.
-             When LOG_LEVEL=verbose the loading indicator is suppressed so that streaming command
-             output written to the console is not garbled by the spinner.
+Description: Runs or watches a process, replacing its output with a loading indicator and then a
+             status message. In command mode (-- COMMAND [ARGS...]) monitor starts the command
+             itself and captures its stdout and stderr in VERBOSE_FILE. In PID mode it watches a
+             process the caller already started in the background (the caller is responsible for
+             redirecting that process's output).
+             The animated indicator is skipped when stdout is not a terminal or when
+             LOG_LEVEL=verbose; in verbose mode a command's output streams to the console.
 
 Arguments:
-  $1 - pid (integer, required): Process ID of the background process to monitor.
+  $1 - pid (integer, optional): Process ID of a background process to watch. Omit it and give a
+       command after -- instead.
   --message MSG (string, optional, default: "Processing"): Message shown alongside the loading indicator.
   --style STYLE (string, optional, default: "spinner"): Loading indicator style.
       Valid values: spinner, dots, bars, arrows, clock.
   --success_msg MSG (string, optional, default: "Process completed"): Message printed on success.
   --error_msg MSG (string, optional, default: "Process failed"): Message printed on failure.
+  --dry-run (flag, optional): Do nothing; in command mode print the command instead of running it.
+  -- COMMAND [ARGS...] (string, optional): Command to run and capture. Must come after all options.
 
 Globals:
   DEFAULT_LOADING_STYLE (read): Fallback style used when --style is not provided.
@@ -30,22 +36,188 @@ Globals:
   BARS_LOADING_STYLE (read): Constant identifying the bars style.
   ARROWS_LOADING_STYLE (read): Constant identifying the arrows style.
   CLOCK_LOADING_STYLE (read): Constant identifying the clock style.
-  RESET_COLOR (read): ANSI reset sequence used to restore terminal color after the completion message.
+  VERBOSE_FILE (write): Receives the captured output of a command started by monitor.
   LOG_LEVEL (read): When set to "verbose", the loading indicator is skipped.
   VERBOSE_LEVEL (read): Constant identifying the verbose log level.
+  IS_DRY_RUN (read): When "true", behaves as if --dry-run was passed.
+  _MONITOR_PID (write): PID of the command monitor started, used by the interrupt handler.
 
 Returns:
-  0 - The monitored process exited successfully.
-  1 - No PID provided, PID does not exist, or unknown loading style specified.
-  N - Exit code of the monitored process when it exits with a non-zero status.
+  0 - The process exited successfully.
+  1 - No PID or command given, invalid PID, PID does not exist, or unknown loading style.
+  N - Exit code of the process when it exits with a non-zero status (143 if it was interrupted).
 
 Examples:
-  some_long_command &
-  monitor $! --message "Building project" --style spinner \
-      --success_msg "Build complete!" --error_msg "Build failed!" || exit 1
+  # Command mode: monitor runs the command and captures its output
+  monitor --message "Building project" --success_msg "Build complete!" \
+      --error_msg "Build failed!" -- make all || exit 1
 
-  download_file &
-  monitor $! --style dots --message "Downloading"
+  # PID mode: the caller starts the process and redirects its output
+  some_long_command >> "$VERBOSE_FILE" 2>&1 &
+  monitor $! --style dots --message "Downloading" || exit 1
+```
+
+## `draw_loading_indicator`
+
+_Source: `src/core/graphics/draw_loading_indicator_bash.sh`_
+
+```text
+Function: draw_loading_indicator
+Description: Displays a continuous loading indicator with a custom frame set until the given process exits.
+             Draws on its own terminal row, which it overwrites on every frame and leaves in place
+             when the process exits (the caller, normally monitor, erases it).
+
+Arguments:
+  $1 - pid (integer, required): Process ID to watch; the indicator stops when this process exits.
+  $2 - message (string, required): Message to display alongside the indicator.
+  $3 - color (string, required): ANSI escape code used to color the indicator and message.
+  $@ - frames (string, required): One or more frames that make up the animation
+       (all arguments after the first three).
+
+Globals:
+  RESET_COLOR (read): ANSI reset sequence applied after each frame to restore default color.
+
+Returns:
+  0 - The watched process exited (indicator loop completed).
+
+Examples:
+  draw_loading_indicator "$pid" "Building" "\033[36m" "⠋" "⠙" "⠹" "⠸"
+  draw_loading_indicator "$pid" "Loading" "\033[33m" "|" "/" "-" "\\"
+```
+
+## `draw_loading_spinner`
+
+_Source: `src/core/graphics/draw_loading_indicator_bash.sh`_
+
+```text
+Function: draw_loading_spinner
+Description: Displays a braille-spinner loading indicator alongside a message until the given process exits.
+             Falls back to ASCII frames when the locale is not UTF-8.
+
+Arguments:
+  $1 - pid (integer, required): Process ID to watch; the indicator stops when this process exits.
+  $2 - message (string, optional, default: "Loading"): Message to display alongside the indicator.
+  $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+
+Globals:
+  DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+  DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+  SPINNER_FRAMES (read): Frames of the animation.
+
+Returns:
+  0 - The watched process exited (indicator loop completed).
+
+Examples:
+  draw_loading_spinner "$pid"
+  draw_loading_spinner "$pid" "Working" "\033[33m"
+```
+
+## `draw_loading_dots`
+
+_Source: `src/core/graphics/draw_loading_indicator_bash.sh`_
+
+```text
+Function: draw_loading_dots
+Description: Displays a dots-style loading indicator alongside a message until the given process exits.
+             Falls back to ASCII frames when the locale is not UTF-8.
+
+Arguments:
+  $1 - pid (integer, required): Process ID to watch; the indicator stops when this process exits.
+  $2 - message (string, optional, default: "Loading"): Message to display alongside the indicator.
+  $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+
+Globals:
+  DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+  DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+  DOT_FRAMES (read): Frames of the animation.
+
+Returns:
+  0 - The watched process exited (indicator loop completed).
+
+Examples:
+  draw_loading_dots "$pid"
+  draw_loading_dots "$pid" "Working" "\033[33m"
+```
+
+## `draw_loading_bars`
+
+_Source: `src/core/graphics/draw_loading_indicator_bash.sh`_
+
+```text
+Function: draw_loading_bars
+Description: Displays a bar-fill loading indicator alongside a message until the given process exits.
+             Falls back to ASCII frames when the locale is not UTF-8.
+
+Arguments:
+  $1 - pid (integer, required): Process ID to watch; the indicator stops when this process exits.
+  $2 - message (string, optional, default: "Loading"): Message to display alongside the indicator.
+  $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+
+Globals:
+  DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+  DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+  BAR_FRAMES (read): Frames of the animation.
+
+Returns:
+  0 - The watched process exited (indicator loop completed).
+
+Examples:
+  draw_loading_bars "$pid"
+  draw_loading_bars "$pid" "Working" "\033[33m"
+```
+
+## `draw_loading_arrows`
+
+_Source: `src/core/graphics/draw_loading_indicator_bash.sh`_
+
+```text
+Function: draw_loading_arrows
+Description: Displays a rotating-arrow loading indicator alongside a message until the given process exits.
+             Falls back to ASCII frames when the locale is not UTF-8.
+
+Arguments:
+  $1 - pid (integer, required): Process ID to watch; the indicator stops when this process exits.
+  $2 - message (string, optional, default: "Loading"): Message to display alongside the indicator.
+  $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+
+Globals:
+  DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+  DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+  ARROW_FRAMES (read): Frames of the animation.
+
+Returns:
+  0 - The watched process exited (indicator loop completed).
+
+Examples:
+  draw_loading_arrows "$pid"
+  draw_loading_arrows "$pid" "Working" "\033[33m"
+```
+
+## `draw_loading_clock`
+
+_Source: `src/core/graphics/draw_loading_indicator_bash.sh`_
+
+```text
+Function: draw_loading_clock
+Description: Displays a clock-emoji loading indicator alongside a message until the given process exits.
+             Falls back to ASCII frames when the locale is not UTF-8.
+
+Arguments:
+  $1 - pid (integer, required): Process ID to watch; the indicator stops when this process exits.
+  $2 - message (string, optional, default: "Loading"): Message to display alongside the indicator.
+  $3 - color (string, optional, default: cyan): ANSI escape code used to color the indicator and message.
+
+Globals:
+  DEFAULT_MESSAGE (read): Fallback message used when $2 is not provided.
+  DEFAULT_LOADING_COLOR (read): Fallback ANSI color used when $3 is not provided.
+  CLOCK_FRAMES (read): Frames of the animation.
+
+Returns:
+  0 - The watched process exited (indicator loop completed).
+
+Examples:
+  draw_loading_clock "$pid"
+  draw_loading_clock "$pid" "Working" "\033[33m"
 ```
 
 ## `stop`

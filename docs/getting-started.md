@@ -6,10 +6,12 @@
 |---|---|
 | `shtuff-core.sh` | `core/` (logging, packaging, utils, prompts, `scan`, `poll`) |
 | `shtuff-linux.sh` | `core/` plus `linux/` (systemd, containers, GPU, `bridge`, `forward`, `network`, `locale`) |
+| `shtuff-mac.sh` | `core/` plus `mac/` (`service` and `timer` are placeholders that always fail for now) |
 | `shtuff-core-remote.sh` | Same as `shtuff-core.sh`, fetched from GitHub |
 | `shtuff-linux-remote.sh` | Same as `shtuff-linux.sh`, fetched from GitHub |
+| `shtuff-mac-remote.sh` | Same as `shtuff-mac.sh`, fetched from GitHub |
 
-If you are not sure, use the Linux entry point on Linux and the core one elsewhere.
+If you are not sure, use the entry point that matches your OS: `shtuff-linux*.sh` on Linux and `shtuff-mac*.sh` on macOS. `shtuff-core*.sh` loads only the platform-neutral modules.
 Calling a Linux-only function (such as `service`) after loading only core gives
 "command not found".
 
@@ -76,8 +78,9 @@ source <(curl -fsSL "${SHTUFF_BASE_URL}/shtuff-linux-remote.sh")
   `ca-certificates`; BusyBox `wget` needs `ssl_client` for HTTPS.
 - Package functions and `service` need root (or `sudo`).
 
-Under BusyBox ash or zsh only the logging functions load, and the loader prints a
-message saying so.
+Under BusyBox ash or zsh only the modules that have an ash or zsh implementation
+load (currently logging, colors, loading indicators and `monitor`). The loader
+prints a message listing that modules were skipped.
 
 ## Environment variables
 

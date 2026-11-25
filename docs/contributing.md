@@ -6,6 +6,8 @@
    platform, otherwise `src/linux/<feature>/`.
 2. If it is written for bash only, name it `<name>.sh`. If it needs separate
    implementations per shell, add `<name>_bash.sh`, `<name>_ash.sh` or `<name>_zsh.sh`.
+   If one file works unchanged in bash, zsh and ash (like `colors_posix.sh`), name it
+   `<name>_posix.sh`. zsh falls back to `<name>_ash.sh` when it has no `_zsh` file.
 3. Add one line to `src/manifest.txt`, without `.sh`, in load order:
    `core/utils/mything`. Modules that use another module's functions or constants
    must come after it.
@@ -55,7 +57,7 @@ Inside `src/`, send user-facing output through `info`, `warn`, `error` and
   run on macOS's bash 3.2.
 - Avoid `sed -i` without a suffix, `readlink -f`, `grep -P` and `date -d`. They differ
   on BSD and BusyBox.
-- Do not call `tput` directly; use ANSI escapes guarded by a TTY check.
+- Do not call `tput`; use ANSI escapes guarded by a TTY check, as `monitor` does.
 - Public functions are documented in [`AGENTS.md`](../AGENTS.md). Names starting with `_` are private.
 
 ## Testing

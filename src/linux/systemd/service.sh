@@ -34,7 +34,8 @@
 #
 # Returns:
 #   0 - Service unit file created (and enabled/started unless --lazy).
-#   1 - Required argument missing or unknown option provided.
+#   1 - Required argument missing, unknown option provided, or systemd is not available
+#       (for example on OpenRC systems such as Alpine).
 #
 # Examples:
 #   service \
@@ -154,6 +155,9 @@ service() {
         error "Error: ExecStart command is required (use -e or --exec-start)" >&2
         return 1
     fi
+
+    # systemd is required (OpenRC systems are not supported yet).
+    _require_systemd "service" || return 1
 
     # Ensure service name ends with .service
     if [[ "$service_name" != *.service ]]; then

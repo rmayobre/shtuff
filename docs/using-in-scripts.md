@@ -78,16 +78,28 @@ info "Manage it with: systemctl status ${SERVICE}"
 
 ## Common tasks
 
-Long-running commands: start in the background, then hand the PID to `monitor`.
+Long-running commands: let `monitor` run the command. Its output is captured in
+`$VERBOSE_FILE` and replaced by a loading indicator and a status message.
 
 ```bash
-tar -xzf /tmp/app.tar.gz -C /opt/app &
-monitor $! \
+monitor \
     --style "$SPINNER_LOADING_STYLE" \
     --message "Extracting" \
     --success_msg "Extracted" \
-    --error_msg "Extraction failed" || exit 1
+    --error_msg "Extraction failed" \
+    -- tar -xzf /tmp/app.tar.gz -C /opt/app || exit 1
 ```
+
+If you already started the process, pass its PID instead and redirect its output
+yourself:
+
+```bash
+tar -xzf /tmp/app.tar.gz -C /opt/app >> "$VERBOSE_FILE" 2>&1 &
+monitor $! --message "Extracting" || exit 1
+```
+
+The animation is skipped when stdout is not a terminal or `LOG_LEVEL=verbose`. In
+verbose mode the command's output streams to the console instead.
 
 Styles: `$SPINNER_LOADING_STYLE`, `$DOTS_LOADING_STYLE`, `$BARS_LOADING_STYLE`,
 `$ARROWS_LOADING_STYLE`, `$CLOCK_LOADING_STYLE`.

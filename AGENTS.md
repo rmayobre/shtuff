@@ -20,7 +20,8 @@ creating or modifying installer or update scripts.
 
 All utilities live in `src/`. Pick the entry point for the platform: `shtuff-core*.sh`
 loads `src/core/` (works anywhere bash does); `shtuff-linux*.sh` loads `src/core/`
-plus `src/linux/`. The `-remote` entry points fetch every module from GitHub at runtime.
+plus `src/linux/`; `shtuff-mac*.sh` loads `src/core/` plus `src/mac/`. The `-remote`
+entry points fetch every module from GitHub at runtime.
 
 ## Repository Layout
 
@@ -28,34 +29,38 @@ plus `src/linux/`. The `-remote` entry points fetch every module from GitHub at 
 shtuff/
 ├── shtuff-core.sh          # Local entry point: core modules only
 ├── shtuff-linux.sh         # Local entry point: core + linux modules
+├── shtuff-mac.sh           # Local entry point: core + mac modules
 ├── shtuff-core-remote.sh   # Remote entry point: core only
 ├── shtuff-linux-remote.sh  # Remote entry point: core + linux
+├── shtuff-mac-remote.sh    # Remote entry point: core + mac
 ├── src/
 │   ├── manifest.txt        # Ordered module list read by both loaders
 │   ├── loader.sh           # Shared local loader (interpreter detection, variants)
 │   ├── loader-remote.sh    # Shared remote loader
 │   ├── core/               # Common to every platform
-│   │   ├── graphics/       # ANSI colors, loading indicators
+│   │   ├── graphics/       # colors_posix.sh, draw_loading_indicator_{bash,zsh,ash}.sh
 │   │   ├── logging/        # log_bash.sh, log_ash.sh (per-interpreter variants)
 │   │   ├── networking/     # scan, poll
 │   │   ├── packaging/      # install/update/uninstall/clean/dependencies, brew.sh
 │   │   ├── prompts/
-│   │   └── utils/          # monitor, copy, move, delete, download, progress, stop
+│   │   └── utils/          # monitor_{bash,zsh,ash}.sh, copy, move, delete, download, progress, stop
 │   ├── linux/              # Linux-only logic
 │   │   ├── containers/     # lxc/ and pct/ container functions
 │   │   ├── gpu/
 │   │   ├── networking/     # bridge, forward, network
 │   │   ├── system/         # locale
 │   │   └── systemd/        # service(), timer()
-│   └── mac/                # macOS-only logic (reserved; empty)
+│   └── mac/                # macOS-only logic
+│       └── launchd/        # service, timer: placeholders that always fail for now
 ├── docs/                   # Project docs; docs/reference/ is generated
 ├── tests/
 └── examples/
 ```
 
 Modules may ship interpreter variants (`<name>_bash.sh`, `<name>_ash.sh`,
-`<name>_zsh.sh`). The loader prefers the variant for the running shell, then
-`<name>.sh` (bash only). Homebrew support lives in `core/packaging/` because it
+`<name>_zsh.sh`) or one shared `<name>_posix.sh`. The loader tries, in order: the
+variant for the running shell, `_ash` (zsh only), `_posix`, then `<name>.sh`
+(bash only). Homebrew support lives in `core/packaging/` because it
 runs on Linux as well as macOS. See [`docs/architecture.md`](docs/architecture.md).
 
 ---
@@ -110,16 +115,30 @@ Each call runs in the background behind a loading indicator. Optional flags:
 
 ### Background Process Monitor
 
-Run the command in the background, then pass its PID to `monitor`:
+`monitor` captures a process's output and replaces it with a loading indicator and a
+status message. Output goes to `$VERBOSE_FILE`. It has bash, zsh and ash implementations.
+
+Preferred: let `monitor` run the command, after `--`:
 
 ```bash
-long_running_command &
-monitor $! \
+monitor \
     --style "$SPINNER_LOADING_STYLE" \
     --message "Human-readable progress message" \
     --success_msg "Completed message" \
-    --error_msg "Failure message" || exit 1
+    --error_msg "Failure message" \
+    -- long_running_command arg1 arg2 || exit 1
 ```
+
+Or watch a process you started yourself (redirect its output, since `monitor` cannot
+capture a process that is already running):
+
+```bash
+long_running_command >> "$VERBOSE_FILE" 2>&1 &
+monitor $! --message "Human-readable progress message" || exit 1
+```
+
+The animation is skipped when stdout is not a terminal or `LOG_LEVEL=verbose` (the
+command's output then streams to the console).
 
 Available `--style` values:
 - `$SPINNER_LOADING_STYLE` — braille spinner (default for most steps)
@@ -128,7 +147,8 @@ Available `--style` values:
 - `$ARROWS_LOADING_STYLE` — rotating arrow
 - `$CLOCK_LOADING_STYLE` — clock emoji
 
-Always append `|| exit 1` — `monitor` returns the background process exit code.
+Always append `|| exit 1` — `monitor` returns the process exit code (143 if the
+command was interrupted).
 
 ### File Operations
 
@@ -180,6 +200,10 @@ DEPLOY_ENV="$answer"
   returns `0` for yes, `1` for no. Can be used directly in `if` statements.
 
 ### Systemd Service Generator
+
+Systemd only for now. Without `systemctl`, `service` and `timer` print an error (naming
+OpenRC when it is detected, as on Alpine) and return 1. On macOS they are placeholders
+that always fail; launchd and OpenRC support are planned.
 
 ```bash
 service \
@@ -488,8 +512,9 @@ in this exact format:
   Linux-only tool to load. Check with `bash -c 'source ./shtuff-core.sh; type your_fn'`.
 - Add every new module to `src/manifest.txt` (path without `.sh`, in load order).
   A module that uses another module's functions or constants must come after it.
-- Ship interpreter variants (`<name>_bash.sh`, `<name>_ash.sh`) only where the
-  code genuinely differs.
+- Ship interpreter variants (`<name>_bash.sh`, `<name>_ash.sh`, `<name>_zsh.sh`) only
+  where the code genuinely differs. Code that runs unchanged everywhere goes in
+  `<name>_posix.sh`.
 - Avoid bash-4-only syntax in `core/` (`declare -A`, `${var,,}`, `${arr[-1]}`) so
   it keeps working on macOS's bash 3.2. See [`docs/contributing.md`](docs/contributing.md)
   for the full portability checklist.
@@ -544,7 +569,9 @@ Run `shellcheck` too when it is available:
 shellcheck examples/install-myapp-native.sh
 ```
 
-Run the test script, which sources `shtuff-core.sh`:
+Run the test scripts (they source `shtuff-core.sh`; `monitor_test.sh` runs under every
+installed interpreter: bash, zsh, busybox ash, dash):
 ```bash
 bash tests/file_operations_test.sh
+bash tests/monitor_test.sh
 ```

@@ -52,7 +52,8 @@ readonly _TIMER_DEFAULT_WANTED_BY="timers.target"
 #
 # Returns:
 #   0 - Timer unit file created (and enabled/started unless --lazy), or --help was requested.
-#   1 - Invalid or missing arguments (e.g., blank name, unexpected flag).
+#   1 - Invalid or missing arguments (e.g., blank name, unexpected flag), or systemd is not available
+#       (for example on OpenRC systems such as Alpine).
 #   2 - File system error (output directory does not exist, or file already exists without --force).
 #   3 - Permission denied writing the timer file.
 #
@@ -166,6 +167,9 @@ timer() {
         error "At least one scheduling option is required (--on-calendar, --on-boot-sec, --on-unit-active-sec, or --on-unit-inactive-sec)."
         return 1
     fi
+
+    # systemd is required (OpenRC systems are not supported yet).
+    _require_systemd "timer" || return 1
 
     local content=""
 
